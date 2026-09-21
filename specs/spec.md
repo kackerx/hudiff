@@ -1,6 +1,6 @@
 # hudiff v1 (Go 重写) —— 技术选型与架构规格
 
-状态: **草案, 2026-09-21**, 等 kackerx 拍板 §11 的开放问题后进入 M1。
+状态: **定稿, 2026-09-21**(§11 六项已拍板), 进入 M1。
 上一版(Python 单文件 `hudiff`, 3595 行)是本规格的 oracle: 行为以它为准, 除非本文明确说改。
 
 ## 0. 一句话
@@ -47,17 +47,17 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 flag 与位置参数可交错(kong 默认)。
 
 ```
-hudiff [<target>] [-- <pathspec>...]              = hudiff diff
-hudiff diff [<target>] [--staged|--unstaged] [-- <pathspec>...]
-    无 target       工作区 vs HEAD(含已暂存, 含未跟踪)
-    <ref>           工作区 vs <ref>
-    <a>..<b> / <a>...<b>   区间
-hudiff show [<rev>]                               单个 commit(默认 HEAD)与首个父提交比; merge 取 first-parent
+hudiff [--staged|--unstaged] [-- <pathspec>...]  【默认, 无动词】工作区 vs HEAD(含已暂存, 含未跟踪)
+hudiff commit [<rev>]                             单个 commit(默认 HEAD)与首个父提交比; merge 取 first-parent
+hudiff range <a>..<b> | <a>...<b> | <a>           区间; 只给 <a> = 工作区 vs <a>
 hudiff pr <n|#n|url>                              GitHub PR(gh pr diff / gh pr view)
 hudiff patch [<file>|-]                           补丁文件 / stdin
 hudiff open [<session-id|prefix>]                 用查看器重开已有会话(默认最近一次)
 
-  Review options(diff / show / pr / patch 共用):
+  kong 实现提示: 根命令无子命令时落到 `workspace` 子命令(`cmd:"" default:"withargs"`), 它挂 --staged/--unstaged
+  和 `-- pathspec`; 这样 `hudiff --staged` 和 `hudiff -p "…"` 都不用写动词。
+
+  Review options(workspace / commit / range / pr / patch 共用):
   --web | --tui                 查看器覆盖(默认 config.viewer; v1 里 --tui 报 not implemented)
   --no-open                     只建/刷新会话并打印 id, 不开查看器
   --json                        打印会话信息 JSON(隐含 --no-open)—— agent 走这条
@@ -88,7 +88,8 @@ hudiff config  path | show | init
 hudiff version
 ```
 
-与 Python 版的**故意变更**: `open` 从"创建"变成"重开", 创建拆成 `diff/show/pr/patch`; `show`(agent 读 diff)
+与 Python 版的**故意变更**(2026-09-21 已拍板): 工作区 diff 不要动词, `hudiff` 裸跑就是; 单 commit 用 `commit`
+(不是 hunk 的 `show`, 名词和 `pr`/`patch` 一致); 区间用 `range`; `open` 从"创建"变成"重开"; `show`(agent 读 diff)
 改名 `read`; `ctx` → `context`; `ls/url/stop/serve/rm/archive/refresh/info` 收进 `session` / `daemon`。
 其余子命令名与 flag 保持。
 
@@ -117,7 +118,7 @@ hudiff version
 }
 ```
 
-**会话数据放哪**(待拍板, 见 §11): 建议默认留在 XDG state(`~/.local/state/hudiff/`), 因为
+**会话数据放哪**(已拍板: XDG state): 默认 `~/.local/state/hudiff/`, 因为
 ① XDG 把 state 和 config 分开就是为了这个; ② kackerx 的 `~/.config` 是跨机器同步的 git 仓库, 会话数据是
 单机的、会长大(现 2.3MB)、含私有代码, 不该进去。要放一起就设 `data_dir`。
 
@@ -238,11 +239,13 @@ HTTP API 前缀 `/s/{sid}/api/`: `session(GET)`, `state`, `wait`, `submit(POST)`
 - **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段
 - **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap
 
-## 11. 待拍板
+## 11. 拍板记录(2026-09-21, kackerx)
 
-1. 会话数据默认位置: XDG state(建议)还是 `~/.config/hudiff/sessions`?
-2. `open`/`show`/`read` 的语义变更接受吗?(见 §3 末)
-3. 快捷键默认表(§6)先按草案做, 后续再调?
-4. Windows: v1 保证能编译、`diff/read/notes` 等无 daemon 路径能跑; daemon 拉起用 DETACHED_PROCESS 尽力, 不承诺
-5. License(建议 MIT)
-6. 公开文档语言: README 现为中文, 开源前是否切英文(UI/skill 已定英文)
+1. 会话数据默认位置 → **XDG state**(`~/.local/state/hudiff/`), `data_dir` 可配
+2. CLI → **不要 `diff` 动词**, 裸 `hudiff` = 工作区; `hudiff commit <rev>` / `hudiff pr <x>` / `hudiff range a..b` / `hudiff patch`;
+   `show→read`、`ctx→context`、`open`=重开 接受
+3. 快捷键 → 先按 §6 草案做, 后续再调
+4. Windows → v1 保证能编译、无 daemon 路径能跑; daemon 拉起用 DETACHED_PROCESS 尽力, 不承诺
+5. License → **MIT**
+6. README → **英文**, 顶部放 `uvx pyfiglet -w 200 -f ansi_shadow hudiff` 生成的 banner, 然后 logo, 结构按常见开源项目
+   (Features / Install / Quickstart / Agent skill / Configuration / How it works / Development / License)
