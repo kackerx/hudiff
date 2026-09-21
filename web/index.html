@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hudiff · 会话</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+:root{--bg:#fff;--bg2:#f6f8fa;--bg3:#eef1f5;--fg:#1f2328;--fg2:#656d76;--line:#d8dee4;--accent:#0969da;--accent-bg:#ddf4ff;--add:#1a7f37;--del:#cf222e;--del-fg:#cf222e;--warn:#9a6700;--warn-bg:#fff8c5;--ok-bg:#dafbe1;--mono:ui-monospace,"SF Mono",Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1f2630;--fg:#e6edf3;--fg2:#9198a1;--line:#30363d;--accent:#58a6ff;--accent-bg:#1b2a41;--add:#3fb950;--del:#f85149;--del-fg:#f85149;--warn:#d29922;--warn-bg:#2a2210;--ok-bg:#12261e}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+header{padding:16px 24px 12px;border-bottom:1px solid var(--line);background:var(--bg2);display:flex;align-items:baseline;gap:14px}
+header h1{margin:0;font-size:17px;font-weight:650;display:flex;align-items:center;gap:8px}header .hint{color:var(--fg2);font-size:12px}
+main{max-width:1100px;margin:0 auto;padding:16px 24px}
+.card{cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"kind title right" "kind meta right";gap:4px 14px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px;background:var(--bg);text-decoration:none;color:inherit;transition:border-color .12s,box-shadow .12s}
+.card:hover{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+.kind{grid-area:kind;justify-self:start;font-size:11px;padding:2px 8px;border-radius:5px;background:var(--accent);color:#fff;font-weight:600;white-space:nowrap}
+.kind.worktree{background:#bf8700}.kind.pr{background:#8250df}.kind.range{background:#1a7f37}
+.title{grid-area:title;font-weight:600;font-size:14.5px}.meta{grid-area:meta;color:var(--fg2);font-size:12px;display:flex;gap:12px;flex-wrap:wrap}
+.meta code{font-family:var(--mono);font-size:11px;background:var(--bg3);padding:0 5px;border-radius:4px}
+.meta a{color:var(--accent);text-decoration:none} .meta a:hover{text-decoration:underline}
+.meta .msg{color:var(--fg);max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card.archived{opacity:.55} .card.archived:hover{opacity:.85}
+.right{grid-area:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12px;color:var(--fg2)}
+.pm b.a{color:var(--add)}.pm b.d{color:var(--del)}
+.chip{display:inline-block;font-size:10.5px;padding:0 7px;border-radius:10px;background:var(--bg3);color:var(--fg2);line-height:17px;margin-left:4px}
+.chip.sent{background:var(--warn-bg);color:var(--warn)}.chip.wait{background:var(--ok-bg);color:var(--add)}.chip.open{background:var(--accent-bg);color:var(--accent)}
+button{font:inherit;font-size:11.5px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg2);cursor:pointer}button:hover{color:var(--accent);border-color:var(--accent)} button[data-id]:hover{color:var(--del);border-color:var(--del)}
+.empty{color:var(--fg2);text-align:center;padding:60px 0}
+pre{background:var(--bg3);padding:10px 14px;border-radius:8px;font-size:12px;overflow:auto}
+</style></head><body>
+<header><h1><svg class="mark" viewBox="0 0 64 64" width="20" height="20" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21V9h12M43 9h12v12M9 43v12h12M55 43v12H43" style="stroke:var(--fg2)"/><path d="M22 26h15" style="stroke:var(--del)"/><path d="M22 38h20" style="stroke:var(--add)"/></svg>hudiff</h1><span class="hint" id="cnt"></span><label class="hint" style="margin-left:auto;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" id="showarch"> 显示已归档</label><span class="hint">新建: <code>hudiff open …</code> 或在 agent 里 <code>/hudiff &lt;目标&gt;</code></span></header>
+<main id="list"></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const kindCN={worktree:'工作区',commit:'commit',range:'区间',pr:'PR',patch:'补丁'};
+let showArch=false; try{ showArch=localStorage.getItem('hudiff.home.arch')==='1'; }catch(e){}
+document.getElementById('showarch').checked=showArch;
+document.getElementById('showarch').onchange=e=>{ showArch=e.target.checked; try{ localStorage.setItem('hudiff.home.arch', showArch?'1':'0'); }catch(x){} load(); };
+function kindMeta(s){
+  const m=s.meta||{}; const parts=[`<span>${esc(s.repo.split('/').pop())}</span>`];
+  if(s.kind==='pr'){ if(m.url) parts.push(`<a href="${esc(m.url)}" target="_blank" onclick="event.stopPropagation()">${esc(m.url.replace(/^https?:\/\/(www\.)?/,''))}</a>`); if(m.base||m.head) parts.push(`<span><code>${esc(m.head||'?')}</code> → <code>${esc(m.base||'?')}</code></span>`); if(m.author) parts.push(`<span>@${esc(m.author)}</span>`); }
+  else if(s.kind==='commit'){ parts.push(`<span><code>${esc(m.rev||'')}</code>${m.base?` ← <code>${esc(m.base)}</code>`:''}</span>`); if(m.author) parts.push(`<span>${esc(m.author)}</span>`); if(m.date) parts.push(`<span>${esc(m.date)}</span>`); if(m.body) parts.push(`<span class="msg" title="${esc(m.body)}">${esc(m.body.split('\n')[0])}</span>`); }
+  else if(s.kind==='range'){ parts.push(`<span><code>${esc(m.base||'')}</code> … <code>${esc(m.head||'')}</code></span>`); if(m.branch) parts.push(`<span>分支 <code>${esc(m.branch)}</code></span>`); }
+  else if(s.kind==='worktree'){ if(m.branch) parts.push(`<span>分支 <code>${esc(m.branch)}</code></span>`); if(m.base) parts.push(`<span>基线 <code>${esc(m.base)}</code></span>`); parts.push(`<span>${({worktree:'未提交',staged:'已暂存',unstaged:'未暂存'})[m.scope]||''}</span>`); }
+  else if(s.kind==='patch'){ if(m.source) parts.push(`<span><code>${esc(m.source)}</code></span>`); }
+  parts.push(`<span>${esc(s.created.slice(0,16).replace('T',' '))}</span>`);
+  if(s.archived) parts.push(`<span class="chip">已归档</span>`);
+  return parts.join('');
+}
+async function load(){
+  const d=await (await fetch('/api/sessions')).json(); const all=d.sessions; const arch=all.filter(s=>s.archived).length; const ss=showArch?all:all.filter(s=>!s.archived);
+  document.getElementById('cnt').textContent=`${ss.length} 个会话${arch&&!showArch?` · ${arch} 个已归档`:''} · 端口 ${d.port}`;
+  if(!ss.length){ document.getElementById('list').innerHTML='<div class="empty">还没有会话。<br><br><pre>hudiff open            # 工作区改动\nhudiff open HEAD~1     # 某个 commit\nhudiff open pr 123     # GitHub PR</pre></div>'; return; }
+  document.getElementById('list').innerHTML=ss.map(s=>{
+    const c=s.counts||{}; const chips=[s.waiting?'<span class="chip wait">● agent 在等</span>':'', c.sent?`<span class="chip sent">${c.sent} 条待 agent 处理</span>`:'', c.open?`<span class="chip open">${c.open} 条未发送</span>`:'', c.replied?`<span class="chip">${c.replied} 条已回复</span>`:'', !s.noted?'<span class="chip">还没有说明</span>':''].join('');
+    return `<div class="card ${s.archived?'archived':''}" data-href="/s/${s.id}/">
+      <span class="kind ${esc(s.kind)}">${esc(kindCN[s.kind]||s.kind)}</span>
+      <span class="title">${esc(s.title)}${chips}</span>
+      <span class="right"><span class="pm">${s.files} 个文件 <b class="a">+${s.add}</b> <b class="d">−${s.del_}</b> · ${s.comments} 条评论</span><span><button data-arch="${s.id}" data-to="${s.archived?0:1}" title="${s.archived?'取消归档':'归档: 首页不再列出, 数据保留'}">${s.archived?'取消归档':'归档'}</button> <button data-id="${s.id}" title="删除会话(含评论)">删除</button></span></span>
+      <span class="meta">${kindMeta(s)}</span></div>`;
+  }).join('');
+  document.querySelectorAll('.card[data-href]').forEach(c=>c.onclick=e=>{ if(e.target.closest('a,button')) return; location.href=c.dataset.href; });
+  document.querySelectorAll('button[data-id]').forEach(b=>b.onclick=async e=>{ e.preventDefault(); e.stopPropagation(); if(!(await dlg.confirm('删除这个会话?', '说明、图解、评论、审查报告一起删, 不可恢复。只是不想在首页看到的话, 用「归档」。', {ok:'删除', danger:true}))) return; await fetch('/api/s/'+b.dataset.id,{method:'DELETE'}); load(); });
+  document.querySelectorAll('button[data-arch]').forEach(b=>b.onclick=async e=>{ e.preventDefault(); e.stopPropagation(); await fetch('/api/s/'+b.dataset.arch,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:b.dataset.to==='1'})}); load(); });
+}
+load(); setInterval(load, 3000);
+</script><!--DLG--></body></html>

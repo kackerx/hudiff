@@ -133,15 +133,18 @@ hudiff/
     session/              data_dir 布局, JSON 原子读写(temp+rename), source_key 幂等, archive, 列表
     diff/                 unified diff → files/hunks/lines; hunk 编号必须与 Python 逐字一致(讲解按它对位)
     source/               git worktree/ref/range、commit、gh pr、patch → diff 文本 + meta
-    context/              git log / 符号提取 / 引用查找(原 collect_ctx)
+    repoctx/              git log / 符号提取 / 引用查找(原 collect_ctx); 不叫 context/ 是为了不遮蔽标准库
     review/               validate(file:line 在 diff 里)+ merge(并入规则, 见 §8.4)
     diagram/              d2 渲染缓存、auto-map 生成(两种方言各一个 emitter)
     daemon/               net/http server, 长轮询 waiters, server.json, 拉起/停止
     viewer/               interface Viewer { Open(sess) }; web/ 实现 = 确保 daemon 在 + 开浏览器; tui/ 占位
     browser/              跨平台 open URL
-  web/                    index.html / session.html / app.css / app.js / dlg.html(embed)
+  web/                    index.html / session.html / dlg.html / favicon.svg(embed)
+                          M1 从 Python 常量原样拆出, M5 英文化时再分出 app.css / app.js
   skills/hudiff/SKILL.md  (embed; `skill path` 会把它落到 $XDG_DATA_HOME/hudiff/skill/ 再打印路径)
-  legacy/hudiff.py        Python 版, M6 删
+  legacy/hudiff.py        Python 版 oracle, M6 删
+  hudiff                  M1–M5 是跑 legacy 的 /bin/sh shim(会解析软链), M6 换成 go build 产物
+  bin/hudiff              go build 输出, .gitignore(M6 之前根目录被 shim 占着)
   specs/                  本文 + handoff
 ```
 
@@ -227,10 +230,14 @@ HTTP API 前缀 `/s/{sid}/api/`: `session(GET)`, `state`, `wait`, `submit(POST)`
 ## 10. 移植策略与里程碑
 
 冻结四个契约(§8 数据、§3 CLI、§8 HTTP、`read` 文本), 现有 3 个会话是夹具, Python 版是 oracle。
-`specs/parity.sh`: 对同一会话跑 `read` / `session info --json` / `GET /api/session`, 两边 diff 为空才算过。
+`specs/parity.sh`: 对同一会话跑 `read`(含 `-W` / `-U`)/ `session info --json` / `session list` /
+`GET /api/session` / `GET /api/sessions` / 每张图的 SVG(两个主题)/ 冷缓存重渲染 / 页面截图, 全部相等才算过。
+两个 daemon 共用 server.json, 所以脚本让它们轮流上: 先抓 Python 侧, 换 Go daemon 再抓一遍, 退出前把
+Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `steps` 图是动画, 每次截到的帧不同, 真正的
+对照是上面逐字节比的 SVG。
 
 - **M0** 本文定稿(§11 拍板)
-- **M1** 骨架: `go.mod` / kong / config / embed / daemon / `session list|info|url` / `read` / `open`,
+- **M1** ✅ 2026-09-21 骨架: `go.mod` / kong / config / embed / daemon / `session list|info|url` / `read` / `open`,
   Python 写好的会话在 Go daemon 下页面完整可用 → 契约正确的证明。`git mv hudiff legacy/hudiff.py`,
   根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
 - **M2** `diff/show/pr/patch` + source key 幂等 + `refresh` 评论对位

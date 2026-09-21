@@ -1,0 +1,33 @@
+
+<style>
+#dlg{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(15,20,30,.35);backdrop-filter:blur(2px)}
+#dlg.on{display:flex}
+#dlg .box{width:min(440px,calc(100vw - 40px));background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:18px 20px 16px;animation:dlgin .14s ease-out}
+@keyframes dlgin{from{transform:translateY(6px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+#dlg .t{font-size:15px;font-weight:650;margin:0 0 6px}
+#dlg .m{font-size:13px;color:var(--fg2);line-height:1.6;white-space:pre-wrap}
+#dlg textarea{width:100%;margin-top:10px;min-height:72px;font:13px/1.5 var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg2);color:var(--fg);resize:vertical;outline:none}
+#dlg textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+#dlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+#dlg .acts button{font:inherit;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+#dlg .acts button:hover{background:var(--bg3)}
+#dlg .acts button.ok{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+#dlg .acts button.ok.danger{background:var(--del-fg);border-color:var(--del-fg)}
+#dlg .acts button.ok:hover{filter:brightness(1.08)}
+</style>
+<div id="dlg"><div class="box" role="dialog"><h3 class="t"></h3><div class="m"></div><textarea style="display:none"></textarea><div class="acts"><button class="cancel">取消</button><button class="ok">确定</button></div></div></div>
+<script>
+const dlg = (() => {
+  const el=document.getElementById('dlg'), t=el.querySelector('.t'), m=el.querySelector('.m'), ta=el.querySelector('textarea'), ok=el.querySelector('.ok'), cancel=el.querySelector('.cancel');
+  let resolve=null;
+  const close=v=>{ el.classList.remove('on'); const r=resolve; resolve=null; if(r) r(v); };
+  ok.onclick=()=>close(ta.style.display==='none'?true:ta.value);
+  cancel.onclick=()=>close(ta.style.display==='none'?false:null);
+  el.onclick=e=>{ if(e.target===el) cancel.onclick(); };
+  document.addEventListener('keydown',e=>{ if(!el.classList.contains('on')) return; if(e.key==='Escape'){ e.stopPropagation(); cancel.onclick(); } if(e.key==='Enter' && (ta.style.display==='none' || e.metaKey||e.ctrlKey)){ e.preventDefault(); e.stopPropagation(); ok.onclick(); } }, true);
+  const open=(title,msg,opts)=>{ t.textContent=title; m.textContent=msg||''; m.style.display=msg?'':'none'; ok.textContent=opts.ok||'确定'; ok.classList.toggle('danger',!!opts.danger); cancel.textContent=opts.cancel||'取消';
+    if(opts.input!==undefined){ ta.style.display=''; ta.value=opts.input||''; ta.placeholder=opts.placeholder||''; } else ta.style.display='none';
+    el.classList.add('on'); setTimeout(()=>(ta.style.display==='none'?ok:ta).focus(),0); return new Promise(r=>resolve=r); };
+  return { confirm:(title,msg,opts={})=>open(title,msg,opts), prompt:(title,msg,opts={})=>open(title,msg,{input:'',...opts}) };
+})();
+</script>
