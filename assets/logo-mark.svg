@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- hudiff mark: HUD corner brackets framing a diff (old line, new line) -->
+  <style>
+    .hud{stroke:#0969da} .old{stroke:#8b949e} .new{stroke:#2da44e}
+    @media (prefers-color-scheme:dark){ .hud{stroke:#58a6ff} .old{stroke:#6e7681} .new{stroke:#3fb950} }
+  </style>
+  <g fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+    <path class="hud" d="M9 21V9h12M43 9h12v12M9 43v12h12M55 43v12H43"/>
+    <path class="old" d="M22 26h15"/>
+    <path class="new" d="M22 38h20"/>
+  </g>
+</svg>
