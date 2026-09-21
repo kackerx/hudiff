@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 72" width="300" height="72">
   <style>
-    .hud{stroke:#0969da} .old{stroke:#8b949e} .new{stroke:#2da44e}
-    .hu{fill:#0969da} .diff{fill:#1f2328} .tag{fill:#656d76}
-    @media (prefers-color-scheme:dark){ .hud{stroke:#58a6ff} .old{stroke:#6e7681} .new{stroke:#3fb950} .hu{fill:#58a6ff} .diff{fill:#e6edf3} .tag{fill:#9198a1} }
+    .hud{stroke:#8b949e} .del{stroke:#cf222e} .add{stroke:#2da44e}
+    .hu{fill:#1f2328} .diff{fill:#656d76} .tag{fill:#8b949e}
+    @media (prefers-color-scheme:dark){ .hud{stroke:#6e7681} .del{stroke:#f85149} .add{stroke:#3fb950} .hu{fill:#e6edf3} .diff{fill:#9198a1} .tag{fill:#6e7681} }
     text{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace}
   </style>
   <g transform="translate(4 4)" fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
     <path class="hud" d="M9 21V9h12M43 9h12v12M9 43v12h12M55 43v12H43"/>
-    <path class="old" d="M22 26h15"/>
-    <path class="new" d="M22 38h20"/>
+    <path class="del" d="M22 26h15"/>
+    <path class="add" d="M22 38h20"/>
   </g>
   <text x="82" y="43" font-size="34" font-weight="700" letter-spacing="-1"><tspan class="hu">hu</tspan><tspan class="diff">diff</tspan></text>
   <text x="84" y="63" font-size="12.5" class="tag" letter-spacing=".3">diffs for humans</text>
