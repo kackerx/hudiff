@@ -33,15 +33,11 @@ sweep_states() {
 # Allowed to differ, with reasons:
 #   id / created   new session each run
 #   opener         spec §8.1 dropped tmux_pane + ppid, renamed claude_session
-#   diagram_engine spec §7 / §11.7 writes it on every session; the oracle
-#                  predates the field entirely, so it is an extra key, not a
-#                  different value
 strip_session() {
     python3 -c 'import json,sys
 d = json.load(open(sys.argv[1]))
 for k in ("id", "created", "opener"):
     d.pop(k, None)
-d.get("meta", {}).pop("diagram_engine", None)
 print(json.dumps(d, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
 }
 

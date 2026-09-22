@@ -460,7 +460,7 @@ function renderMidbar(){
   const n=(S.data.diagrams||[]).length; const rc=rvCounts(); const hasRv=!!S.data.review;
   const cs=S.data.comments||[]; const cDone=cs.filter(c=>c.status==='resolved').length; const rTotal=((S.data.review||{}).items||[]).length; const rDone=rc.done+rc.wontfix;
   const badge=(done,total,red)=>`<span class="n" style="${total&&done===total?'background:var(--ok);color:#fff':(red?'background:var(--del-fg);color:#fff':'')}">${done}<span style="opacity:.6">/${total}</span></span>`;
-  $('#midbar').innerHTML = `<button class="tab ${S.mid==='code'?'on':''}" data-mid="code" title="${cs.length} 条评论, 已解决 ${cDone}">代码${cs.length?badge(cDone,cs.length,false):''}</button><button class="tab ${S.mid==='diagrams'?'on':''}" data-mid="diagrams">图解<span class="n">${n}</span></button><button class="tab ${S.mid==='review'?'on':''}" data-mid="review" title="${hasRv?`已处理 ${rDone} / 共 ${rTotal} 项, 待处理 ${rc.open}`:'还没有审查报告'}">审查${hasRv?badge(rDone,rTotal,rc.high>0):''}</button><span class="sp"></span>${S.mid==='diagrams'?`<span class="hint">${S.data.d2?'点图放大 · 点 hunk 标签跳回代码':'d2 未安装, 只能显示 mermaid 图'}</span>`:''}${S.mid==='review'&&hasRv?`<span class="hint">点勾 = 标记已处理 · 点 文件:行 跳到代码 · agent 用 hudiff review done &lt;id&gt; 打钩</span>`:''}`;
+  $('#midbar').innerHTML = `<button class="tab ${S.mid==='code'?'on':''}" data-mid="code" title="${cs.length} 条评论, 已解决 ${cDone}">代码${cs.length?badge(cDone,cs.length,false):''}</button><button class="tab ${S.mid==='diagrams'?'on':''}" data-mid="diagrams">图解<span class="n">${n}</span></button><button class="tab ${S.mid==='review'?'on':''}" data-mid="review" title="${hasRv?`已处理 ${rDone} / 共 ${rTotal} 项, 待处理 ${rc.open}`:'还没有审查报告'}">审查${hasRv?badge(rDone,rTotal,rc.high>0):''}</button><span class="sp"></span>${S.mid==='diagrams'?`<span class="hint">点图放大 · 点 hunk 标签跳回代码</span>`:''}${S.mid==='review'&&hasRv?`<span class="hint">点勾 = 标记已处理 · 点 文件:行 跳到代码 · agent 用 hudiff review done &lt;id&gt; 打钩</span>`:''}`;
   $('#midbar').querySelectorAll('.tab').forEach(b=>b.onclick=()=>showMid(b.dataset.mid));
   $('#diff').style.display = S.mid==='code'?'':'none';
   $('#diagrams').style.display = S.mid==='diagrams'?'':'none';
@@ -560,7 +560,7 @@ function renderDiagrams(){
   let html='';
   dgs.forEach(dg=>{
     const chips=(dg.hunks||[]).map(r=>`<span class="chip hk" data-ref="${esc(r)}" title="${esc(r)}">${esc(hunkLabel(r))}</span>`).join('');
-    const body = dg.kind==='mermaid' ? `<div class="svgwrap mm" data-id="${esc(dg.id)}"><span class="hint">渲染 mermaid…</span></div>` : `<div class="svgwrap"><img src="${dgSrc(dg)}" alt="${esc(dg.title)}"></div>`;
+    const body = `<div class="svgwrap"><img src="${dgSrc(dg)}" alt="${esc(dg.title)}"></div>`;
     html+=`<figure class="dg ${dg.id===S.activeDg?'active':''}" id="dg-${esc(dg.id)}" data-id="${esc(dg.id)}" style="margin:0 0 18px">
       <div class="dgh"><span class="t">${esc(dg.title)}</span><span class="kind">${esc(dg.kind)}${dg.auto?' · 自动':''}</span>${chips}${dg.src?`<button class="sm ghost" data-act="src">源码</button>`:''}<button class="sm ghost" data-act="full">⛶ 放大</button></div>
       ${body}
@@ -571,31 +571,8 @@ function renderDiagrams(){
   $('#diagrams').querySelectorAll('.hk').forEach(c=>c.onclick=()=>{ const m=/^(.+)#(\d+)$/.exec(c.dataset.ref); if(!m) return; const fi=S.data.diff.files.findIndex(f=>f.path===m[1]); if(fi<0) return; showMid('code'); const fb=document.getElementById('f-'+fi); fb.classList.remove('collapsed'); scrollCodeTo(document.getElementById(`h-${fi}-${m[2]}`), 0.05); setActive(fi,+m[2]); S.pin={fi,hi:+m[2]}; applyPin(); });
   $('#diagrams').querySelectorAll('[data-act=src]').forEach(b=>b.onclick=()=>{ const pre=b.closest('.dg').querySelector('pre.src'); pre.style.display = pre.style.display==='none'?'':'none'; });
   $('#diagrams').querySelectorAll('[data-act=full], .svgwrap').forEach(el=>el.onclick=e=>{ if(e.target.closest('button')&&el.tagName!=='BUTTON') return; const fig=el.closest('.dg'); const img=fig.querySelector('img'); const svg=fig.querySelector('svg'); openLightbox(fig.querySelector('.t').textContent, img?img.src:(svg?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg.outerHTML):null)); });
-  renderMermaid();
   const io=new IntersectionObserver(es=>{ es.forEach(en=>{ if(en.isIntersecting){ S.activeDg=en.target.dataset.id; document.querySelectorAll('.dg').forEach(f=>f.classList.toggle('active', f.dataset.id===S.activeDg)); document.querySelectorAll('.dgcard').forEach(c=>c.classList.toggle('active', c.dataset.id===S.activeDg)); } }); }, {root:$('#diagrams'), rootMargin:'-20% 0px -60% 0px', threshold:0});
   document.querySelectorAll('.dg').forEach(f=>io.observe(f));
-}
-let mermaidLoading=null;
-// hudiff 的 mermaid 画风: base 主题 + 页面 CSS 变量, 跟随浅深色切换。
-// ponytail: look 固定 classic —— sketch 开关 M5 才随 config 暴露给页面。
-function mmTheme(){
-  const cs=getComputedStyle(document.documentElement), v=n=>cs.getPropertyValue(n).trim();
-  return {startOnLoad:false, securityLevel:'loose', theme:'base', look:'classic',
-    flowchart:{curve:'linear'},
-    themeVariables:{background:v('--bg2'), primaryColor:v('--bg2'), primaryTextColor:v('--fg'),
-      primaryBorderColor:v('--line'), lineColor:v('--fg2'), secondaryColor:v('--add-bg'),
-      tertiaryColor:v('--del-bg'), fontFamily:v('--sans')}};
-}
-function reportRender(id, err){ api('POST', `/api/diagram/${encodeURIComponent(id)}/error`, {error:err}).catch(()=>{}); }
-function renderMermaid(){
-  const boxes=[...document.querySelectorAll('.svgwrap.mm')]; if(!boxes.length) return;
-  const go=async()=>{ mermaid.initialize(mmTheme());
-    for(const box of boxes){ const dg=(S.data.diagrams||[]).find(d=>d.id===box.dataset.id); if(!dg) continue;
-      try{ const {svg}=await mermaid.render('mm-'+Math.random().toString(36).slice(2), dg.src); box.innerHTML=svg; reportRender(dg.id,''); }
-      catch(e){ const msg=String(e&&e.message||e); box.innerHTML=`<pre class="hint" style="white-space:pre-wrap">${esc(msg)}</pre>`; reportRender(dg.id,msg); } } };
-  if(window.mermaid) return go();
-  if(!mermaidLoading){ mermaidLoading=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='/vendor/mermaid.min.js'; sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); }); }
-  mermaidLoading.then(go).catch(()=>boxes.forEach(b=>b.innerHTML='<span class="hint">mermaid 加载失败</span>'));
 }
 function scrollToDiagram(id){ showMid('diagrams'); const f=document.getElementById('dg-'+id); if(f){ f.scrollIntoView({block:'start'}); S.activeDg=id; document.querySelectorAll('.dg').forEach(x=>x.classList.toggle('active', x.dataset.id===id)); } }
 
@@ -618,7 +595,7 @@ function renderDiagramList(tabs){
   const dgs=S.data.diagrams||[];
   let html = tabs + `<h3>图列表 · ${dgs.length} 张</h3>`;
   if(!dgs.length) html+=`<div class="hint">还没有图</div>`;
-  dgs.forEach(dg=>{ html+=`<div class="dgcard ${dg.id===S.activeDg?'active':''}" data-id="${esc(dg.id)}"><div class="th">${dg.kind==='mermaid'?'<span class="hint">mermaid</span>':`<img src="${dgSrc(dg)}" alt="">`}</div><div class="tt"><span>${esc(dg.title)}</span><span class="hint">${dg.auto?'自动':(dg.hunks||[]).length+' 个 hunk'}</span></div></div>`; });
+  dgs.forEach(dg=>{ html+=`<div class="dgcard ${dg.id===S.activeDg?'active':''}" data-id="${esc(dg.id)}"><div class="th"><img src="${dgSrc(dg)}" alt=""></div><div class="tt"><span>${esc(dg.title)}</span><span class="hint">${dg.auto?'自动':(dg.hunks||[]).length+' 个 hunk'}</span></div></div>`; });
   html += `<div class="hint" style="margin-top:14px;line-height:1.9">点缩略图定位到大图 · 大图上的 hunk 标签跳回代码 · <kbd>v</kbd> 切换 代码/图解</div>`;
   $('#notes').innerHTML = html;
   bindTabs();

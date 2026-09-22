@@ -17,31 +17,13 @@ import (
 const autoMapCaption = "文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。" +
 	"红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。"
 
-// Config is the engine switch. M5 fills it from config.json; until then the
-// session's meta.diagram_engine picks the engine and Sketch stays off.
+// Config is what M5 will fill from config.json. d2 is the only engine
+// (2026-09-22: mermaid dropped), so sketch is all that is left.
 type Config struct {
-	Engine string // d2 | mermaid
 	Sketch bool
 }
 
-func DefaultConfig() Config { return Config{Engine: "d2"} }
-
-// ConfigFor reads the engine the session was created with. M5 layers
-// config.json on top of it.
-func ConfigFor(meta map[string]any) Config {
-	cfg := DefaultConfig()
-	if e, ok := meta["diagram_engine"].(string); ok && e != "" {
-		cfg.Engine = e
-	}
-	return cfg
-}
-
-func (c Config) engine() string {
-	if c.Engine == "mermaid" {
-		return "mermaid"
-	}
-	return "d2"
-}
+func DefaultConfig() Config { return Config{} }
 
 type Entry struct {
 	ID      string   `json:"id"`
@@ -99,7 +81,7 @@ func strList(m map[string]any, k string) []string {
 func List(dir string, d diff.Diff, cfg Config) []Entry {
 	out := []Entry{}
 	if anyHunks(d) {
-		out = append(out, Entry{ID: "auto-map", Title: "改动地图(自动)", Kind: cfg.engine(),
+		out = append(out, Entry{ID: "auto-map", Title: "改动地图(自动)", Kind: "d2",
 			Auto: true, Hunks: []string{}, Caption: autoMapCaption})
 	}
 	for i, dg := range loadRawDiagrams(dir) {
@@ -134,7 +116,7 @@ func anyHunks(d diff.Diff) bool {
 // oracle did: "auto-map", an index, or an id.
 func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind string, err error) {
 	if which == "auto-map" {
-		return autoMapCached(dir, repo, d, cfg.engine()), cfg.engine(), nil
+		return autoMapCached(dir, repo, d), "d2", nil
 	}
 	dgs := loadRawDiagrams(dir)
 	var dg map[string]any
@@ -157,12 +139,9 @@ func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind 
 // Render returns SVG bytes, always succeeding: a failure comes back as an error
 // card so the page has something to show.
 func Render(dir, repo string, d diff.Diff, which, theme string, cfg Config) []byte {
-	src, kind, err := Source(dir, repo, d, which, cfg)
+	src, _, err := Source(dir, repo, d, which, cfg)
 	if err != nil {
 		return errorSVG(err.Error())
-	}
-	if kind != "d2" {
-		return errorSVG("这张图不是 d2, 由浏览器渲染")
 	}
 	cache := filepath.Join(dir, "diagrams", cacheKey(src, theme, cfg.Sketch)+".svg")
 	if b, err := os.ReadFile(cache); err == nil {
@@ -185,27 +164,26 @@ func cacheKey(src, theme string, sketch bool) string {
 }
 
 type autoSrc struct {
-	mtime  int64
-	engine string
-	src    string
+	mtime int64
+	src   string
 }
 
 var autoCache sync.Map // session dir -> autoSrc
 
 // autoMapCached keeps the generated source per diff.json mtime: building it
 // shells out to git grep for every changed symbol.
-func autoMapCached(dir, repo string, d diff.Diff, engine string) string {
+func autoMapCached(dir, repo string, d diff.Diff) string {
 	var mt int64
 	if st, err := os.Stat(filepath.Join(dir, "diff.json")); err == nil {
 		mt = st.ModTime().UnixNano()
 	}
 	if hit, ok := autoCache.Load(dir); ok {
-		if c := hit.(autoSrc); c.mtime == mt && c.engine == engine {
+		if c := hit.(autoSrc); c.mtime == mt {
 			return c.src
 		}
 	}
-	src := AutoMapSrc(repo, d, engine)
-	autoCache.Store(dir, autoSrc{mt, engine, src})
+	src := AutoMapSrc(repo, d)
+	autoCache.Store(dir, autoSrc{mt, src})
 	return src
 }
 

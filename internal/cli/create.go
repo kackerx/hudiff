@@ -14,9 +14,7 @@ import (
 	"github.com/kackerx/hudiff/internal/source"
 )
 
-func (o *ReviewOpts) opts() source.Opts {
-	return source.Opts{Diagram: o.Diagram}
-}
+func (o *ReviewOpts) opts() source.Opts { return source.Opts{} }
 
 func (c *WorkspaceCmd) Run(g *Globals) error {
 	scope := source.Worktree

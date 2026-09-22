@@ -28,17 +28,10 @@ func base(p string) string { return p[strings.LastIndex(p, "/")+1:] }
 
 type plainFile struct{ id, label, path string }
 
-// AutoMapSrc renders the change map in the session's dialect: file → symbols it
-// touches → outside references. Generated from repoctx, never by an agent.
-func AutoMapSrc(repo string, d diff.Diff, engine string) string {
+// AutoMapSrc renders the change map: file → symbols it touches → outside
+// references. Generated from repoctx, never by an agent.
+func AutoMapSrc(repo string, d diff.Diff) string {
 	items := repoctx.Collect(repo, d, "", 4)
-	if engine == "mermaid" {
-		return autoMapMermaid(items)
-	}
-	return autoMapD2(items)
-}
-
-func autoMapD2(items []repoctx.Item) string {
 	changed := map[string]bool{}
 	for _, it := range items {
 		changed[it.Path] = true

@@ -52,7 +52,7 @@ func FromWorktree(scope Scope, o Opts) (*Source, error) {
 	}
 	return &Source{
 		Kind: "worktree", Title: title(o, scopeTitle[scope]),
-		Meta:  WorktreeMeta{Base: h.short, Branch: h.branch, Scope: string(scope), Diagram: o.Diagram},
+		Meta:  WorktreeMeta{Base: h.short, Branch: h.branch, Scope: string(scope)},
 		Patch: patch, Repo: root, Refresh: withPaths(refresh, o.Pathspec),
 	}, nil
 }
@@ -79,7 +79,7 @@ func FromRange(spec string, o Opts) (*Source, error) {
 	}
 	return &Source{
 		Kind: "range", Title: title(o, spec),
-		Meta:  RangeMeta{Base: a, Head: b, Branch: h.branch, Diagram: o.Diagram},
+		Meta:  RangeMeta{Base: a, Head: b, Branch: h.branch},
 		Patch: patch, Repo: root, Refresh: withPaths([]string{spec}, o.Pathspec),
 	}, nil
 }
@@ -129,7 +129,7 @@ func FromCommit(spec string, o Opts) (*Source, error) {
 	return &Source{
 		Kind: "commit", Title: title(o, p[1]),
 		Meta: CommitMeta{Rev: p[0], Full: rev, Author: p[2], Date: p[3], Body: strings.TrimSpace(p[4]),
-			Base: base, Merge: len(parents) > 1, Diagram: o.Diagram},
+			Base: base, Merge: len(parents) > 1},
 		Patch: patch, Repo: root, Refresh: withPaths([]string{spec}, o.Pathspec),
 	}, nil
 }
@@ -178,7 +178,7 @@ func FromPR(ref string, o Opts) (*Source, error) {
 	return &Source{
 		Kind: "pr", Title: title(o, fmt.Sprintf("#%d %s", info.Number, info.Title)),
 		Meta: PRMeta{URL: info.URL, Base: info.BaseRefName, Head: info.HeadRefName,
-			Author: author, Body: info.Body, Diagram: o.Diagram},
+			Author: author, Body: info.Body},
 		Patch: patch, Repo: root, Refresh: []string{"pr", num},
 	}, nil
 }
@@ -225,7 +225,7 @@ func FromPatch(file string, o Opts) (*Source, error) {
 	cwd, _ := os.Getwd()
 	return &Source{
 		Kind: "patch", Title: title(o, "补丁: "+file),
-		Meta: PatchMeta{Source: file, Diagram: o.Diagram}, Patch: text, Repo: cwd, Refresh: nil,
+		Meta: PatchMeta{Source: file}, Patch: text, Repo: cwd, Refresh: nil,
 	}, nil
 }
 

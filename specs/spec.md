@@ -12,11 +12,11 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 ## 1. 目标与非目标
 
 目标
-- 单二进制, 零运行时依赖, **离线可用**(d2 引擎以 Go 库内嵌, mermaid.js / highlight.js 都 embed, 不引 CDN; 外部工具只剩 `git` 必需、`gh` 看 PR 时)
+- 单二进制, 零运行时依赖, **离线可用**(d2 引擎以 Go 库内嵌, highlight.js embed, 不引 CDN; 外部工具只剩 `git` 必需、`gh` 看 PR 时)
 - 页面 HTML/CSS/JS 是真文件(`web/`), embed 进二进制; 开发时可从磁盘热读
 - CLI 表面现代、统一(参考 `hunk`), `hudiff -h` 就是 agent 的说明书
 - 不绑定任何终端复用器(tmux / ccmux 全部去掉), 用户级"通知"走可配置的 shell hook
-- 图解引擎可配(d2 / mermaid)
+- 图解只用 d2, 内嵌为 Go 库(2026-09-22 拍板, 见 §7)
 - UI 文案、CLI 输出、SKILL.md 全英文
 - 给未来的 TUI 留口子: 核心不感知"怎么看", 查看器只是 daemon API 的客户端
 
@@ -39,8 +39,8 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 | CLI | **kong** v1.16 | 18 子命令 / 47 参数 / 两层子命令 / 可重复 flag / flag 可在位置参数后 —— 标准库 `flag` 全要手写, 且 `-h` 质量差 |
 | HTTP | 标准库 `net/http`, Go 1.22 mux 模式(`GET /s/{sid}/api/session`) | 十几条路由, 框架无收益 |
 | 前端 | 保留现有原生 JS + JSON API, 拆成文件 | **否掉 htmx**: 页面是重客户端状态(5k 行表 + content-visibility + IntersectionObserver 判 hunk + 拖栏 + localStorage + 客户端 hljs); htmx 要重写我们想原样保留的 60% 代码, 且 agent 走的就是同一套 JSON API |
-| 资源 | `//go:embed web skills`, 含 `web/vendor/{mermaid.min.js(3.4MB), highlight.min.js(130KB)}` | 页面零 CDN, 内网/离线可用; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
-| 图解 | **默认 d2, 以 Go 库内嵌**(`github.com/d2lang/d2` v0.9.0 + `d2layouts/d2talalayout`, 布局固定 TALA, daemon 进程内渲染)/ 可选 mermaid(浏览器侧 embed) | 2026-09-22 实测: TALA 是纯 Go(0 goja), 只嵌 d2lib+TALA+svg 的程序 strip 后 22MB, hudiff 8.2MB → 合计约 29MB, go.mod +51 模块, 渲染 auto-map 13ms; 换来零安装 + 用户偏好的画风 + `notes` 写入即编译校验。见 §7 |
+| 资源 | `//go:embed web skills`, 含 `web/vendor/highlight.min.js`(130KB) | 页面零 CDN, 内网/离线可用; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
+| 图解 | **d2, 以 Go 库内嵌**(`github.com/d2lang/d2` v0.9.0 + `d2layouts/d2talalayout`, 布局固定 TALA, daemon 进程内渲染) | 2026-09-22 拍板只留 d2(用户: "d2 的效果和功能最好")。mermaid 整条去掉: 少 3.4MB vendor、少一个方言 emitter、少一条浏览器侧渲染路径, 二进制 32.5MB → 27.5MB。见 §7 |
 | 高亮 | 浏览器侧 highlight.js(embed) | 不引 chroma |
 | 分发 | goreleaser → GitHub Releases(darwin/linux/windows × arm64/amd64)+ homebrew tap; `go install` | 版本号 `-ldflags -X main.version`; 一律 `-s -w` strip(d2 内嵌后体积敏感) |
 
@@ -67,7 +67,6 @@ hudiff open [<session-id|prefix>]                 用查看器重开已有会话
   --new                         不复用同 source key 的已有会话
   -p, --prompt <text|->         审查要求, 原文给 agent
   -c, --context <file>          给 agent 的上下文文件, 可重复
-  --diagram <d2|mermaid>        覆盖 config.diagram.engine
 
 hudiff session list [--all] | info [--json] | url | refresh | archive [--undo] | rm <id>...
 
@@ -109,8 +108,7 @@ hudiff version
   "web":     { "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
                "open": true,              // 建会话后自动开浏览器
                "browser": "" },           // 覆盖打开命令, 空 = 系统默认(open / xdg-open / start)
-  "diagram": { "engine": "d2",            // d2(默认, 内嵌, 布局固定 TALA)| mermaid(浏览器侧)
-               "sketch": false },         // 草图(手绘)风格: d2 的 --sketch / mermaid 的 look: handDrawn
+  "diagram": { "sketch": false },         // 草图(手绘)风格: d2 的 --sketch; 进 SVG 缓存键
   "data_dir": "",                         // 会话数据目录, 空 = ${XDG_STATE_HOME:-~/.local/state}/hudiff
   "prompts_dir": "",                      // 预设审查要求, 空 = <config dir>/prompts/{default,<repo>}.md
   "hooks": {                              // 替代 tmux 投递: shell 命令, 环境变量 HUDIFF_SESSION / HUDIFF_URL / HUDIFF_REPO / HUDIFF_COUNT
@@ -190,38 +188,27 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 
 ## 7. 图解引擎
 
-默认 **d2(内嵌)**, 可选 **mermaid**。拍板过程: 2026-09-21 曾定 mermaid 默认(依据是 d2 二进制 51MB、布局引擎是 JS 靠 goja),
-2026-09-22 实测 v0.9.0 后反转 —— TALA 已开源且是纯 Go, 只嵌 d2lib + TALA 体积可控(见 §2 表), 于是零安装和用户偏好的画风
-可以同时拿到, 还多一个功能性好处: daemon 进程内编译, `hudiff notes` 写入时就能拒掉画错的图。
+**只有 d2, 以 Go 库内嵌**(2026-09-22 拍板, 用户定)。不装任何二进制, daemon 进程内渲染。
+只 import `d2lib` / `d2renderers/d2svg` / `d2renderers/d2animate` / `d2layouts/d2talalayout` /
+`d2themes/d2themescatalog` / `lib/textmeasure` / `lib/log`(加 `d2graph`、`d2target` 两个类型包);
+**不嵌 dagre / ELK**, `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。d2 只允许出现在
+`internal/diagram` 一个包里, `specs/parity-m4.sh` 有 `go list -deps` 断言守着。
 
-- **d2(默认)**: `github.com/d2lang/d2` v0.9.0 作为 Go 库, 只 import `d2lib` / `d2renderers/d2svg` / `d2layouts/d2talalayout` /
-  `d2themes` / `lib/textmeasure`; **不 import dagre / ELK**, 布局固定 TALA, 不提供布局配置。`d2lib.Compile` 的
-  `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。`config.diagram.sketch` → `d2svg.RenderOpts.Sketch`(对应 CLI
-  `--sketch` 的手绘风格)。按 `hash(src, theme, sketch)` 缓存 SVG 到会话目录(沿用 Python 版, 键多一项);
-  `steps` 多板图用 d2 自带的动画渲染(对应 Python 版 `--animate-interval`)。`notes` 写入时真编译, 编不过报 400 并把 d2 的
-  错误原文给 agent。主题: 浅色 `NeutralDefault`(id 0), 深色沿用 Python 版 `D2_THEME` 映射, 与现有 SVG 缓存键兼容。
-  **画风预设**: 编译前给每份 d2 源码(agent 画的和 auto-map 都算)前置一段 hudiff 自己的样式序言, 目前只有一行
-  `**.style.border-radius: 8`(glob 作用到所有层级、所有 board 含 steps; agent 自己写的 `style.border-radius` 会覆盖它 ——
-  2026-09-22 用 d2 v0.9 实测过这两点)。序言算进 SVG 缓存键。圆角值不做配置, 要改直接改常量。
-  许可: d2 是 **MPL-2.0**(文件级 copyleft), hudiff 不修改 d2 源文件, 二进制分发附 NOTICE 列出 d2 与其许可即可;
-  依赖树其余为 MIT / BSD / Apache, 无 GPL(2026-09-22 扫过)。
-- **mermaid(可选)**: 页面 `<script src="/vendor/mermaid.min.js">`(embed)。渲染错误由页面 `POST /s/{sid}/api/diagram/{id}/error`
-  回传, daemon 记在内存, `hudiff diagram <id>` 与 `hudiff wait` 输出里带 `render error: …`。daemon 不做 mermaid 语法校验
-  (没有 JS 引擎, 也不为此嵌 goja); `notes` 只做结构校验(非空、首行是合法图类型)。
-  画风: hudiff 自带主题 `mermaid.initialize({ theme: 'base', themeVariables })`, 颜色 / 字体取页面 CSS 变量, 浅深各一套;
-  `flowchart.curve: 'linear'`; `config.diagram.sketch` → `look: 'handDrawn'`(同一个开关两种引擎都认);
-  预定义 `classDef added / removed / changed / external`, SKILL.md 规定 agent 只用这四个 class。
-- **自动改动地图**按当前引擎方言生成(`diagram/automap_d2.go` / `automap_mermaid.go`), 内容相同: 文件 → 本次改动的符号 →
-  改动文件之外的引用方。d2 版布局由 TALA 决定(实测比 dagre 紧凑: 同一张图 dagre 竖排三层, TALA 2×2)。
-- **SKILL.md 对 agent 画图的要求**(M5 写进英文版): 用 `style.animated: true` 标出**主路径 / 数据流向**的边(一张图通常 1–3 条,
-  不要全图动; d2 的边动画在页面的 `<img>` 里能跑, steps 多板图沿用动画渲染); 颜色只用 hudiff 预定义的 classes(d2 用序言里的
-  `classes`, mermaid 用四个 `classDef`), 不自己调色; 圆角不用管, 序言已经给了。
-- `notes.json.diagrams[].kind` ∈ {d2, mermaid}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
-  `hudiff session info` 暴露出来, SKILL.md 规定 agent 先看它再画; `--diagram` 只在建会话时生效, 会话内固定。
+- **样式序言**: 每份源码(agent 画的和 auto-map 都算)前置 `**.style.border-radius: 8`。glob 作用到所有
+  层级和所有 board(含 steps), agent 自己写的 `style.border-radius` 会覆盖它。序言算进 SVG 缓存键。
+- **缓存**: `hash(theme, sketch, 序言, src)` → `<session>/diagrams/<key>.svg`。
+- **多板**(steps / layers / scenarios): 看编译后的 `diagram.Steps/Layers/Scenarios`, 走
+  `d2svg.RenderMultiboard` + `d2animate.Wrap(1400ms)`, 对应 Python 版的 `--animate-interval`。
+- **sketch**: `config.diagram.sketch`(bool, 默认 false)→ `d2svg.RenderOpts.Sketch`。
+- **主题**: light → theme 0(NeutralDefault), dark → theme 200(DarkMauve), 沿用 Python 版的映射。
+- **`notes` 写入时真编译**, 编不过 400 并把 d2 的错误原文给 agent。
+- **自动改动地图**由 `diagram/automap.go` 生成: 文件 → 本次改动的符号 → 改动文件之外的引用方。
+- `notes.json.diagrams[].kind` 只接受 `d2`(字段保留, 老数据兼容)。**不再有** `session.meta.diagram_engine`、
+  `--diagram` flag、`config.diagram.engine`。
 
-**图 ↔ 代码的引用跳转与引擎无关, 是 hudiff 自己的功能**: `diagrams[].hunks[]`(如 `internal/cli/config.go#0`)由页面
-渲染成图卡片顶部的 chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片反向列出引用它的图。SVG 内部目前
-只有"点击放大"(lightbox)。v1 之后可选: 节点级跳转 —— d2 `link: "#<file#hunk>"` / mermaid `click <node> hudiffJump`, 不进 v1。
+**图 ↔ 代码的引用跳转**: `diagrams[].hunks[]`(如 `internal/cli/config.go#0`)由页面渲染成图卡片顶部的
+chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片反向列出引用它的图。SVG 内部目前
+只有"点击放大"(lightbox)。
 
 ## 8. 数据契约(冻结, 与 Python 版兼容; 现有会话零迁移可打开)
 
@@ -258,7 +245,7 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 - 全部文案英文, 字符串收进 `app.js` 顶部一个 `T` 对象(为将来 `ui.language` 留位)
 - 删: agent 选择器弹层、绑定状态、"在 tmux 里" 分支; Send 在无 waiter 时提示 `Run: hudiff wait` + 复制按钮;
   Request review 弹出 `/hudiff review <id>` 命令 + 复制按钮(hook 若配置则同时触发)
-- 加: keymap 模块(§6)、mermaid 渐进加载、评论 `author` 头像/颜色 + 按作者筛选、首页评论数按作者分
+- 加: keymap 模块(§6)、评论 `author` 头像/颜色 + 按作者筛选、首页评论数按作者分
 - 保: content-visibility、scrollCodeTo 定位、sash 拖宽、自绘 dlg、tab 独立滚动
 
 ## 10. 移植策略与里程碑
@@ -279,7 +266,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
   根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
 - **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
 - **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
-- **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌 + mermaid)/ `context`
+- **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌)/ `context`
 - **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段
 - **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap
 
@@ -294,8 +281,12 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 6. README → **英文**, 顶部放 `uvx pyfiglet -w 200 -f ansi_shadow hudiff` 生成的 banner, 然后 logo, 结构按常见开源项目
    (Features / Install / Quickstart / Agent skill / Configuration / How it works / Development / License)
 7. (2026-09-22) 图解 → **d2 内嵌为默认, 布局固定 TALA, 不嵌 dagre/ELK**; 条件是"能内嵌且不会大太多", 实测 +~21MB(8 → ~29MB strip 后)
-   接受。mermaid 保留为浏览器侧可选。
+   接受。
 8. (2026-09-22) 裸 `hudiff` **含未跟踪文件**(§3 原文不变, M2 先照 oracle 不含是临时取舍, M2-fix 补上; parity 用无未跟踪文件的夹具
    仓库比字节, 另加一条 Go 单侧检查"未跟踪文件出现在 diff.json 里")
-9. (2026-09-22) `diagram.sketch` 开关: d2 `--sketch` 手绘风格 / mermaid `look: handDrawn`, 默认 false, 进 SVG 缓存键
+9. (2026-09-22) `diagram.sketch` 开关: d2 `--sketch` 手绘风格, 默认 false, 进 SVG 缓存键
 10. (2026-09-22) d2 样式序言 `**.style.border-radius: 8` 让整体圆润(agent 显式值可覆盖); SKILL 要求主路径用 `style.animated: true`
+11. (2026-09-22) 图解 → **只留 d2, mermaid 整条去掉**(用户: "d2 的效果和功能最好")。连带删掉:
+    `web/vendor/mermaid.min.js`(3.4MB)、mermaid 方言的 auto-map emitter、页面按 kind 分流的渲染路径、
+    `POST /api/diagram/{id}/error` 回传、`--diagram` flag、`session.meta.diagram_engine`、
+    `config.diagram.engine`。二进制 stripped 32.5MB → 27.5MB。

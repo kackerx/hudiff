@@ -102,8 +102,6 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("DELETE /s/{sid}/api/comments/{id}", s.withSession(s.deleteComment))
 	m.HandleFunc("POST /s/{sid}/api/submit", s.withSession(s.postSubmit))
 	m.HandleFunc("POST /s/{sid}/api/notes", s.withSession(s.postNotes))
-	m.HandleFunc("POST /s/{sid}/api/diagram/{id}/error", s.withSession(s.postDiagramError))
-	m.HandleFunc("GET /s/{sid}/api/diagram-errors", s.withSession(s.diagramErrors))
 	m.HandleFunc("POST /s/{sid}/api/review", s.withSession(s.postReview))
 	m.HandleFunc("PATCH /s/{sid}/api/review/{id}", s.withSession(s.patchReview))
 	m.HandleFunc("POST /s/{sid}/api/review/{id}/note", s.withSession(s.postReviewNote))
@@ -197,18 +195,10 @@ func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir str
 		Notes:    raw("notes.json", "{}"),
 		Comments: raw("comments.json", "[]"),
 		State:    session.ReadState(dir),
-		Diagrams: diagram.List(dir, diff.Load(dir), diagramCfg(dir)),
+		Diagrams: diagram.List(dir, diff.Load(dir), diagram.DefaultConfig()),
 		D2:       true, // d2 is compiled in now; the page keeps the flag
 		Review:   raw("review.json", "null"),
 	})
-}
-
-func diagramCfg(dir string) diagram.Config {
-	sess, err := session.LoadSession(dir)
-	if err != nil {
-		return diagram.DefaultConfig()
-	}
-	return diagram.ConfigFor(sess.Meta)
 }
 
 func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -229,7 +219,7 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 		theme = "dark"
 	}
 	sess, _ := session.LoadSession(dir)
-	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagram.ConfigFor(sess.Meta))
+	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagram.DefaultConfig())
 	cache := "no-store"
 	if q.Has("v") {
 		cache = "max-age=31536000, immutable"
@@ -239,42 +229,6 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	w.Header().Set("Content-Length", strconv.Itoa(len(svg)))
 	w.WriteHeader(200)
 	_, _ = w.Write(svg)
-}
-
-// renderErrors holds what the browser reported about a mermaid diagram it could
-// not draw, so `hudiff diagram` and `hudiff wait` can show it to the agent.
-// ponytail: in memory only — it dies with the daemon, which is the same
-// lifetime as the page that reported it.
-var renderErrors sync.Map // sid + "\x00" + diagram id -> string
-
-func RenderError(sid, id string) string {
-	if v, ok := renderErrors.Load(sid + "\x00" + id); ok {
-		return v.(string)
-	}
-	return ""
-}
-
-func (s *server) diagramErrors(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	out := map[string]string{}
-	renderErrors.Range(func(k, v any) bool {
-		if id, ok := strings.CutPrefix(k.(string), sid+"\x00"); ok {
-			out[id] = v.(string)
-		}
-		return true
-	})
-	sendJSON(w, 200, out)
-}
-
-func (s *server) postDiagramError(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	b := readBody(r)
-	msg, _ := b["error"].(string)
-	key := sid + "\x00" + r.PathValue("id")
-	if strings.TrimSpace(msg) == "" {
-		renderErrors.Delete(key)
-	} else {
-		renderErrors.Store(key, msg)
-	}
-	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
 // apiAgents is a stub: tmux agent discovery is gone (spec §5), the page's

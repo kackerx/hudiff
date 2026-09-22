@@ -26,48 +26,42 @@ type Source struct {
 }
 
 type WorktreeMeta struct {
-	Base    string `json:"base"`
-	Branch  string `json:"branch"`
-	Scope   string `json:"scope"`
-	Diagram string `json:"diagram_engine,omitempty"`
+	Base   string `json:"base"`
+	Branch string `json:"branch"`
+	Scope  string `json:"scope"`
 }
 
 type RangeMeta struct {
-	Base    string `json:"base"`
-	Head    string `json:"head"`
-	Branch  string `json:"branch"`
-	Diagram string `json:"diagram_engine,omitempty"`
+	Base   string `json:"base"`
+	Head   string `json:"head"`
+	Branch string `json:"branch"`
 }
 
 type CommitMeta struct {
-	Rev     string  `json:"rev"`
-	Full    string  `json:"full"`
-	Author  string  `json:"author"`
-	Date    string  `json:"date"`
-	Body    string  `json:"body"`
-	Base    *string `json:"base"`
-	Merge   bool    `json:"merge"`
-	Diagram string  `json:"diagram_engine,omitempty"`
+	Rev    string  `json:"rev"`
+	Full   string  `json:"full"`
+	Author string  `json:"author"`
+	Date   string  `json:"date"`
+	Body   string  `json:"body"`
+	Base   *string `json:"base"`
+	Merge  bool    `json:"merge"`
 }
 
 type PRMeta struct {
-	URL     string  `json:"url"`
-	Base    string  `json:"base"`
-	Head    string  `json:"head"`
-	Author  *string `json:"author"`
-	Body    string  `json:"body"`
-	Diagram string  `json:"diagram_engine,omitempty"`
+	URL    string  `json:"url"`
+	Base   string  `json:"base"`
+	Head   string  `json:"head"`
+	Author *string `json:"author"`
+	Body   string  `json:"body"`
 }
 
 type PatchMeta struct {
-	Source  string `json:"source"`
-	Diagram string `json:"diagram_engine,omitempty"`
+	Source string `json:"source"`
 }
 
 // Opts carries what the five entry commands have in common.
 type Opts struct {
 	Title    string
-	Diagram  string
 	Pathspec []string
 }
 
