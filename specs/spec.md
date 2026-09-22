@@ -242,7 +242,7 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 
 ## 9. 前端改动清单(在拆文件之外)
 
-- 全部文案英文, 字符串收进 `app.js` 顶部一个 `T` 对象(为将来 `ui.language` 留位)
+- 全部文案英文, 直接写在原处; **不做** `T` 字符串表(2026-09-22: 为不存在的第二语言建 235 条间接层是推测性需求, 真要加语言时从英文抽比从中文抽容易; `ui.language` 字段保留但无实现)
 - 删: agent 选择器弹层、绑定状态、"在 tmux 里" 分支; Send 在无 waiter 时提示 `Run: hudiff wait` + 复制按钮;
   Request review 弹出 `/hudiff review <id>` 命令 + 复制按钮(hook 若配置则同时触发)
 - 加: keymap 模块(§6)、评论 `author` 头像/颜色 + 按作者筛选、首页评论数按作者分
