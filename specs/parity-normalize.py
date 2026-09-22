@@ -9,6 +9,7 @@ different data still shows up as a difference.
 
     parity-normalize.py read <file>     hudiff read / hudiff show
     parity-normalize.py list <file>     hudiff session list / hudiff ls
+    parity-normalize.py body <file>     a --dump-dom capture of a page
 """
 import re
 import sys
@@ -62,8 +63,23 @@ def norm_list(line):
     return f"{mark} {sid} [{kind}] {title!r} counts=[{counts}] {archived} repo={repo}"
 
 
+# body: the rendered <body> is what the page actually shows and is identical on
+# both sides. The <head> is not: M1-fix moved the CSS and JS out of the HTML,
+# and the oracle still links highlight.js from the CDN. Inline <style>/<script>
+# go too, for the same reason.
+BODY_ASSETS = re.compile(r"<style>.*?</style>|<script[^>]*>.*?</script>", re.S)
+
+
+def norm_body(path):
+    html = open(path).read()
+    return BODY_ASSETS.sub("", html[html.index("<body"):])
+
+
 def main():
     mode, path = sys.argv[1], sys.argv[2]
+    if mode == "body":
+        sys.stdout.write(norm_body(path))
+        return
     fn = {"read": norm_read, "list": norm_list}[mode]
     with open(path) as fh:
         for line in fh:

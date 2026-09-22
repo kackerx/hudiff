@@ -3,7 +3,7 @@
 # Go build must agree on `read`, `session info --json`, the session HTTP API
 # and the rendered page. Any difference is a bug in the Go side.
 #
-#   specs/parity.sh [-s <session-id>] [--no-shots] [--keep-go]
+#   specs/parity.sh [-s <session-id>] [--no-page] [--keep-go]
 #
 # The Go CLI is English and the oracle is Chinese, so `read` and `session list`
 # go through specs/parity-normalize.py first. It collapses exactly the header
@@ -13,6 +13,7 @@
 # The two daemons share server.json, so they take turns: the script captures
 # the Python side, swaps in the Go daemon, captures again, and puts the Python
 # daemon back before it exits (--keep-go leaves the Go one running).
+# --no-page skips the headless-Chrome part.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -20,16 +21,16 @@ ROOT=$(pwd)
 PY="python3 $ROOT/legacy/hudiff.py"
 GO="$ROOT/bin/hudiff"
 SID=${HUDIFF_PARITY_SESSION:-20260920-155017-4d71}
-SHOTS=1
+PAGE=1
 KEEP_GO=0
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 while [ $# -gt 0 ]; do
     case $1 in
         -s) SID=$2; shift 2 ;;
-        --no-shots) SHOTS=0; shift ;;
+        --no-page) PAGE=0; shift ;;
         --keep-go) KEEP_GO=1; shift ;;
-        *) echo "usage: $0 [-s <session-id>] [--no-shots] [--keep-go]" >&2; exit 1 ;;
+        *) echo "usage: $0 [-s <session-id>] [--no-page] [--keep-go]" >&2; exit 1 ;;
     esac
 done
 
@@ -46,14 +47,7 @@ trap restore EXIT
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILED=$((FAILED + 1)); }
-shots_match() {
-    for a in 1 2; do
-        for b in 1 2; do
-            cmp -s "$WORK/py.$1.$a.png" "$WORK/go.$1.$b.png" && return 0
-        done
-    done
-    return 1
-}
+
 
 same() {   # same <label> <a> <b>
     if diff -u "$2" "$3" >"$WORK/$1.diff" 2>&1; then
@@ -82,9 +76,13 @@ same_json() {
     same "$1" "$2.norm" "$3.norm"
 }
 
-shot() {   # shot <url> <out>
-    "$CHROME" --headless --disable-gpu --hide-scrollbars --window-size=1600,1000 \
-        --virtual-time-budget=8000 --screenshot="$2" "$1" >/dev/null 2>&1
+# The page is compared as rendered DOM, not pixels: the DOM is identical and
+# reproducible on both sides, while screenshots differ by a sub-pixel now and
+# then. It also covers the diagrams tab, whose d2 `steps` animation made pixels
+# useless. --virtual-time-budget is still needed; the page fetches its data.
+dump() {   # dump <url> <out>
+    "$CHROME" --headless --disable-gpu --window-size=1600,1000 \
+        --virtual-time-budget=8000 --dump-dom "$1" >"$2" 2>/dev/null
 }
 
 port() { python3 -c 'import json,os; print(json.load(open(os.path.expanduser("~/.local/state/hudiff/server.json")))["port"])'; }
@@ -97,12 +95,7 @@ diagram_ids() {
 
 grab() {   # grab <side> <port>
     for v in code diagrams review; do
-        [ "$SHOTS" = 1 ] || continue
-        # Twice per side: the page polls /api/state while the shot is taken, so
-        # once in a while one render lands a frame off. Two on each side make a
-        # one-off miss harmless while a real difference still never matches.
-        shot "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.1.png"
-        shot "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.2.png"
+        [ "$PAGE" = 1 ] && dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.html"
     done
     for id in $(diagram_ids "$WORK/$1.api-session"); do
         for th in light dark; do
@@ -187,24 +180,26 @@ for f in "$COLD/hudiff/sessions/$SID/diagrams/"*.svg; do
 done
 [ "$FAILED" = 0 ] && rm -rf "$COLD"
 
-if [ "$SHOTS" = 1 ]; then
-    for v in code review; do
-        if [ ! -s "$WORK/go.$v.1.png" ]; then
-            bad "page-$v  (no screenshot; is Chrome at $CHROME?)"
-        elif shots_match "$v"; then
-            ok "page-$v"
+if [ "$PAGE" = 1 ]; then
+    for v in code diagrams review; do
+        if [ ! -s "$WORK/go.$v.html" ]; then
+            bad "page-$v  (no DOM capture; is Chrome at $CHROME?)"
         else
-            bad "page-$v  ($WORK/py.$v.*.png vs $WORK/go.$v.*.png)"
+            same_norm "page-$v" body "$WORK/py.$v.html" "$WORK/go.$v.html"
         fi
     done
-    # The diagrams tab holds a d2 `steps` animation, so its pixels move between
-    # runs; the SVGs above are the real check, this only proves it renders.
-    if [ -s "$WORK/go.diagrams.1.png" ]; then
-        ok "page-diagrams (rendered; pixels not compared, d2 steps animation)"
-    else
-        bad "page-diagrams  (no screenshot; is Chrome at $CHROME?)"
-    fi
 fi
+
+# The DOM cannot tell whether the stylesheets and bundles actually arrived.
+for a in app.css app.js index.css index.js vendor/highlight.min.js \
+         vendor/hljs-github.min.css vendor/hljs-github-dark.min.css vendor/hljs-lang-lua.min.js; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$P/$a")
+    if [ "$code" = 200 ]; then
+        ok "asset /$a"
+    else
+        bad "asset /$a  (HTTP $code)"
+    fi
+done
 
 echo "M2: session creation"
 . "$ROOT/specs/parity-m2.sh"
