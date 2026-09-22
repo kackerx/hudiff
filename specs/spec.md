@@ -42,7 +42,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 | 资源 | `//go:embed web skills`, 含 `web/vendor/highlight.min.js`(130KB) | 页面零 CDN, 内网/离线可用; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
 | 图解 | **d2, 以 Go 库内嵌**(`github.com/d2lang/d2` v0.9.0 + `d2layouts/d2talalayout`, 布局固定 TALA, daemon 进程内渲染) | 2026-09-22 拍板只留 d2(用户: "d2 的效果和功能最好")。mermaid 整条去掉: 少 3.4MB vendor、少一个方言 emitter、少一条浏览器侧渲染路径, 二进制 32.5MB → 27.5MB。见 §7 |
 | 高亮 | 浏览器侧 highlight.js(embed) | 不引 chroma |
-| 分发 | goreleaser → GitHub Releases(darwin/linux/windows × arm64/amd64)+ homebrew tap; `go install` | 版本号 `-ldflags -X main.version`; 一律 `-s -w` strip(d2 内嵌后体积敏感) |
+| 分发 | **v1 只有 `go install`**(本地 `cd ~/proj/hudiff && go install .` → `~/go/bin/hudiff`; remote 建好后 `go install github.com/kackerx/hudiff@latest`)。goreleaser / homebrew tap / GitHub 发布**等成熟后再做**(2026-09-22 拍板) | 版本号 `-ldflags -X main.version`; 一律 `-s -w` strip(d2 内嵌后体积敏感) |
 
 ## 3. CLI 表面(v1)
 
@@ -145,8 +145,8 @@ hudiff/
                           / dlg.html(自绘弹窗, markup+style+script 一体, 注入到 body 末尾) / favicon.svg
                           全部 embed; 根级路由 /app.css /app.js /index.css /index.js
   skills/hudiff/SKILL.md  (embed; `skill path` 会把它落到 $XDG_DATA_HOME/hudiff/skill/ 再打印路径)
-  legacy/hudiff.py        Python 版 oracle, M6 删
-  hudiff                  M1–M5 是跑 legacy 的 /bin/sh shim(会解析软链), M6 换成 go build 产物
+  legacy/hudiff.py        Python 版 oracle, M6 删(删前 parity 先去 oracle 化)
+  hudiff                  M1–M5 是跑 legacy 的 /bin/sh shim(会解析软链), M6 直接删, 二进制走 go install
   bin/hudiff              go build 输出, .gitignore(M6 之前根目录被 shim 占着)
   specs/                  本文 + handoff
 ```
@@ -268,7 +268,10 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 - **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
 - **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌)/ `context`
 - **M5** ✅ 2026-09-22 config / keymap / hooks / `skill install` / 英文化 / author 字段
-- **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap
+- **M6**(2026-09-22 收窄)a. 删 oracle **之前**把 parity 里每条「和 oracle 比」的对照改成 Go 侧独立断言(黄金文件 / 固定期望 /
+  自洽不变量), 保住"措辞一漂就挂"的强度 —— 这是 M6 最大的工作量; b. 删 `legacy/`; c. 删根目录 `hudiff` shim(`go install` 后不需要,
+  `.gitignore` 不加 `/hudiff`); d. `go install .` 验证 `~/go/bin/hudiff` 可用。**不做** goreleaser / tap / GitHub 发布。
+  `~/.config/bin/hudiff` 软链与 config-doctor 由 ~/.config 侧(diffnote session)在 d 之后处理, hudiff session 不碰 ~/.config。
 
 ## 11. 拍板记录(2026-09-21, kackerx)
 
@@ -290,3 +293,5 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
     `web/vendor/mermaid.min.js`(3.4MB)、mermaid 方言的 auto-map emitter、页面按 kind 分流的渲染路径、
     `POST /api/diagram/{id}/error` 回传、`--diagram` flag、`session.meta.diagram_engine`、
     `config.diagram.engine`。二进制 stripped 32.5MB → 27.5MB。
+12. (2026-09-22) 分发 → v1 只 `go install`, PATH 上不再用软链(~/.config/bin/hudiff 删除, config-doctor 改查 `command -v hudiff`);
+    goreleaser / brew tap / GitHub repo 等成熟再做; `.handoff/` 目录不入库(含本机路径)
