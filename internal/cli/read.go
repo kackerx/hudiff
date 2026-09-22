@@ -199,15 +199,18 @@ func splitLines(s string) []string {
 // fileVersions finds the old and new full text of a path, by session kind.
 func fileVersions(sess *session.Session, path, oldPath string) (old, new []string) {
 	repo, meta := sess.Repo, sess.Meta
-	show := func(rev, p string) []string {
-		if rev == "" || p == "" {
-			return nil // the oracle's git_show() guard: empty rev never resolves
-		}
-		out, err := exec.Command("git", "-C", repo, "show", rev+":"+p).Output()
+	at := func(spec string) []string {
+		out, err := exec.Command("git", "-C", repo, "show", spec).Output()
 		if err != nil {
 			return nil
 		}
 		return splitLines(string(out))
+	}
+	show := func(rev, p string) []string {
+		if rev == "" || p == "" {
+			return nil
+		}
+		return at(rev + ":" + p)
 	}
 	disk := func(p string) []string {
 		b, err := os.ReadFile(filepath.Join(repo, p))
@@ -229,7 +232,7 @@ func fileVersions(sess *session.Session, path, oldPath string) (old, new []strin
 	switch sess.Kind {
 	case "worktree":
 		if m("scope") == "staged" {
-			return show("HEAD", op), show("", path)
+			return show("HEAD", op), at(":" + path) // the index version
 		}
 		return show("HEAD", op), disk(path)
 	case "commit":

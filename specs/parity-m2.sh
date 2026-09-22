@@ -42,6 +42,27 @@ else
     bad "read-brief  (no brief session)"
 fi
 
+# A --staged session reads its new side out of the index, not the working tree.
+# (It used to read nothing at all: `git show :path` was called with an empty rev.)
+kind staged "$FIX/repo" --staged
+if [ -n "${KS:-}" ]; then
+    XDG_STATE_HOME=$KSTATE "$GO" -s "$(basename "$KS")" read -W >"$WORK/read-W-staged" 2>&1 || true
+    gold read-W-staged mask "$WORK/read-W-staged"
+    if python3 -c 'import sys
+out = open(sys.argv[1]).read()
+a = out.split("=== a.go")[1].split("=== ")[0]
+gone = out.split("=== gone.go")[1].split("=== ")[0]
+assert "cannot read the new file" not in a, a          # staged content is in the index
+assert "~" in a, a                                     # and it padded the hunks
+assert "cannot read the new file" in gone, gone        # deleted: nothing to read'        "$WORK/read-W-staged" 2>"$WORK/staged.err"; then
+        ok "a --staged session pads from the index (the old bug read nothing)"
+    else
+        bad "staged read -W  ($WORK/read-W-staged $WORK/staged.err)"
+    fi
+else
+    bad "read-W-staged  (no staged session)"
+fi
+
 # source_key idempotence: the same source in the same state dir reopens the same
 # session, --new insists on a fresh one.
 ik=$(new_state)
