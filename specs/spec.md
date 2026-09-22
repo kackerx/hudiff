@@ -161,7 +161,8 @@ hudiff/
 - **会话即收件箱**: 页面 Send 只做 `submit_seq++` 并 close 该会话的 broadcast channel;
   `/api/wait?since=N` 挂在 channel 上, `r.Context()` 处理断开。没人在 wait 时触发 `hooks.on_submit`。
 - **TUI 口子**: TUI 将来只是 daemon API 的另一个客户端(轮询 `/api/state`、POST comments、`/api/wait`),
-  核心零改动。所以 daemon API 必须是完整的: 页面能做的每件事都有 API。
+  核心零改动。所以 daemon API 必须是完整的: 页面能做的每件事都有 API。设计备忘在 `specs/tui.md`(不进 v1);
+  它的前置是把 app.js 里的派生逻辑抽成 `internal/view` —— 因此 v1 期间**新写的数据整形进 Go 领域包, 不进 app.js**。
 - **dev 模式**: `HUDIFF_DEV=1` 时 `web/` 从磁盘读(cwd 或 `HUDIFF_WEB_DIR`), 不再有"进程里是老页面"的错位。
 - **平台**: agent 发现(ps/lsof)整段删除, 不再需要 build tag; daemon 拉起有 `_unix.go` / `_windows.go`。
 
