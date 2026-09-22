@@ -13,7 +13,6 @@ GO_BIN="$ROOT/bin/hudiff"
 # Both implementations start a daemon just to put a URL in --json output, so
 # every throwaway state dir leaves one behind. Stop it before dropping the dir.
 STATES=$(mktemp)
-trap 'sweep_states' EXIT
 
 remember() { printf '%s\n' "$@" >>"$STATES"; }
 
@@ -150,3 +149,5 @@ rm -rf "$FIX"
 if [ -n "${PARITY_PR:-}" ]; then
     create "create-pr-$PARITY_PR" "${PARITY_PR_REPO:-$ROOT}" pr "$PARITY_PR" -- pr "$PARITY_PR"
 fi
+
+sweep_states

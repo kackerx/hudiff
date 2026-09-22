@@ -37,6 +37,7 @@ WORK=$(mktemp -d)
 FAILED=0
 
 restore() {
+    command -v sweep_states >/dev/null 2>&1 && sweep_states
     [ "$KEEP_GO" = 1 ] && return 0
     "$GO" daemon stop >/dev/null 2>&1 || true
     $PY -s "$SID" url >/dev/null 2>&1 || true
