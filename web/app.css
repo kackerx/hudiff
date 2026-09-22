@@ -1,5 +1,13 @@
+@font-face{
+  font-family:"JetBrains Mono";
+  src:url("/vendor/JetBrainsMono.ttf") format("truetype");
+  font-weight:100 800;
+  font-display:swap;
+}
+
 :root{
   --bg:#ffffff; --bg2:#f6f8fa; --bg3:#eef1f5; --fg:#1f2328; --fg2:#656d76; --fg3:#8b949e; --line:#d8dee4; --line2:#e8ecf0;
+  --prose:#4d555e;
   --add-bg:#e6ffec; --add-fg:#1a7f37; --add-num:#ccffd8; --add-mark:#2da44e;
   --del-bg:#ffebe9; --del-fg:#cf222e; --del-num:#ffd7d5; --del-mark:#f85149;
   --hunk-bg:#f1f8ff; --hunk-fg:#0969da; --accent:#0969da; --accent-bg:#ddf4ff; --accent-soft:#eaf3ff;
@@ -7,10 +15,14 @@
   --note-bg:#fff; --note-border:#d8dee4; --chip:#eef1f5; --sel:#fff3b0; --shadow:0 1px 2px rgba(31,35,40,.06);
   --mono:ui-monospace,"SF Mono",Menlo,"JetBrains Mono",monospace;
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;
+  /* prose: latin from the embedded font, CJK from the system — a CJK face is
+     19MB a weight, far past the binary budget */
+  --prose-font:"JetBrains Mono","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   color-scheme:light;
 }
 :root[data-theme="dark"]{
   --bg:#0d1117; --bg2:#161b22; --bg3:#1f2630; --fg:#e6edf3; --fg2:#9198a1; --fg3:#6e7681; --line:#30363d; --line2:#21262d;
+  --prose:#b9c1cb;
   --add-bg:#12261e; --add-fg:#3fb950; --add-num:#1c3a29; --add-mark:#3fb950;
   --del-bg:#2d1418; --del-fg:#f85149; --del-num:#4a1c22; --del-mark:#f85149;
   --hunk-bg:#121d2f; --hunk-fg:#79c0ff; --accent:#58a6ff; --accent-bg:#1b2a41; --accent-soft:#151f30;
@@ -20,6 +32,7 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d1117; --bg2:#161b22; --bg3:#1f2630; --fg:#e6edf3; --fg2:#9198a1; --fg3:#6e7681; --line:#30363d; --line2:#21262d;
+  --prose:#b9c1cb;
   --add-bg:#12261e; --add-fg:#3fb950; --add-num:#1c3a29; --add-mark:#3fb950;
   --del-bg:#2d1418; --del-fg:#f85149; --del-num:#4a1c22; --del-mark:#f85149;
   --hunk-bg:#121d2f; --hunk-fg:#79c0ff; --accent:#58a6ff; --accent-bg:#1b2a41; --accent-soft:#151f30;
@@ -72,7 +85,6 @@ header .summary.collapsed .md p,header .summary.collapsed .md ol,header .summary
 header .summary .tog{position:absolute;right:10px;top:7px;font-size:11px;color:var(--fg2);background:var(--bg2);padding:0 7px;border-radius:9px;line-height:18px}
 header .summary:hover .tog{color:var(--accent)}
 header .summary p{margin:0 0 6px} header .summary p:last-child{margin:0} header .summary ol,header .summary ul{margin:4px 0;padding-left:22px}
-header .summary code,.card .body code,.thread code{font-size:11.5px;background:var(--bg3);padding:1px 5px;border-radius:4px}
 header .toolbar{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:12px}
 .sendgrp{display:inline-flex;align-items:stretch;position:relative}
 .sendgrp .tgt{position:absolute;right:0;top:100%;margin-top:2px;font-size:10.5px;color:var(--fg2);white-space:nowrap}
@@ -355,3 +367,17 @@ header .brief{margin-top:6px;font-size:12px;color:var(--fg2);display:flex;gap:6p
 .agsec{font-size:10.5px;color:var(--fg3);padding:8px 8px 3px;letter-spacing:.04em}
 .agempty{padding:14px 10px;color:var(--fg2);font-size:12px}
 .aglist{margin:10px 0;border:1px solid var(--line2);border-radius:10px;padding:4px;background:var(--bg2)}
+
+/* ── Prose: the long text an agent writes. 12px / 1.7 / 800px keeps a line at
+   about 66 CJK characters; inline code drops its box and carries colour
+   instead, so a paragraph full of identifiers stays one piece of text. ── */
+header .summary,.rv-sum,.rvi .body,.rv-good,.card .body,.thread .b{
+  font-family:var(--prose-font);font-size:12px;line-height:1.7;color:var(--prose)}
+header .summary,.rv-sum,.rvi .body,.rv-good{max-width:800px}
+header .summary .md>*,.rv-sum .body>*,.rvi .body>p,.rvi .body>ul,.rvi .body>ol,.card .body>p{margin:0 0 11px}
+header .summary .md>*:last-child,.rv-sum .body>*:last-child,.rvi .body>*:last-child,.card .body>p:last-child{margin-bottom:0}
+.rvi .body ul,.rvi .body ol,.rv-good{padding-left:22px} .rvi .body li,.rv-good li{margin:4px 0}
+header .summary b,.rv-sum b,.rvi .body b,.rv-good b,.card .body b,.thread .b b{color:var(--fg)}
+header .summary code,.rv-sum code,.rvi .body code,.rv-good code,.card .body code,.thread .b code{
+  font-family:"JetBrains Mono",var(--mono);font-size:.94em;background:transparent;padding:0;
+  border-radius:0;color:var(--accent)}

@@ -359,10 +359,17 @@ fi
 
 # The DOM cannot tell whether the stylesheets and bundles actually arrived.
 for a in app.css app.js index.css index.js vendor/highlight.min.js \
-         vendor/hljs-github.min.css vendor/hljs-github-dark.min.css vendor/hljs-lang-lua.min.js; do
+         vendor/hljs-github.min.css vendor/hljs-github-dark.min.css vendor/hljs-lang-lua.min.js \
+         vendor/JetBrainsMono.ttf vendor/JetBrainsMono-OFL.txt; do
     code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$P/$a")
     [ "$code" = 200 ] && ok "asset /$a" || bad "asset /$a  (HTTP $code)"
 done
+# a font served as application/octet-stream is a font the browser will not use
+ct=$(curl -s -o /dev/null -w "%{content_type}" "http://127.0.0.1:$P/vendor/JetBrainsMono.ttf")
+case $ct in
+    font/*) ok "the embedded font is served as $ct" ;;
+    *) bad "font content-type is $ct, want font/ttf" ;;
+esac
 
 # ── the gate stands on its own ───────────────────────────────────────────────
 # The pattern is a regex, so this line does not match itself; comments do not

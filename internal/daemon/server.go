@@ -175,6 +175,14 @@ func writeAsset(w http.ResponseWriter, name string) {
 }
 
 func contentType(name string) string {
+	// Go's builtin table has no font types, and a browser will not use a font
+	// served as application/octet-stream.
+	switch filepath.Ext(name) {
+	case ".ttf":
+		return "font/ttf"
+	case ".woff2":
+		return "font/woff2"
+	}
 	if t := mime.TypeByExtension(filepath.Ext(name)); t != "" {
 		return t
 	}

@@ -64,7 +64,9 @@ cd ~/proj/hudiff
 go install -trimpath -ldflags "-s -w" .   # lands in $GOBIN, or $GOPATH/bin
 ```
 
-Go 1.27+. `-trimpath -ldflags "-s -w"` is what keeps the binary at ~28MB with no
+Go 1.27+. The binary carries JetBrains Mono ([OFL-1.1](web/vendor/JetBrainsMono-OFL.txt))
+for the prose and code text; CJK falls back to the system font, because a CJK face
+is 19MB a weight. `-trimpath -ldflags "-s -w"` is what keeps the binary at ~28MB with no
 build paths baked in; plain `go install .` works too and costs ~9MB more.
 `go install github.com/kackerx/hudiff@latest` and prebuilt binaries are coming
 once the repo is public. d2 is compiled in — nothing to install for diagrams.
