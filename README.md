@@ -39,7 +39,7 @@ hudiff opens a local page that looks like a GitHub PR review, plus three things 
 | Tab | What you get | Who writes it |
 |---|---|---|
 | **Code** | The diff, with a review-style note per hunk — why this change, blast radius, risks. Trivial hunks stay silent. | the explaining agent |
-| **Diagrams** | An auto-generated change map (files → changed symbols → outside callers) and any flow/sequence diagrams the agent adds (d2 or mermaid) | auto + agent |
+| **Diagrams** | An auto-generated change map (files → changed symbols → outside callers) and any flow/sequence diagrams the agent writes in d2 | auto + agent |
 | **Review** | A cross-review from a *second* agent: verdict, strengths, high/medium/low findings. Re-reviews merge into the same report and never overwrite your checkmarks. | the reviewing agent |
 
 You comment on a line, a hunk, or the whole change, hit **Send**, and the agent waiting on `hudiff wait` wakes up, replies, or edits the code.
@@ -48,7 +48,7 @@ After it edits, `hudiff session refresh` re-anchors your comments to the new dif
 ## Features
 
 - **Works with any agent that can run a shell.** The CLI is the product; the bundled `SKILL.md` teaches the agent the workflow.
-- **Zero runtime deps.** One binary. `git` required; `gh` for PRs; `d2` only if you pick the d2 diagram engine.
+- **Zero runtime deps.** One binary, d2 compiled in. `git` is required; `gh` only for pull requests.
 - **Sessions, not tabs.** One local daemon serves every session at `/s/<id>/`. Sessions live on disk, reopen any time, archive or delete when done.
 - **Idempotent.** Running hudiff twice on the same target reuses the session and refreshes it in place.
 - **Fast on big diffs.** 5k+ line diffs scroll smoothly (`content-visibility`), incremental highlight, no framework.
@@ -94,15 +94,13 @@ hudiff session archive <id>  # hide from the home page, keep the data
 
 ## Agent skill
 
-The skill is plain Markdown — the same format Claude Code, pi, opencode and codex read. Link it once:
+The skill is plain Markdown — the same format Claude Code, pi, opencode and codex read. It ships inside the binary:
 
 ```bash
-ln -s ~/proj/hudiff/skills/hudiff ~/.claude/skills/hudiff       # Claude Code
-ln -s ~/proj/hudiff/skills/hudiff ~/.pi/agent/skills/hudiff     # pi
-# opencode / codex: symlink into their skills directory
+hudiff skill install                 # every agent it knows about
+hudiff skill install --for claude    # or one of claude | pi | opencode | codex
+hudiff skill path                    # where it unpacked it, if you would rather link it yourself
 ```
-
-(`hudiff skill install --for <agent>` will do this for you once the Go binary lands.)
 
 What the agent runs, roughly:
 
@@ -123,7 +121,7 @@ hudiff review set <json>    cross-review report (merged into earlier rounds)
 {
   "viewer": "web",                          // "tui" reserved for a future terminal UI
   "web": { "port": 0, "open": true, "browser": "" },
-  "diagram": { "engine": "d2" },            // "d2" | "mermaid"
+  "diagram": { "sketch": false },           // true = hand-drawn style
   "data_dir": "",                           // default: $XDG_STATE_HOME/hudiff
   "prompts_dir": "",                        // default: <config dir>/prompts/{default,<repo>}.md
   "hooks": { "on_submit": "", "on_review_request": "" },   // shell commands; $HUDIFF_SESSION, $HUDIFF_URL
@@ -132,7 +130,7 @@ hudiff review set <json>    cross-review report (merged into earlier rounds)
 }
 ```
 
-Environment: `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `XDG_STATE_HOME`, `HUDIFF_DEV=1` (serve `web/` from disk while hacking on the UI).
+Environment: `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `HUDIFF_STATE` (or `XDG_STATE_HOME`), `HUDIFF_DEV=1` + `HUDIFF_WEB_DIR` (serve `web/` from disk while hacking on the UI).
 
 ## How it works
 

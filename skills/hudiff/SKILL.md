@@ -142,9 +142,11 @@ match it**, and use `null` for hunks it says not to bother with.
    - **`hunks` is required**: which hunks the diagram is about (`path#n`). The page
      turns them into chips that jump to the code, and the note cards get a chip
      back to the diagram. A diagram with no anchor is an island.
-   - **Colour**: use only the four predefined classes — `added`, `removed`,
-     `changed`, `external`. Do not set your own fills or strokes; they will not
-     match the page theme. Do not set `border-radius` either, hudiff applies it.
+   - **Colour**: leave it alone. The `added` / `removed` / `changed` / `ext`
+     palette lives inside the generated change map only — naming one of those
+     classes in your own source does nothing (d2 ignores a class it was never
+     given) and hand-picked fills will not match the page theme. Do not set
+     `border-radius` either, hudiff applies it.
    - **Mark the main path**: put `style.animated: true` on the 1–3 edges that carry
      the primary flow or the data direction. Animating every edge makes the
      diagram unreadable.
