@@ -36,7 +36,11 @@ lazygit 用 gocui 是 2018 年的历史原因, 不是推荐。`hunk`(用户参�
 ## 3. 图: ASCII 化, 不用终端图形协议
 
 - **d2 图免费**: d2 v0.9 同一个 Go 模块里有 `d2renderers/d2ascii`(CLI 即 `d2 x.d2 x.txt` / `--stdout-format ascii`), 同一份源码、同一
-  布局(TALA)直接出 Unicode 框线图。2026-09-22 用 4d71 的 auto-map 实测能出图; **已知缺陷**: CJK 宽字符会把框线撑歪("其 它 27 个"
+  布局(TALA)直接出 Unicode 框线图。内嵌后不走 CLI flag, 而是拿 `d2lib.Compile` 已经算好布局的 `*d2target.Diagram` 直接
+  `d2ascii.Render(diagram, &d2ascii.RenderOpts{Charset: charset.Unicode | charset.ASCII, Scale})` —— 布局算一次, SVG 和文本是同一张图的
+  两种画法。`Charset` 对应 CLI 的 `--ascii-mode`: `extended`(Unicode 框线, 默认, TUI 用这个)/ `standard`(纯 7-bit ASCII, 给
+  `hudiff diagram <id> --ascii` 这类要贴进 PR 评论 / 聊天的场景)。`Scale` 用来适配终端宽度。2026-09-22 实测两种模式都能出图, 边标签
+  的落点比 SVG 粗糙(标签会挤在拐角), 可接受。2026-09-22 用 4d71 的 auto-map 实测能出图; **已知缺陷**: CJK 宽字符会把框线撑歪("其 它 27 个"
   被拆成单字加空格), 英文标签正常 —— UI 全英文化后 auto-map 没问题, agent 写的中文标签会歪, 到时看 d2ascii 有没有修 wcwidth。
 - **mermaid 图没有 ASCII 路径**: TUI 里只列标题 + caption + 关联 hunk, 按键用系统浏览器打开该图的 `/api/diagram` URL; 不引 graph-easy /
   plantuml 之类的外部转换。
