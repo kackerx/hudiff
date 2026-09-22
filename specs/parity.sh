@@ -145,40 +145,36 @@ same_json info            "$WORK/py.info"          "$WORK/go.info"
 same_json api-session     "$WORK/py.api-session"   "$WORK/go.api-session"
 same_json api-sessions    "$WORK/py.api-sessions"  "$WORK/go.api-sessions"
 
+# The oracle shells out to d2 with dagre; we compile d2 in with TALA (spec §7),
+# so the SVG bytes cannot match. What must hold: both sides render, ours carries
+# every node label from its own source, and a second render comes from cache.
 for id in $(diagram_ids "$WORK/py.api-session"); do
     for th in light dark; do
-        if cmp -s "$WORK/py.dg-$id-$th.svg" "$WORK/go.dg-$id-$th.svg"; then
-            ok "diagram-$id-$th"
-        else
-            bad "diagram-$id-$th  ($WORK/py.dg-$id-$th.svg vs $WORK/go.dg-$id-$th.svg)"
-        fi
+        for side in py go; do
+            f="$WORK/$side.dg-$id-$th.svg"
+            if [ "$(wc -c <"$f" | tr -d ' ')" -gt 500 ] && head -c 200 "$f" | grep -q "<svg"; then
+                ok "diagram-$id-$th renders ($side, $(wc -c <"$f" | tr -d ' ') bytes)"
+            else
+                bad "diagram-$id-$th ($side: $f)"
+            fi
+        done
     done
-done
-
-# The checks above all hit the shared SVG cache, so they only prove the d2
-# source matches. This one renders from cold in an isolated state dir, which
-# also compares the d2 invocation itself.
-COLD=$(mktemp -d)
-mkdir -p "$COLD/hudiff/sessions"
-cp -R "$HOME/.local/state/hudiff/sessions/$SID" "$COLD/hudiff/sessions/"
-rm -rf "$COLD/hudiff/sessions/$SID/diagrams"
-XDG_STATE_HOME=$COLD "$GO" daemon start >/dev/null
-CP=$(python3 -c "import json;print(json.load(open('$COLD/hudiff/server.json'))['port'])")
-for id in $(diagram_ids "$WORK/py.api-session"); do
-    for th in light dark; do
-        curl -s "http://127.0.0.1:$CP/s/$SID/api/diagram?i=$id&theme=$th" >/dev/null
-    done
-done
-XDG_STATE_HOME=$COLD "$GO" daemon stop >/dev/null
-for f in "$COLD/hudiff/sessions/$SID/diagrams/"*.svg; do
-    b=$(basename "$f")
-    if cmp -s "$f" "$HOME/.local/state/hudiff/sessions/$SID/diagrams/$b"; then
-        ok "d2-cold-render $b"
+    "$GO" -s "$SID" diagram "$id" --src >"$WORK/go.dg-$id.src" 2>/dev/null || true
+    if python3 "$ROOT/specs/parity-labels.py" "$WORK/go.dg-$id-light.svg" "$WORK/go.dg-$id.src" 2>"$WORK/label-$id.err"; then
+        ok "diagram-$id SVG carries every node label"
     else
-        bad "d2-cold-render $b  ($f)"
+        bad "diagram-$id labels ($WORK/label-$id.err)"
     fi
 done
-[ "$FAILED" = 0 ] && rm -rf "$COLD"
+
+before=$(ls "$HOME/.local/state/hudiff/sessions/$SID/diagrams" 2>/dev/null | wc -l | tr -d ' ')
+"$GO" -s "$SID" diagram auto-map >/dev/null 2>&1 || true
+after=$(ls "$HOME/.local/state/hudiff/sessions/$SID/diagrams" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$before" = "$after" ]; then
+    ok "diagram cache hit on the second render ($before files)"
+else
+    bad "diagram cache: $before → $after files"
+fi
 
 if [ "$PAGE" = 1 ]; then
     for v in code diagrams review; do
@@ -206,6 +202,8 @@ echo "M2: session creation"
 
 echo "M3: the write path"
 . "$ROOT/specs/parity-m3.sh"
+echo "M4: review / context / diagram"
+. "$ROOT/specs/parity-m4.sh"
 rm -rf "$FIX"
 
 if [ "$FAILED" = 0 ]; then

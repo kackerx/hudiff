@@ -1,5 +1,3 @@
-// Package diagram lists and renders the session's diagrams. d2 is rendered
-// server side with a hash cache; mermaid is left to the browser.
 package diagram
 
 import (
@@ -8,9 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,25 +14,24 @@ import (
 	"github.com/kackerx/hudiff/internal/diff"
 )
 
-// The strings below are page-visible and byte-compared against the oracle
-// (diagram titles land in /api/session, the labels land in the d2 source and
-// therefore in the SVG cache key). They turn English in M5 with the page.
 const autoMapCaption = "文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。" +
 	"红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。"
 
-var multiboard = regexp.MustCompile(`(?m)^\s*(steps|layers|scenarios)\s*:`)
+// Config is the engine switch. M5 fills it from config.json; until then the
+// session's meta.diagram_engine picks the engine and Sketch stays off.
+type Config struct {
+	Engine string // d2 | mermaid
+	Sketch bool
+}
 
-var d2Theme = map[string]string{"light": "0", "dark": "200"}
+func DefaultConfig() Config { return Config{Engine: "d2"} }
 
-var d2Bin = sync.OnceValue(func() string {
-	p, err := exec.LookPath("d2")
-	if err != nil {
-		return ""
+func (c Config) engine() string {
+	if c.Engine == "mermaid" {
+		return "mermaid"
 	}
-	return p
-})
-
-func HasD2() bool { return d2Bin() != "" }
+	return "d2"
+}
 
 type Entry struct {
 	ID      string   `json:"id"`
@@ -91,10 +86,10 @@ func strList(m map[string]any, k string) []string {
 	return out
 }
 
-func List(dir string, d diff.Diff) []Entry {
+func List(dir string, d diff.Diff, cfg Config) []Entry {
 	out := []Entry{}
-	if HasD2() && anyHunks(d) {
-		out = append(out, Entry{ID: "auto-map", Title: "改动地图(自动)", Kind: "d2",
+	if anyHunks(d) {
+		out = append(out, Entry{ID: "auto-map", Title: "改动地图(自动)", Kind: cfg.engine(),
 			Auto: true, Hunks: []string{}, Caption: autoMapCaption})
 	}
 	for i, dg := range loadRawDiagrams(dir) {
@@ -125,39 +120,45 @@ func anyHunks(d diff.Diff) bool {
 	return false
 }
 
-// Render returns SVG bytes for `which`, always succeeding: failures come back
-// as an error card so the page has something to show.
-func Render(dir, repo string, d diff.Diff, which, theme string) []byte {
-	var src string
+// Source returns the diagram's source and engine, resolving `which` the way the
+// oracle did: "auto-map", an index, or an id.
+func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind string, err error) {
 	if which == "auto-map" {
-		src = autoMapCached(dir, repo, d)
+		return autoMapCached(dir, repo, d, cfg.engine()), cfg.engine(), nil
+	}
+	dgs := loadRawDiagrams(dir)
+	var dg map[string]any
+	if i, e := strconv.Atoi(which); e == nil && i >= 0 && i < len(dgs) {
+		dg = dgs[i]
 	} else {
-		dgs := loadRawDiagrams(dir)
-		var dg map[string]any
-		if i, err := strconv.Atoi(which); err == nil && i >= 0 && i < len(dgs) {
-			dg = dgs[i]
-		} else {
-			for _, x := range dgs {
-				if x != nil && str(x, "id") == which {
-					dg = x
-					break
-				}
+		for _, x := range dgs {
+			if x != nil && str(x, "id") == which {
+				dg = x
+				break
 			}
 		}
-		if dg == nil {
-			return errorSVG("没有这张图: " + which)
-		}
-		if strOr(dg, "kind", "d2") != "d2" {
-			return errorSVG("这张图不是 d2, 由浏览器渲染")
-		}
-		src = strOr(dg, "src", "")
 	}
-	sum := sha1.Sum([]byte(theme + "\x00" + src))
-	cache := filepath.Join(dir, "diagrams", hex.EncodeToString(sum[:])[:16]+".svg")
+	if dg == nil {
+		return "", "", fmt.Errorf("没有这张图: %s", which)
+	}
+	return strOr(dg, "src", ""), strOr(dg, "kind", "d2"), nil
+}
+
+// Render returns SVG bytes, always succeeding: a failure comes back as an error
+// card so the page has something to show.
+func Render(dir, repo string, d diff.Diff, which, theme string, cfg Config) []byte {
+	src, kind, err := Source(dir, repo, d, which, cfg)
+	if err != nil {
+		return errorSVG(err.Error())
+	}
+	if kind != "d2" {
+		return errorSVG("这张图不是 d2, 由浏览器渲染")
+	}
+	cache := filepath.Join(dir, "diagrams", cacheKey(src, theme, cfg.Sketch)+".svg")
 	if b, err := os.ReadFile(cache); err == nil {
 		return b
 	}
-	svg, err := renderD2(src, theme)
+	svg, err := renderD2(src, theme, cfg.Sketch)
 	if err != nil {
 		return errorSVG(err.Error())
 	}
@@ -166,70 +167,36 @@ func Render(dir, repo string, d diff.Diff, which, theme string) []byte {
 	return svg
 }
 
+// cacheKey covers everything that changes the pixels: the source, the theme,
+// sketch mode and the style preamble.
+func cacheKey(src, theme string, sketch bool) string {
+	sum := sha1.Sum([]byte(theme + "\x00" + strconv.FormatBool(sketch) + "\x00" + Preamble + "\x00" + src))
+	return hex.EncodeToString(sum[:])[:16]
+}
+
 type autoSrc struct {
-	mtime int64
-	src   string
+	mtime  int64
+	engine string
+	src    string
 }
 
 var autoCache sync.Map // session dir -> autoSrc
 
 // autoMapCached keeps the generated source per diff.json mtime: building it
 // shells out to git grep for every changed symbol.
-func autoMapCached(dir, repo string, d diff.Diff) string {
+func autoMapCached(dir, repo string, d diff.Diff, engine string) string {
 	var mt int64
 	if st, err := os.Stat(filepath.Join(dir, "diff.json")); err == nil {
 		mt = st.ModTime().UnixNano()
 	}
 	if hit, ok := autoCache.Load(dir); ok {
-		if c := hit.(autoSrc); c.mtime == mt {
+		if c := hit.(autoSrc); c.mtime == mt && c.engine == engine {
 			return c.src
 		}
 	}
-	src := AutoMapSrc(repo, d)
-	autoCache.Store(dir, autoSrc{mt, src})
+	src := AutoMapSrc(repo, d, engine)
+	autoCache.Store(dir, autoSrc{mt, engine, src})
 	return src
-}
-
-func renderD2(src, theme string) ([]byte, error) {
-	if !HasD2() {
-		return nil, fmt.Errorf("d2 未安装: brew install d2")
-	}
-	th, ok := d2Theme[theme]
-	if !ok {
-		th = "0"
-	}
-	args := []string{"--theme", th, "--pad", "16", "--layout", "dagre", "--scale", "1"}
-	if multiboard.MatchString(src) {
-		return renderMultiboard(args, src)
-	}
-	return runD2(append(args, "-", "-"), src)
-}
-
-// Multi-board sources (steps/layers/scenarios) cannot stream to stdout, so
-// they go through a temp file and become a frame animation.
-func renderMultiboard(args []string, src string) ([]byte, error) {
-	td, err := os.MkdirTemp("", "hudiff-d2")
-	if err != nil {
-		return nil, err
-	}
-	defer os.RemoveAll(td)
-	out := filepath.Join(td, "out.svg")
-	if _, err := runD2(append(args, "--animate-interval", "1400", "-", out), src); err != nil {
-		return nil, err
-	}
-	return os.ReadFile(out)
-}
-
-func runD2(args []string, src string) ([]byte, error) {
-	cmd := exec.Command(d2Bin(), args...)
-	cmd.Stdin = strings.NewReader(src)
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("%s", strings.TrimSpace(stderr.String()))
-	}
-	return out, nil
 }
 
 func errorSVG(msg string) []byte {

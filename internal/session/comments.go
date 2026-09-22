@@ -19,6 +19,10 @@ type Comment = map[string]any
 // write lands via temp+rename and a reader sees either the old or the new file.
 var locks sync.Map
 
+// Lock is the session's write lock, shared with packages that own one of its
+// files (review.json).
+func Lock(dir string) *sync.RWMutex { return lockFor(dir) }
+
 func lockFor(dir string) *sync.RWMutex {
 	v, _ := locks.LoadOrStore(dir, &sync.RWMutex{})
 	return v.(*sync.RWMutex)
@@ -187,6 +191,16 @@ func Submit(dir string) (int, int, error) {
 	}
 	seq, err := bumpSubmitSeq(dir)
 	return n, seq, err
+}
+
+// BumpSubmit wakes waiters without touching comments; a new review round uses
+// it.
+func BumpSubmit(dir string) (int, int, error) {
+	mu := lockFor(dir)
+	mu.Lock()
+	defer mu.Unlock()
+	seq, err := bumpSubmitSeq(dir)
+	return 0, seq, err
 }
 
 // bumpSubmitSeq rewrites session.json through a map so fields hudiff does not

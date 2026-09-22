@@ -34,7 +34,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 
 | 项 | 选择 | 理由 / 否掉的 |
 |---|---|---|
-| 语言 | Go, `go 1.25`(本机 1.26.3) | 单二进制、embed、维护者更熟 |
+| 语言 | Go, `go 1.27`(d2 v0.9.0 要求, 原定 1.25) | 单二进制、embed、维护者更熟 |
 | module | `github.com/kackerx/hudiff` | 个人号; 根目录就是 `package main`, `go install …@latest` 直接可用 |
 | CLI | **kong** v1.16 | 18 子命令 / 47 参数 / 两层子命令 / 可重复 flag / flag 可在位置参数后 —— 标准库 `flag` 全要手写, 且 `-h` 质量差 |
 | HTTP | 标准库 `net/http`, Go 1.22 mux 模式(`GET /s/{sid}/api/session`) | 十几条路由, 框架无收益 |
@@ -279,7 +279,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
   根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
 - **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
 - **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
-- **M4** `review`(并入)/ `diagram`(双引擎)/ `context`
+- **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌 + mermaid)/ `context`
 - **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段
 - **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap
 

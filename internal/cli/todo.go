@@ -37,8 +37,6 @@ type ContextCmd struct {
 	Refs int    `default:"6" help:"Max references listed per symbol."`
 }
 
-func (c *ContextCmd) Run(g *Globals) error { return todo("context") }
-
 type NotesCmd struct {
 	Path  string `arg:"" help:"notes.json path, or - for stdin." placeholder:"<file|->"`
 	Force bool   `help:"Write even if validation fails."`
@@ -51,14 +49,12 @@ type DiagramCmd struct {
 	Out   string `short:"o" help:"Write the SVG here instead of stdout." placeholder:"<svg>"`
 }
 
-func (c *DiagramCmd) Run(g *Globals) error { return todo("diagram") }
-
 type ReviewCmd struct {
 	Show    ReviewShowCmd     `cmd:"" default:"1" help:"Show the report."`
 	Set     ReviewSetCmd      `cmd:"" help:"Write a report; merges into the existing one by default."`
-	Done    ReviewStatusCmd   `cmd:"" help:"Mark an item handled."`
-	Wontfix ReviewStatusCmd   `cmd:"" help:"Mark an item wontfix."`
-	Reopen  ReviewStatusCmd   `cmd:"" help:"Reopen an item."`
+	Done    ReviewDoneCmd     `cmd:"" help:"Mark an item handled."`
+	Wontfix ReviewWontfixCmd  `cmd:"" help:"Mark an item wontfix."`
+	Reopen  ReviewReopenCmd   `cmd:"" help:"Reopen an item."`
 	Note    ReviewNoteCmd     `cmd:"" help:"Append a re-review note to an item."`
 	MD      ReviewMarkdownCmd `cmd:"" name:"md" help:"Export the report as markdown."`
 }
@@ -68,8 +64,6 @@ type ReviewShowCmd struct {
 	JSON bool `help:"Machine-readable output."`
 }
 
-func (c *ReviewShowCmd) Run(g *Globals) error { return todo("review") }
-
 type ReviewSetCmd struct {
 	Path    string `arg:"" help:"Report JSON, or - for stdin." placeholder:"<file|->"`
 	Author  string `help:"Reviewer identity." placeholder:"<name>"`
@@ -77,15 +71,25 @@ type ReviewSetCmd struct {
 	Force   bool   `help:"Write even if validation fails."`
 }
 
-func (c *ReviewSetCmd) Run(g *Globals) error { return todo("review set") }
-
-type ReviewStatusCmd struct {
+// kong resolves Run() on the node it built, so the three verbs are three
+// structs rather than one shared one.
+type ReviewDoneCmd struct {
 	ID   string `arg:"" help:"Review item id."`
-	Text string `arg:"" optional:"" help:"Resolution or reason, or - for stdin."`
+	Text string `arg:"" optional:"" help:"Resolution, or - for stdin."`
 	By   string `default:"agent" help:"Who resolved it."`
 }
 
-func (c *ReviewStatusCmd) Run(g *Globals) error { return todo("review done/wontfix/reopen") }
+type ReviewWontfixCmd struct {
+	ID   string `arg:"" help:"Review item id."`
+	Text string `arg:"" optional:"" help:"Reason, or - for stdin."`
+	By   string `default:"agent" help:"Who decided."`
+}
+
+type ReviewReopenCmd struct {
+	ID   string `arg:"" help:"Review item id."`
+	Text string `arg:"" optional:"" help:"Unused; kept for symmetry."`
+	By   string `default:"agent" help:"Who reopened it."`
+}
 
 type ReviewNoteCmd struct {
 	ID      string `arg:"" help:"Review item id."`
@@ -94,11 +98,7 @@ type ReviewNoteCmd struct {
 	By      string `default:"reviewer" help:"Who is writing."`
 }
 
-func (c *ReviewNoteCmd) Run(g *Globals) error { return todo("review note") }
-
 type ReviewMarkdownCmd struct{}
-
-func (c *ReviewMarkdownCmd) Run(g *Globals) error { return todo("review md") }
 
 type CommentsCmd struct {
 	New  bool `help:"Only comments sent to the agent and not yet replied to."`

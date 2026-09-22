@@ -576,13 +576,26 @@ function renderDiagrams(){
   document.querySelectorAll('.dg').forEach(f=>io.observe(f));
 }
 let mermaidLoading=null;
+// hudiff 的 mermaid 画风: base 主题 + 页面 CSS 变量, 跟随浅深色切换。
+// ponytail: look 固定 classic —— sketch 开关 M5 才随 config 暴露给页面。
+function mmTheme(){
+  const cs=getComputedStyle(document.documentElement), v=n=>cs.getPropertyValue(n).trim();
+  return {startOnLoad:false, securityLevel:'loose', theme:'base', look:'classic',
+    flowchart:{curve:'linear'},
+    themeVariables:{background:v('--bg2'), primaryColor:v('--bg2'), primaryTextColor:v('--fg'),
+      primaryBorderColor:v('--line'), lineColor:v('--fg2'), secondaryColor:v('--add-bg'),
+      tertiaryColor:v('--del-bg'), fontFamily:v('--sans')}};
+}
+function reportRender(id, err){ api('POST', `/api/diagram/${encodeURIComponent(id)}/error`, {error:err}).catch(()=>{}); }
 function renderMermaid(){
   const boxes=[...document.querySelectorAll('.svgwrap.mm')]; if(!boxes.length) return;
-  const go=async()=>{ mermaid.initialize({startOnLoad:false, theme:isDark()?'dark':'default', securityLevel:'loose'});
-    for(const box of boxes){ const dg=(S.data.diagrams||[]).find(d=>d.id===box.dataset.id); try{ const {svg}=await mermaid.render('mm-'+Math.random().toString(36).slice(2), dg.src); box.innerHTML=svg; }catch(e){ box.innerHTML=`<pre class="hint" style="text-align:left;color:var(--del-fg)">mermaid 渲染失败:\n${esc(e.message||e)}</pre>`; } } };
+  const go=async()=>{ mermaid.initialize(mmTheme());
+    for(const box of boxes){ const dg=(S.data.diagrams||[]).find(d=>d.id===box.dataset.id); if(!dg) continue;
+      try{ const {svg}=await mermaid.render('mm-'+Math.random().toString(36).slice(2), dg.src); box.innerHTML=svg; reportRender(dg.id,''); }
+      catch(e){ const msg=String(e&&e.message||e); box.innerHTML=`<pre class="hint" style="white-space:pre-wrap">${esc(msg)}</pre>`; reportRender(dg.id,msg); } } };
   if(window.mermaid) return go();
-  if(!mermaidLoading){ mermaidLoading=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'; sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); }); }
-  mermaidLoading.then(go).catch(()=>boxes.forEach(b=>b.innerHTML='<span class="hint">mermaid 加载失败(需要联网)</span>'));
+  if(!mermaidLoading){ mermaidLoading=new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='/vendor/mermaid.min.js'; sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); }); }
+  mermaidLoading.then(go).catch(()=>boxes.forEach(b=>b.innerHTML='<span class="hint">mermaid 加载失败</span>'));
 }
 function scrollToDiagram(id){ showMid('diagrams'); const f=document.getElementById('dg-'+id); if(f){ f.scrollIntoView({block:'start'}); S.activeDg=id; document.querySelectorAll('.dg').forEach(x=>x.classList.toggle('active', x.dataset.id===id)); } }
 

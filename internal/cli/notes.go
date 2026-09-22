@@ -10,11 +10,31 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kackerx/hudiff/internal/diagram"
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/session"
 )
 
 var hunkRef = regexp.MustCompile(`^(.+)#(\d+)$`)
+
+// The mermaid diagram types worth allowing; the browser is the real judge.
+var mermaidKind = regexp.MustCompile(`^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|C4Context|block(-beta)?|sankey(-beta)?|xychart(-beta)?)\b`)
+
+func compileD2(src string) error {
+	if strings.TrimSpace(src) == "" {
+		return nil // "missing src" is already reported
+	}
+	return diagram.CheckD2(src)
+}
+
+func firstLine(s string) string {
+	for _, l := range strings.Split(s, "\n") {
+		if t := strings.TrimSpace(l); t != "" {
+			return t
+		}
+	}
+	return ""
+}
 
 func (c *NotesCmd) Run(g *Globals) error {
 	sid, dir, err := session.Current(g.Session)
@@ -68,10 +88,9 @@ func readFileArg(path string) (string, error) {
 }
 
 // validateNotes is a trust boundary: an agent wrote this JSON, and a hunk key
-// that does not exist would silently drop an explanation.
-// ponytail: no d2/mermaid compile check yet — the engine becomes an embedded
-// library in M4 (spec §7), and checking through the old binary would be thrown
-// away. Structural checks are all here.
+// that does not exist would silently drop an explanation. d2 sources are really
+// compiled; mermaid is only checked structurally, since rendering it needs a
+// browser (spec §7).
 func validateNotes(notes map[string]any, d diff.Diff) (problems []string, covered, skipped int) {
 	byPath := map[string]diff.File{}
 	for _, f := range d.Files {
@@ -141,7 +160,16 @@ func validateDiagrams(notes map[string]any, byPath map[string]diff.File) []strin
 			problems = append(problems, tag+": missing title")
 		}
 		kind, _ := dg["kind"].(string)
-		if kind != "" && kind != "d2" && kind != "mermaid" {
+		switch kind {
+		case "", "d2":
+			if err := compileD2(src); err != nil {
+				problems = append(problems, fmt.Sprintf("%s (%v): d2 failed to compile — %v", tag, dg["title"], err))
+			}
+		case "mermaid":
+			if head := firstLine(src); head != "" && !mermaidKind.MatchString(head) {
+				problems = append(problems, tag+": first line is not a mermaid diagram type")
+			}
+		default:
 			problems = append(problems, tag+": kind must be d2 or mermaid")
 		}
 		id, _ := dg["id"].(string)

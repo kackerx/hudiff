@@ -31,6 +31,15 @@ var symRes = map[string][]*regexp.Regexp{
 		`^\s*(?:public\s+)?(?:class|interface|enum|record)\s+(\w+)`),
 }
 
+var testPat = regexp.MustCompile(`(_test\.go|test_.*\.py|_test\.py|\.test\.[jt]sx?|\.spec\.[jt]sx?|_spec\.rb|Test\w*\.(java|kt)|_test\.lua|/tests?/)$|/tests?/`)
+
+func clip(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
+}
+
 var langFamily = map[string]string{
 	"go": "go", "py": "py", "js": "jsts", "mjs": "jsts", "ts": "jsts", "tsx": "jsts",
 	"jsx": "jsts", "vue": "jsts", "lua": "lua", "rs": "rs", "sh": "sh", "bash": "sh",
@@ -45,13 +54,20 @@ func rx(pats ...string) []*regexp.Regexp {
 	return out
 }
 
+type Ref struct {
+	File, Line, Text string
+}
+
 type Sym struct {
-	Name     string
-	Kind     string
-	Hunk     int
-	Total    int
-	Noisy    bool
-	RefFiles []string
+	Name      string
+	Kind      string
+	Hunk      int
+	Total     int
+	Noisy     bool
+	InChanged int
+	InTests   int
+	Refs      []Ref
+	RefFiles  []string
 }
 
 type Item struct {
@@ -60,7 +76,9 @@ type Item struct {
 	Add    int
 	Del    int
 	Fam    string
+	Hist   []string
 	Syms   []Sym
+	Tests  []string
 }
 
 func symFamily(path string) string {
@@ -91,20 +109,66 @@ func (o *ordered) setDefault(k string, v int) {
 }
 
 func Collect(repo string, d diff.Diff, only string, refsCap int) []Item {
+	changed := map[string]bool{}
+	for _, f := range d.Files {
+		changed[f.Path] = true
+	}
+	var lsFiles []string
 	var out []Item
 	for _, f := range d.Files {
 		if only != "" && f.Path != only {
 			continue
 		}
 		it := Item{Path: f.Path, Status: f.Status, Add: f.Add, Del: f.Del, Fam: symFamily(f.Path)}
+		it.Hist = lines(git(repo, "log", "-n", "4", "--format=%h %ad %an  %s", "--date=short", "--", f.Path))
 		added, removed := scanSymbols(f, it.Fam)
 		for _, e := range mergeOrder(added, removed) {
-			it.Syms = append(it.Syms, resolveRefs(repo, f.Path, e))
+			it.Syms = append(it.Syms, resolveRefs(repo, f.Path, e, changed, refsCap))
 		}
+		if lsFiles == nil {
+			lsFiles = lines(git(repo, "ls-files"))
+		}
+		it.Tests = relatedTests(f.Path, lsFiles, it.Syms)
 		out = append(out, it)
 	}
 	return out
 }
+
+func lines(s string) []string {
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, "\n")
+}
+
+// relatedTests: files whose name carries this file's stem, plus any test file
+// that already references one of the changed symbols.
+func relatedTests(path string, lsFiles []string, syms []Sym) []string {
+	stem := base(path)
+	if i := strings.LastIndex(stem, "."); i > 0 {
+		stem = stem[:i]
+	}
+	found := map[string]bool{}
+	for _, l := range lsFiles {
+		if testPat.MatchString(l) && l != path && strings.Contains(base(l), stem) {
+			found[l] = true
+		}
+	}
+	for i, sym := range syms {
+		if i >= 10 || sym.Noisy {
+			continue
+		}
+		for _, fn := range sym.RefFiles {
+			if testPat.MatchString(fn) && fn != path {
+				found[fn] = true
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(found))
+}
+
+func base(p string) string { return p[strings.LastIndex(p, "/")+1:] }
 
 type entry struct {
 	name string
@@ -162,7 +226,7 @@ func mergeOrder(added, removed *ordered) []entry {
 	return out
 }
 
-func resolveRefs(repo, path string, e entry) Sym {
+func resolveRefs(repo, path string, e entry, changed map[string]bool, refsCap int) Sym {
 	needle := e.name
 	needle = needle[strings.LastIndex(needle, ".")+1:]
 	needle = needle[strings.LastIndex(needle, ":")+1:]
@@ -178,7 +242,17 @@ func resolveRefs(repo, path string, e entry) Sym {
 	}
 	seen := map[string]bool{}
 	for _, l := range hits {
-		fn, _, _ := strings.Cut(l, ":")
+		fn, rest, _ := strings.Cut(l, ":")
+		lno, txt, _ := strings.Cut(rest, ":")
+		if changed[fn] {
+			s.InChanged++
+		}
+		if testPat.MatchString(fn) {
+			s.InTests++
+		}
+		if len(s.Refs) < refsCap {
+			s.Refs = append(s.Refs, Ref{fn, lno, clip(strings.TrimSpace(txt), 110)})
+		}
 		seen[fn] = true
 	}
 	s.RefFiles = slices.Sorted(maps.Keys(seen))
@@ -192,3 +266,5 @@ func git(repo string, args ...string) string {
 	}
 	return strings.TrimSuffix(string(out), "\n")
 }
+
+func IsTest(path string) bool { return testPat.MatchString(path) }

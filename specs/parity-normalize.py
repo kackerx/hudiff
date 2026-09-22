@@ -11,6 +11,7 @@ different data still shows up as a difference.
     parity-normalize.py list <file>     hudiff session list / hudiff ls
     parity-normalize.py body <file>     a --dump-dom capture of a page
     parity-normalize.py comments <file> hudiff comments / hudiff wait
+    parity-normalize.py context <file>  hudiff context / hudiff ctx
 """
 import re
 import sys
@@ -131,12 +132,57 @@ def norm_ref(rest):
     return rest.replace("整段 hunk ", "whole hunk ") + flags
 
 
+# context: the section labels and the canned remarks are labels; paths, symbol
+# names, hit counts, git log lines and every reference line are data.
+CTX_LABELS = [
+    (re.compile(r"^# (?:hudiff session|hudiff 会话) \S+: (?:repo-level context|仓库级上下文)  \((.*)\)$"), r"<CTX-HDR> \1"),
+    (re.compile(r"^# (?:Read this before writing notes|用法: 写说明前先看这份).*$"), "<CTX-HOWTO>"),
+    (re.compile(r"^(?:recent history|近史):$"), "<HIST>"),
+    (re.compile(r"^(?:symbols|符号): \((?:no symbol rules.*|这种文件类型没有符号规则.*)\)$"), "<NO-SYMS>"),
+    (re.compile(r"^(?:symbols|符号): (.*)$"), r"<SYMS> \1"),
+    (re.compile(r"^(?:references \(outside the changed files\)|引用\(改动文件之外\)):$"), "<REFS>"),
+    (re.compile(r"^  (\S+): (\d+) (?:hits, too common a name to list|处, 名字太泛, 不列)\(git grep -nw (\S+)\)$"), r"  \1: \2 <NOISY> \3"),
+    (re.compile(r"^      … (?:(\d+) more|还有 (\d+) 处)$"), r"      <MORE> \1\2"),
+    (re.compile(r"^(?:related tests|相关测试): (?:none found|没找到)  ⚠ .*$"), "<NO-TESTS>"),
+]
+CTX_ZERO = re.compile(r"^  (\S+): 0  \((?:removed, nothing else referenced it, clean|已删除, 别处也没引用, 干净)\)$")
+CTX_ZERO_NEW = re.compile(r"^  (\S+): 0  \((?:new symbol, no callers yet|新符号, 还没人用)\)$")
+CTX_ZERO_NONE = re.compile(r"^  (\S+): 0  \((?:nothing else in the repo references it|仓库里没有别处引用)\)$")
+CTX_HITS = re.compile(r"^  (\S+): (\d+) (?:hits|处)(.*)$")
+CTX_EXTRA = [(re.compile(r"(?:(\d+) of them in other files this change touches|其中 (\d+) 处在本次改动的其它文件里)"), r"<IN-CHANGED>\1\2"),
+             (re.compile(r"(?:(\d+) in tests|(\d+) 处在测试里)"), r"<IN-TESTS>\1\2"),
+             (re.compile(r"⚠ (?:the symbol was removed but is still referenced|符号被删了但别处还在引用)"), "<DANGER>")]
+CTX_TESTS = re.compile(r"^(?:related tests|相关测试): (.*?)(?:   \((?:none of them changed here|本次没动任何测试)\)|   \((?:(\d+) of them changed here|本次改了其中 (\d+) 个)\))$")
+
+
+def norm_context(line):
+    for rx, tag in CTX_LABELS:
+        m = rx.match(line)
+        if m:
+            return rx.sub(tag, line)
+    for rx, tag in ((CTX_ZERO, "<ZERO-REMOVED>"), (CTX_ZERO_NEW, "<ZERO-NEW>"), (CTX_ZERO_NONE, "<ZERO>")):
+        m = rx.match(line)
+        if m:
+            return f"  {m.group(1)}: 0 {tag}"
+    m = CTX_TESTS.match(line)
+    if m:
+        n = m.group(2) or m.group(3) or "0"
+        return f"<TESTS> {m.group(1)} changed={n}"
+    m = CTX_HITS.match(line)
+    if m:
+        extra = m.group(3)
+        for rx, tag in CTX_EXTRA:
+            extra = rx.sub(tag, extra)
+        return f"  {m.group(1)}: {m.group(2)} hits{extra}"
+    return line
+
+
 def main():
     mode, path = sys.argv[1], sys.argv[2]
     if mode == "body":
         sys.stdout.write(norm_body(path))
         return
-    fn = {"read": norm_read, "list": norm_list, "comments": norm_comments}[mode]
+    fn = {"read": norm_read, "list": norm_list, "comments": norm_comments, "context": norm_context}[mode]
     with open(path) as fh:
         for line in fh:
             print(fn(line.rstrip("\n")))

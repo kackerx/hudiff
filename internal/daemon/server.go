@@ -17,6 +17,7 @@ import (
 
 	"github.com/kackerx/hudiff/internal/diagram"
 	"github.com/kackerx/hudiff/internal/diff"
+	"github.com/kackerx/hudiff/internal/review"
 	"github.com/kackerx/hudiff/internal/session"
 )
 
@@ -98,6 +99,11 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("DELETE /s/{sid}/api/comments/{id}", s.withSession(s.deleteComment))
 	m.HandleFunc("POST /s/{sid}/api/submit", s.withSession(s.postSubmit))
 	m.HandleFunc("POST /s/{sid}/api/notes", s.withSession(s.postNotes))
+	m.HandleFunc("POST /s/{sid}/api/diagram/{id}/error", s.withSession(s.postDiagramError))
+	m.HandleFunc("GET /s/{sid}/api/diagram-errors", s.withSession(s.diagramErrors))
+	m.HandleFunc("POST /s/{sid}/api/review", s.withSession(s.postReview))
+	m.HandleFunc("PATCH /s/{sid}/api/review/{id}", s.withSession(s.patchReview))
+	m.HandleFunc("POST /s/{sid}/api/review/{id}/note", s.withSession(s.postReviewNote))
 	m.HandleFunc("/", notImplemented)
 	return m
 }
@@ -194,8 +200,8 @@ func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir str
 	sendJSON(w, 200, sessionPayload{
 		Session: b.Session, Diff: b.Diff, Notes: b.Notes, Comments: b.Comments,
 		State:    session.ReadState(dir),
-		Diagrams: diagram.List(dir, diff.Load(dir)),
-		D2:       diagram.HasD2(),
+		Diagrams: diagram.List(dir, diff.Load(dir), diagramConfig(dir)),
+		D2:       true, // d2 is compiled in now; the page keeps the flag
 		Review:   b.Review,
 	})
 }
@@ -218,7 +224,7 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 		theme = "dark"
 	}
 	sess, _ := session.LoadSession(dir)
-	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme)
+	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagramConfig(dir))
 	cache := "no-store"
 	if q.Has("v") {
 		cache = "max-age=31536000, immutable"
@@ -228,6 +234,54 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	w.Header().Set("Content-Length", strconv.Itoa(len(svg)))
 	w.WriteHeader(200)
 	_, _ = w.Write(svg)
+}
+
+// diagramConfig reads the engine the session was created with. M5 layers
+// config.json on top of it.
+func diagramConfig(dir string) diagram.Config {
+	cfg := diagram.DefaultConfig()
+	if sess, err := session.LoadSession(dir); err == nil {
+		if e, ok := sess.Meta["diagram_engine"].(string); ok && e != "" {
+			cfg.Engine = e
+		}
+	}
+	return cfg
+}
+
+// renderErrors holds what the browser reported about a mermaid diagram it could
+// not draw, so `hudiff diagram` and `hudiff wait` can show it to the agent.
+// ponytail: in memory only — it dies with the daemon, which is the same
+// lifetime as the page that reported it.
+var renderErrors sync.Map // sid + "\x00" + diagram id -> string
+
+func RenderError(sid, id string) string {
+	if v, ok := renderErrors.Load(sid + "\x00" + id); ok {
+		return v.(string)
+	}
+	return ""
+}
+
+func (s *server) diagramErrors(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	out := map[string]string{}
+	renderErrors.Range(func(k, v any) bool {
+		if id, ok := strings.CutPrefix(k.(string), sid+"\x00"); ok {
+			out[id] = v.(string)
+		}
+		return true
+	})
+	sendJSON(w, 200, out)
+}
+
+func (s *server) postDiagramError(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	b := readBody(r)
+	msg, _ := b["error"].(string)
+	key := sid + "\x00" + r.PathValue("id")
+	if strings.TrimSpace(msg) == "" {
+		renderErrors.Delete(key)
+	} else {
+		renderErrors.Store(key, msg)
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
 // apiAgents is a stub: tmux agent discovery is gone (spec §5), the page's
@@ -337,6 +391,61 @@ func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir stri
 		return
 	}
 	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+// postReview also bumps submit_seq: a new round is something an agent waiting
+// on this session wants to hear about.
+func (s *server) postReview(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	var in review.Report
+	if json.NewDecoder(r.Body).Decode(&in) != nil {
+		sendJSON(w, 400, map[string]any{"error": "review is not valid JSON"})
+		return
+	}
+	q := r.URL.Query()
+	rv, problems, err := review.Set(dir, in, q.Get("replace") == "1", q.Get("force") == "1")
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"error": "validation failed", "problems": problems})
+		return
+	}
+	if _, _, err := session.BumpSubmit(dir); err == nil {
+		s.rooms.Notify()
+	}
+	c := review.Count(rv)
+	sendJSON(w, 200, map[string]any{"ok": true, "problems": problems, "merge": rv["_merge"],
+		"counts": map[string]int{"high": c.High, "medium": c.Medium, "low": c.Low,
+			"open": c.Open, "done": c.Done, "wontfix": c.Wontfix}})
+}
+
+func (s *server) patchReview(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	b := readBody(r)
+	status, _ := b["status"].(string)
+	resolution, _ := b["resolution"].(string)
+	by, _ := b["by"].(string)
+	if by == "" {
+		by = "user"
+	}
+	it, err := review.SetStatus(dir, r.PathValue("id"), status, strings.TrimSpace(resolution), by)
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, it)
+}
+
+func (s *server) postReviewNote(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	b := readBody(r)
+	body, _ := b["body"].(string)
+	verdict, _ := b["verdict"].(string)
+	who, _ := b["who"].(string)
+	if who == "" {
+		who = "user"
+	}
+	it, err := review.Note(dir, r.PathValue("id"), strings.TrimSpace(body), verdict, who)
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, it)
 }
 
 type waitResult struct {
