@@ -4,6 +4,8 @@ package diagram
 
 import (
 	"context"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -19,9 +21,20 @@ import (
 	"github.com/d2lang/d2/lib/textmeasure"
 )
 
-// Preamble is hudiff's house style, prepended to every source. The glob reaches
-// every level and every board; an agent's own border-radius overrides it.
-const Preamble = "**.style.border-radius: 8\n"
+// Preamble is hudiff's house style, prepended to every source — the agent's
+// diagrams and the generated change map alike, so both draw from the same
+// palette (spec §7). It is part of the SVG cache key.
+const Preamble = `**.style.border-radius: 8
+classes: {
+  file: { style: { fill: "#f6f8fa"; stroke: "#8b949e"; border-radius: 8; font-size: 14 } }
+  added: { style: { fill: "#dafbe1"; stroke: "#1a7f37"; font-size: 13; border-radius: 4 } }
+  removed: { style: { fill: "#ffebe9"; stroke: "#cf222e"; font-size: 13; border-radius: 4; stroke-dash: 3 } }
+  changed: { style: { fill: "#fff8c5"; stroke: "#9a6700"; font-size: 13; border-radius: 4 } }
+  ext: { style: { fill: "#ffffff"; stroke: "#d0d7de"; font-size: 12; border-radius: 6; stroke-dash: 2 } }
+  danger: { style: { stroke: "#cf222e"; stroke-width: 2; font-color: "#cf222e" } }
+  ref: { style: { stroke: "#8b949e"; font-size: 11 } }
+}
+`
 
 // animateMS matches the oracle's --animate-interval for steps diagrams.
 const animateMS = 1400
@@ -107,10 +120,22 @@ func CheckD2(src string) error {
 	return nil
 }
 
-// trimErr drops the preamble line number offset from d2's message: the agent
-// never saw that line.
+// trimErr rebases d2's line numbers onto the source the agent actually wrote:
+// d2 counts from the top of Preamble+src, the agent never saw the preamble.
+var preambleLines = strings.Count(Preamble, "\n")
+
+var d2Pos = regexp.MustCompile(`(?m)^(\d+):\d+:`)
+
 func trimErr(err error) error {
-	return errString(strings.ReplaceAll(err.Error(), "\t", " "))
+	msg := d2Pos.ReplaceAllStringFunc(strings.ReplaceAll(err.Error(), "\t", " "), func(m string) string {
+		line, rest, _ := strings.Cut(m, ":")
+		n, err := strconv.Atoi(line)
+		if err != nil || n <= preambleLines {
+			return m
+		}
+		return strconv.Itoa(n-preambleLines) + ":" + rest
+	})
+	return errString(msg)
 }
 
 type errString string

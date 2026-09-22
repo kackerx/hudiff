@@ -11,16 +11,7 @@ import (
 var statusLabel = map[string]string{"A": "added", "D": "deleted", "R": "renamed", "M": "modified"}
 var symClass = map[string]string{"+": "added", "-": "removed", "~": "changed"}
 
-const autoMapHeader = `direction: right
-classes: {
-  file: { style: { fill: "#f6f8fa"; stroke: "#8b949e"; border-radius: 8; font-size: 14 } }
-  added: { style: { fill: "#dafbe1"; stroke: "#1a7f37"; font-size: 13; border-radius: 4 } }
-  removed: { style: { fill: "#ffebe9"; stroke: "#cf222e"; font-size: 13; border-radius: 4; stroke-dash: 3 } }
-  changed: { style: { fill: "#fff8c5"; stroke: "#9a6700"; font-size: 13; border-radius: 4 } }
-  ext: { style: { fill: "#ffffff"; stroke: "#d0d7de"; font-size: 12; border-radius: 6; stroke-dash: 2 } }
-  danger: { style: { stroke: "#cf222e"; stroke-width: 2; font-color: "#cf222e" } }
-  ref: { style: { stroke: "#8b949e"; font-size: 11 } }
-}`
+const autoMapHeader = `direction: right`
 
 func q(s string) string { return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"` }
 

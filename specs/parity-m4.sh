@@ -80,7 +80,7 @@ cat >"$WORK/notes.json" <<'JSON'
 {"title":"fixture","summary":"one file of every status",
  "diagrams":[
    {"id":"flow","title":"call flow","kind":"d2","caption":"who calls what","hunks":["a.go#0"],
-    "src":"alpha: {label: \"alpha() = 11\"}\nbeta: {label: \"beta() = 222\"}\nalpha -> beta: after\n"},
+    "src":"alpha: {label: \"alpha() = 11\"; class: added}\nbeta: {label: \"beta() = 222\"; class: ext}\nalpha -> beta: after\n"},
    {"id":"steps","title":"request path","kind":"d2","caption":"two boards","hunks":[],
     "src":"steps: {\n  1: {\n    client -> server: request\n  }\n  2: {\n    server -> db: query\n  }\n}\n"}],
  "files":{"a.go":{"summary":"two constants bumped","hunks":{"0":{"title":"alpha","body":"why 11"}}}}}
@@ -107,6 +107,14 @@ if grep -q 'alpha() = 11' "$WORK/dg-flow-light.svg" && grep -q 'beta() = 222' "$
     ok "the agent's labels reach the SVG"
 else
     bad "labels missing from $WORK/dg-flow-light.svg"
+fi
+# The palette lives in diagram.Preamble, so an agent's own `class: added` has to
+# style the node — it used to be defined only inside the generated change map,
+# where d2 silently ignored it everywhere else.
+if grep -q '#dafbe1' "$WORK/dg-flow-light.svg" && grep -q '#1a7f37' "$WORK/dg-flow-light.svg"; then
+    ok "the shared palette styles an agent's own diagram (class: added)"
+else
+    bad "class: added had no effect  ($WORK/dg-flow-light.svg)"
 fi
 # A steps diagram is several boards stitched into one animated SVG (spec §7).
 if [ "$(grep -c '<svg' "$WORK/dg-steps-light.svg")" -gt 1 ] || grep -q 'animate\|@keyframes' "$WORK/dg-steps-light.svg"; then
@@ -137,8 +145,10 @@ fi
 # ── notes is a trust boundary: bad input is rejected, with the reason ────────
 printf '{"diagrams":[{"id":"bad","title":"broken","kind":"d2","src":"a -> : {{{"}]}' >"$WORK/bad.json"
 if ! hud "$STATE" -s "$SID" notes "$WORK/bad.json" >"$WORK/notes-bad.out" 2>"$WORK/notes-bad.err"; then
-    if grep -q "d2 failed to compile" "$WORK/notes-bad.err" && [ "$(wc -c <"$WORK/notes-bad.err")" -gt 40 ]; then
-        ok "notes rejects a broken d2 source with the compiler's message"
+    # and the line number is the agent's own, not one shifted by the preamble
+    if grep -q "d2 failed to compile" "$WORK/notes-bad.err" &&
+       grep -qE '(^|[^0-9])1:[0-9]+:' "$WORK/notes-bad.err"; then
+        ok "notes rejects a broken d2 source, pointing at the agent's own line"
     else
         bad "notes d2 rejection message  ($WORK/notes-bad.err)"
     fi
