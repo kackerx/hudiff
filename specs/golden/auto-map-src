@@ -14,7 +14,7 @@ direction: right
 "user.go": { label: "user.go"; class: ext; tooltip: "user.go" }
 loose: {
   label: ""
-  grid-columns: 3
+  grid-columns: 2
   grid-gap: 26
   style: { stroke-width: 0; fill: transparent }
   "added.go": {

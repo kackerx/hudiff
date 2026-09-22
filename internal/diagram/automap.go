@@ -2,6 +2,7 @@ package diagram
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"strings"
 
@@ -103,12 +104,14 @@ type node struct {
 // column, which is what made a four-file change map 202 wide and 419 high.
 func layout(nodes []node, linked map[string]bool) []string {
 	var out, loose []string
+	count := 0
 	for _, n := range nodes {
 		if linked[n.id] {
 			out = append(out, n.text...)
 			continue
 		}
 		loose = append(loose, n.text...)
+		count++
 	}
 	if len(loose) == 0 {
 		return out
@@ -116,7 +119,10 @@ func layout(nodes []node, linked map[string]bool) []string {
 	if len(nodes) == len(loose) && len(out) == 0 && len(nodes) < 2 {
 		return append(out, loose...)
 	}
-	out = append(out, "loose: {", "  label: \"\"", "  grid-columns: 3", "  grid-gap: 26",
+	// square-ish: 4 files read better as 2x2 than as 3 + 1
+	cols := int(math.Ceil(math.Sqrt(float64(count))))
+	out = append(out, "loose: {", "  label: \"\"",
+		fmt.Sprintf("  grid-columns: %d", cols), "  grid-gap: 26",
 		"  style: { stroke-width: 0; fill: transparent }")
 	for _, l := range loose {
 		out = append(out, "  "+l)

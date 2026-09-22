@@ -128,11 +128,21 @@ assert [d for d in dgs if d["id"] == "flow"][0].get("boards") in (None, []), "a 
 else
     bad "board listing  ($WORK/boards.err)"
 fi
-if [ -s "$WORK/dg-steps-b1.svg" ] && ! cmp -s "$WORK/dg-steps-light.svg" "$WORK/dg-steps-b1.svg" &&
-   ! grep -q '<animate' "$WORK/dg-steps-light.svg" && ! grep -q '<animate' "$WORK/dg-steps-b1.svg"; then
-    ok "each board is its own static SVG (no <animate>)"
+hud "$STATE" -s "$SID" diagram steps --board 0 --theme light >"$WORK/dg-steps-b0.svg" 2>&1 || true
+if [ -s "$WORK/dg-steps-b0.svg" ] && [ -s "$WORK/dg-steps-b1.svg" ] &&
+   cmp -s "$WORK/dg-steps-light.svg" "$WORK/dg-steps-b0.svg" &&
+   ! cmp -s "$WORK/dg-steps-b0.svg" "$WORK/dg-steps-b1.svg" &&
+   ! grep -q '<animate' "$WORK/dg-steps-b0.svg" && ! grep -q '<animate' "$WORK/dg-steps-b1.svg"; then
+    ok "board 0 is what a plain request gets, board 1 differs, neither animates"
 else
-    bad "steps boards  ($WORK/dg-steps-light.svg vs $WORK/dg-steps-b1.svg)"
+    bad "steps boards  ($WORK/dg-steps-b0.svg vs $WORK/dg-steps-b1.svg)"
+fi
+# the cache key has to move when the renderer changes, or an SVG written by an
+# older hudiff is served forever (that is how the animated boards survived)
+if go test ./internal/diagram/ >"$WORK/diagram-test.out" 2>&1; then
+    ok "cache key covers the renderer version, theme, sketch and source"
+else
+    bad "internal/diagram tests  ($WORK/diagram-test.out)"
 fi
 # every SVG carries its own size, or the page stretches a small diagram to fit
 if head -c 300 "$WORK/auto-light.svg" | grep -q 'width="[0-9]*" height="[0-9]*"'; then

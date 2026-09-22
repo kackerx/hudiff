@@ -437,7 +437,7 @@ function focusCard(fi,hi){
   c.scrollIntoView({block:'center'}); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
 }
 const isDark = () => S.theme==='dark' || (S.theme==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board?'&board='+board:''}&v=${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
+const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board===undefined?'':'&board='+board}&v=${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
 const hunkLabel = ref => { const m=/^(.+)#(\d+)$/.exec(ref); return m ? m[1].split('/').pop()+'#'+m[2] : ref; };
 function dgForHunk(path, hi){ return (S.data.diagrams||[]).filter(d=>(d.hunks||[]).includes(`${path}#${hi}`)); }
 
@@ -588,7 +588,7 @@ function renderDiagramList(tabs){
   const dgs=S.data.diagrams||[];
   let html = tabs + `<h3>Diagrams · ${dgs.length}</h3>`;
   if(!dgs.length) html+=`<div class="hint">no diagrams yet</div>`;
-  dgs.forEach(dg=>{ html+=`<div class="dgcard ${dg.id===S.activeDg?'active':''}" data-id="${esc(dg.id)}"><div class="th"><img src="${dgSrc(dg)}" alt=""></div><div class="tt"><span>${esc(dg.title)}</span><span class="hint">${dg.auto?'auto':(dg.hunks||[]).length+' hunks'}</span></div></div>`; });
+  dgs.forEach(dg=>{ html+=`<div class="dgcard ${dg.id===S.activeDg?'active':''}" data-id="${esc(dg.id)}"><div class="th"><img src="${dgSrc(dg, 0)}" alt=""></div><div class="tt"><span>${esc(dg.title)}</span><span class="hint">${dg.auto?'auto':(dg.hunks||[]).length+' hunks'}</span></div></div>`; });
   html += `<div class="hint" style="margin-top:14px;line-height:1.9">click a thumbnail to scroll to it · a hunk chip on the diagram jumps back to the code · <kbd>v</kbd> switches code/diagrams</div>`;
   $('#notes').innerHTML = html;
   bindTabs();
