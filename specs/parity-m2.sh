@@ -83,12 +83,26 @@ create() {
     PY_SESSION=$ps GO_SESSION=$gs PY_STATE=$p GO_STATE=$g
 }
 
-create "create-workspace" "$ROOT" -- 
+# A throwaway repo with one uncommitted edit, so the working-tree cases do not
+# depend on $ROOT happening to be dirty. It is also the refresh fixture below.
+FIX=$(mktemp -d)
+git init -q "$FIX/repo"
+cd "$FIX/repo"
+git config user.email p@p && git config user.name p
+printf 'package main\n\nfunc alpha() int {\n\treturn 1\n}\n\nfunc beta() int {\n\treturn 2\n}\n' >a.go
+git add -A && git commit -qm base
+printf 'package main\n\nfunc alpha() int {\n\treturn 11\n}\n\nfunc beta() int {\n\treturn 22\n}\n' >a.go
+cd "$ROOT"
+
+create "create-workspace" "$FIX/repo" -- 
+FP=$PY_STATE FG=$GO_STATE FPS=$PY_SESSION FGS=$GO_SESSION
+
+# -p / -c land in session.brief. The context file exists on purpose: the
+# "file missing" marker is one of the strings that turned English.
+create "create-with-brief" "$FIX/repo" -p check-errors -c a.go -- -p check-errors -c a.go
+
 create "create-commit"    "$ROOT" HEAD~1 -- commit HEAD~1
 create "create-range"     "$ROOT" HEAD~2..HEAD -- range HEAD~2..HEAD
-# -p / -c land in session.brief. A context file that exists is used on purpose:
-# the "file missing" marker is one of the strings that turned English.
-create "create-with-brief" "$ROOT" -p check-errors -c specs/spec.md -- -p check-errors -c specs/spec.md
 
 # A patch session re-parses an existing diff.patch, so every fixture session is
 # also a parser check: the result must equal the diff.json already on disk.
@@ -106,20 +120,8 @@ for fx in "$HOME"/.local/state/hudiff/sessions/*/diff.patch; do
     fi
 done
 
-# Refresh: same starting session on both sides, same comment, same edit — the
-# re-anchored comments and the new diff must agree.
-FIX=$(mktemp -d)
-git init -q "$FIX/repo"
-cd "$FIX/repo"
-git config user.email p@p && git config user.name p
-printf 'package main\n\nfunc alpha() int {\n\treturn 1\n}\n\nfunc beta() int {\n\treturn 2\n}\n' >a.go
-git add -A && git commit -qm base
-printf 'package main\n\nfunc alpha() int {\n\treturn 11\n}\n\nfunc beta() int {\n\treturn 22\n}\n' >a.go
-cd "$ROOT"
-
-create "create-fixture-repo" "$FIX/repo" -- 
-FP=$PY_STATE FG=$GO_STATE FPS=$PY_SESSION FGS=$GO_SESSION
-
+# Refresh: same session on both sides, same comment, same edit — the new diff
+# and the re-anchored comments must agree.
 python3 - "$FPS" "$FGS" <<'PY'
 import json, sys
 # One line comment anchored by content, so refresh has to find it again.
