@@ -22,7 +22,7 @@ func (c *DiagramCmd) Run(g *Globals) error {
 	if err != nil {
 		return usage("%v", err)
 	}
-	d, cfg := diff.Load(dir), sessionDiagram(sess)
+	d, cfg := diff.Load(dir), diagram.ConfigFor(sess.Meta)
 	if c.Which == "" || c.Which == "list" {
 		return listDiagrams(sid, dir, d, cfg)
 	}
@@ -76,12 +76,4 @@ func renderErrors(sid string) map[string]string {
 	out := map[string]string{}
 	_ = json.NewDecoder(resp.Body).Decode(&out)
 	return out
-}
-
-func sessionDiagram(sess *session.Session) diagram.Config {
-	cfg := diagram.DefaultConfig()
-	if e, ok := sess.Meta["diagram_engine"].(string); ok && e != "" {
-		cfg.Engine = e
-	}
-	return cfg
 }

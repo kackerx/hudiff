@@ -46,14 +46,14 @@ func FromWorktree(scope Scope, o Opts) (*Source, error) {
 		// Only the default scope shows untracked files (spec §3, §11.8).
 		args, refresh, run = append(args, "HEAD"), []string{}, withUntracked
 	}
-	patch, err := run(root, pathspec(args, o.Pathspec)...)
+	patch, err := run(root, withPaths(args, o.Pathspec)...)
 	if err != nil {
 		return nil, err
 	}
 	return &Source{
 		Kind: "worktree", Title: title(o, scopeTitle[scope]),
 		Meta:  WorktreeMeta{Base: h.short, Branch: h.branch, Scope: string(scope), Diagram: o.Diagram},
-		Patch: patch, Repo: root, Refresh: refreshWith(refresh, o.Pathspec),
+		Patch: patch, Repo: root, Refresh: withPaths(refresh, o.Pathspec),
 	}, nil
 }
 
@@ -67,9 +67,9 @@ func FromRange(spec string, o Opts) (*Source, error) {
 		return nil, err
 	}
 	if !strings.Contains(spec, "..") {
-		return nil, usage("%q is not a range; use <a>..<b> or <a>...<b>", spec)
+		return nil, fmt.Errorf("%q is not a range; use <a>..<b> or <a>...<b>", spec)
 	}
-	patch, err := git(root, pathspec(append(append([]string{"diff"}, diffFlags...), spec), o.Pathspec)...)
+	patch, err := git(root, withPaths(append(append([]string{"diff"}, diffFlags...), spec), o.Pathspec)...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func FromRange(spec string, o Opts) (*Source, error) {
 	return &Source{
 		Kind: "range", Title: title(o, spec),
 		Meta:  RangeMeta{Base: a, Head: b, Branch: h.branch, Diagram: o.Diagram},
-		Patch: patch, Repo: root, Refresh: refreshWith([]string{spec}, o.Pathspec),
+		Patch: patch, Repo: root, Refresh: withPaths([]string{spec}, o.Pathspec),
 	}, nil
 }
 
@@ -99,7 +99,7 @@ func FromCommit(spec string, o Opts) (*Source, error) {
 	}
 	rev := strings.TrimSpace(gitOK(root, "rev-parse", "--verify", spec+"^{commit}"))
 	if rev == "" {
-		return nil, usage("cannot resolve %q: not a commit, a range, or a PR", spec)
+		return nil, fmt.Errorf("cannot resolve %q: not a commit, a range, or a PR", spec)
 	}
 	fields := strings.Fields(gitOK(root, "rev-list", "--parents", "-n1", rev))
 	parents := fields[min(1, len(fields)):]
@@ -109,7 +109,7 @@ func FromCommit(spec string, o Opts) (*Source, error) {
 	} else {
 		args = append(append([]string{"diff-tree", "-p", "--root"}, diffFlags...), rev)
 	}
-	patch, err := git(root, pathspec(args, o.Pathspec)...)
+	patch, err := git(root, withPaths(args, o.Pathspec)...)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func FromCommit(spec string, o Opts) (*Source, error) {
 		Kind: "commit", Title: title(o, p[1]),
 		Meta: CommitMeta{Rev: p[0], Full: rev, Author: p[2], Date: p[3], Body: strings.TrimSpace(p[4]),
 			Base: base, Merge: len(parents) > 1, Diagram: o.Diagram},
-		Patch: patch, Repo: root, Refresh: refreshWith([]string{spec}, o.Pathspec),
+		Patch: patch, Repo: root, Refresh: withPaths([]string{spec}, o.Pathspec),
 	}, nil
 }
 
@@ -153,10 +153,10 @@ func FromPR(ref string, o Opts) (*Source, error) {
 	}
 	num := PRNumber(ref)
 	if num == "" {
-		return nil, usage("%q is not a PR number, #number or URL", ref)
+		return nil, fmt.Errorf("%q is not a PR number, #number or URL", ref)
 	}
 	if _, err := exec.LookPath("gh"); err != nil {
-		return nil, envErr("viewing a PR needs the gh CLI")
+		return nil, fmt.Errorf("viewing a PR needs the gh CLI")
 	}
 	raw, err := gh(root, "pr", "view", num, "--json",
 		"number,title,body,url,baseRefName,headRefName,author,additions,deletions")
@@ -165,7 +165,7 @@ func FromPR(ref string, o Opts) (*Source, error) {
 	}
 	var info prInfo
 	if err := json.Unmarshal([]byte(raw), &info); err != nil {
-		return nil, envErr("gh pr view returned unreadable JSON: %v", err)
+		return nil, fmt.Errorf("gh pr view returned unreadable JSON: %v", err)
 	}
 	patch, err := gh(root, "pr", "diff", num)
 	if err != nil {
@@ -202,7 +202,7 @@ func gh(root string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", envErr("gh %s failed:\n%s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("gh %s failed:\n%s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
 }
@@ -212,13 +212,13 @@ func FromPatch(file string, o Opts) (*Source, error) {
 	if file == "-" {
 		b, err := io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, usage("cannot read stdin: %v", err)
+			return nil, fmt.Errorf("cannot read stdin: %v", err)
 		}
 		text = string(b)
 	} else {
 		b, err := os.ReadFile(file)
 		if err != nil {
-			return nil, usage("cannot read %s: %v", file, err)
+			return nil, fmt.Errorf("cannot read %s: %v", file, err)
 		}
 		text = string(b)
 	}

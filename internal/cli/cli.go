@@ -16,7 +16,8 @@ type Globals struct {
 
 // ReviewOpts are shared by every command that creates a session.
 type ReviewOpts struct {
-	Web     bool     `help:"Force the web viewer." xor:"viewer"`
+	// Web names the only viewer there is; --tui is what actually branches.
+	Web     bool     `help:"Force the web viewer (the default)." xor:"viewer"`
 	TUI     bool     `name:"tui" help:"Force the TUI viewer (not implemented yet)." xor:"viewer"`
 	NoOpen  bool     `name:"no-open" help:"Create/refresh the session and print its id only."`
 	JSON    bool     `help:"Print session info as JSON (implies --no-open)."`

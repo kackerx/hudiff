@@ -110,7 +110,7 @@ func KeyOf(src *source.Source) string {
 // FindByKey returns the newest live session pointing at the same source. Old
 // sessions predate the stored key, so it is recomputed for them.
 func FindByKey(key string) *Session {
-	for _, id := range idsDescending() {
+	for _, id := range IDs() {
 		s, err := LoadSession(Dir(id))
 		if err != nil || s.ID == "" || s.IsArchived() {
 			continue

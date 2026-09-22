@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -38,14 +38,6 @@ func ReadRaw(path string, def string) json.RawMessage {
 		return json.RawMessage(def)
 	}
 	return json.RawMessage(b)
-}
-
-func ReadJSON(path string, out any) error {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(b, out)
 }
 
 // WriteJSON is the oracle's json.dump(ensure_ascii=False, indent=1) plus a
@@ -125,25 +117,6 @@ func (s *Session) IsArchived() bool {
 	return true
 }
 
-// Bundle is the four JSON files echoed verbatim by GET /api/session.
-type Bundle struct {
-	Session  json.RawMessage
-	Diff     json.RawMessage
-	Notes    json.RawMessage
-	Comments json.RawMessage
-	Review   json.RawMessage
-}
-
-func LoadRaw(dir string) Bundle {
-	return Bundle{
-		Session:  ReadRaw(filepath.Join(dir, "session.json"), "{}"),
-		Diff:     ReadRaw(filepath.Join(dir, "diff.json"), `{"files": []}`),
-		Notes:    ReadRaw(filepath.Join(dir, "notes.json"), "{}"),
-		Comments: ReadRaw(filepath.Join(dir, "comments.json"), "[]"),
-		Review:   ReadRaw(filepath.Join(dir, "review.json"), "null"),
-	}
-}
-
 func LoadSession(dir string) (*Session, error) {
 	raw := ReadRaw(filepath.Join(dir, "session.json"), "{}")
 	var s Session
@@ -188,17 +161,17 @@ func ReadState(dir string) State {
 	}
 }
 
-func repoRoot(cwd string) string {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	cmd.Dir = cwd
-	out, err := cmd.Output()
+func repoRoot() string {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
 }
 
-func idsDescending() []string {
+// IDs lists session ids newest first; the id starts with a timestamp, so
+// sorting the names is sorting by time.
+func IDs() []string {
 	ents, err := os.ReadDir(SessionsDir())
 	if err != nil {
 		return nil
@@ -209,7 +182,8 @@ func idsDescending() []string {
 			ids = append(ids, e.Name())
 		}
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
+	slices.Sort(ids)
+	slices.Reverse(ids)
 	return ids
 }
 
@@ -218,8 +192,8 @@ func idsDescending() []string {
 func Current(explicit string) (string, string, error) {
 	sid := explicit
 	if sid == "" {
-		if root := repoRoot("."); root != "" {
-			for _, id := range idsDescending() {
+		if root := repoRoot(); root != "" {
+			for _, id := range IDs() {
 				s, err := LoadSession(Dir(id))
 				if err == nil && s.Repo == root && !s.IsArchived() {
 					sid = id

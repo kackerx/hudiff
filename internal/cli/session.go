@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/kackerx/hudiff/internal/daemon"
@@ -31,8 +30,8 @@ func (c *SessionListCmd) Run(g *Globals) error {
 	info := daemon.ReadInfo()
 	alive := info.Alive()
 	fmt.Println(daemon.StatusLine())
-	ids, err := sessionIDs()
-	if err != nil || len(ids) == 0 {
+	ids := session.IDs()
+	if len(ids) == 0 {
 		fmt.Println("(no sessions)")
 		return nil
 	}
@@ -90,19 +89,6 @@ func padRunes(s string, n int) string {
 	return string(r) + strings.Repeat(" ", n-len(r))
 }
 
-func sessionIDs() ([]string, error) {
-	ents, err := os.ReadDir(session.SessionsDir())
-	if err != nil {
-		return nil, err
-	}
-	var ids []string
-	for _, e := range ents {
-		ids = append(ids, e.Name())
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
-	return ids, nil
-}
-
 func currentID() string {
 	b, err := os.ReadFile(session.CurrentFile())
 	if err != nil {
@@ -115,7 +101,9 @@ type SessionInfoCmd struct {
 	JSON bool `help:"Machine-readable output."`
 }
 
-type infoFile struct {
+// fileRow is the per-file summary both `session info --json` and the create
+// commands print.
+type fileRow struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
 	Add    int    `json:"add"`
@@ -133,7 +121,7 @@ type infoOut struct {
 	Meta            json.RawMessage `json:"meta"`
 	Brief           json.RawMessage `json:"brief"`
 	Archived        bool            `json:"archived"`
-	Files           []infoFile      `json:"files"`
+	Files           []fileRow       `json:"files"`
 	HunksTotal      int             `json:"hunks_total"`
 	HunksNoted      int             `json:"hunks_noted"`
 	Diagrams        int             `json:"diagrams"`
@@ -175,10 +163,10 @@ func buildInfo(g *Globals) (*infoOut, error) {
 	if title == "" {
 		title = sess.Title
 	}
-	files := make([]infoFile, 0, len(d.Files))
+	files := make([]fileRow, 0, len(d.Files))
 	total := 0
 	for _, f := range d.Files {
-		files = append(files, infoFile{f.Path, f.Status, f.Add, f.Del, len(f.Hunks)})
+		files = append(files, fileRow{f.Path, f.Status, f.Add, f.Del, len(f.Hunks)})
 		total += len(f.Hunks)
 	}
 	cs := session.Comments(dir)
@@ -285,10 +273,7 @@ func (c *SessionRefreshCmd) Run(g *Globals) error {
 		fmt.Println("the diff is unchanged")
 		return nil
 	}
-	add, del := 0, 0
-	for _, f := range r.Files {
-		add, del = add+f.Add, del+f.Del
-	}
+	_, add, del, _ := diff.Diff{Files: r.Files}.Totals()
 	fmt.Printf("refreshed: %d files +%d -%d\n", len(r.Files), add, del)
 	if len(r.Dropped) > 0 {
 		fmt.Println("notes void (hunks moved, rewrite them): " + strings.Join(r.Dropped, ", "))

@@ -61,12 +61,8 @@ func (c *OpenCmd) resolve(g *Globals) (string, error) {
 }
 
 func matchPrefix(prefix string) (string, error) {
-	ids, err := sessionIDs()
-	if err != nil {
-		return "", usage("no such session: %s", prefix)
-	}
 	var hits []string
-	for _, id := range ids {
+	for _, id := range session.IDs() {
 		if strings.HasPrefix(id, prefix) || strings.HasSuffix(id, prefix) {
 			hits = append(hits, id)
 		}

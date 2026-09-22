@@ -5,11 +5,12 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,7 +40,7 @@ func Serve(wantPort int) error {
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 	s := &server{port: port, rooms: newRooms()}
-	if err := session.WriteJSON(session.ServerFile(), Info{Port: port, PID: os.Getpid(), Started: nowISO()}); err != nil {
+	if err := session.WriteJSON(session.ServerFile(), Info{Port: port, PID: os.Getpid(), Started: session.NowISO()}); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "hudiff serve http://127.0.0.1:%d/\n", port)
@@ -83,7 +84,9 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /favicon.svg", s.favicon)
 	m.HandleFunc("GET /favicon.ico", s.favicon)
 	for _, name := range rootAssets {
-		m.HandleFunc("GET /"+name, serveAsset(name))
+		m.HandleFunc("GET /"+name, func(w http.ResponseWriter, r *http.Request) {
+			writeAsset(w, name)
+		})
 	}
 	m.HandleFunc("GET /vendor/{file}", s.vendor)
 	m.HandleFunc("GET /s/{sid}/{$}", s.withSession(s.page))
@@ -115,12 +118,6 @@ func (s *server) favicon(w http.ResponseWriter, r *http.Request) {
 // rootAssets sit at / so both the index and /s/{sid}/ can link them.
 var rootAssets = []string{"app.css", "app.js", "index.css", "index.js"}
 
-func serveAsset(name string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeAsset(w, name)
-	}
-}
-
 // vendor serves the third-party bundles embedded under web/vendor, so the page
 // works with no network (spec §7). The pattern is one path segment, so the name
 // cannot walk out of the directory.
@@ -143,13 +140,8 @@ func writeAsset(w http.ResponseWriter, name string) {
 }
 
 func contentType(name string) string {
-	switch {
-	case strings.HasSuffix(name, ".css"):
-		return "text/css; charset=utf-8"
-	case strings.HasSuffix(name, ".js"):
-		return "text/javascript; charset=utf-8"
-	case strings.HasSuffix(name, ".svg"):
-		return "image/svg+xml"
+	if t := mime.TypeByExtension(filepath.Ext(name)); t != "" {
+		return t
 	}
 	return "application/octet-stream"
 }
@@ -196,14 +188,27 @@ type sessionPayload struct {
 }
 
 func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	b := session.LoadRaw(dir)
+	raw := func(name, def string) json.RawMessage {
+		return session.ReadRaw(filepath.Join(dir, name), def)
+	}
 	sendJSON(w, 200, sessionPayload{
-		Session: b.Session, Diff: b.Diff, Notes: b.Notes, Comments: b.Comments,
+		Session:  raw("session.json", "{}"),
+		Diff:     raw("diff.json", `{"files": []}`),
+		Notes:    raw("notes.json", "{}"),
+		Comments: raw("comments.json", "[]"),
 		State:    session.ReadState(dir),
-		Diagrams: diagram.List(dir, diff.Load(dir), diagramConfig(dir)),
+		Diagrams: diagram.List(dir, diff.Load(dir), diagramCfg(dir)),
 		D2:       true, // d2 is compiled in now; the page keeps the flag
-		Review:   b.Review,
+		Review:   raw("review.json", "null"),
 	})
+}
+
+func diagramCfg(dir string) diagram.Config {
+	sess, err := session.LoadSession(dir)
+	if err != nil {
+		return diagram.DefaultConfig()
+	}
+	return diagram.ConfigFor(sess.Meta)
 }
 
 func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -224,7 +229,7 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 		theme = "dark"
 	}
 	sess, _ := session.LoadSession(dir)
-	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagramConfig(dir))
+	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagram.ConfigFor(sess.Meta))
 	cache := "no-store"
 	if q.Has("v") {
 		cache = "max-age=31536000, immutable"
@@ -234,18 +239,6 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	w.Header().Set("Content-Length", strconv.Itoa(len(svg)))
 	w.WriteHeader(200)
 	_, _ = w.Write(svg)
-}
-
-// diagramConfig reads the engine the session was created with. M5 layers
-// config.json on top of it.
-func diagramConfig(dir string) diagram.Config {
-	cfg := diagram.DefaultConfig()
-	if sess, err := session.LoadSession(dir); err == nil {
-		if e, ok := sess.Meta["diagram_engine"].(string); ok && e != "" {
-			cfg.Engine = e
-		}
-	}
-	return cfg
 }
 
 // renderErrors holds what the browser reported about a mermaid diagram it could
@@ -306,11 +299,7 @@ func (s *server) apiWait(w http.ResponseWriter, r *http.Request, sid, dir string
 	if err != nil {
 		timeout = 60
 	}
-	pane := q.Get("pane")
-	if pane == "" {
-		pane = "?"
-	}
-	seq := s.rooms.wait(r, sid, dir, pane, since, time.Duration(timeout*float64(time.Second)))
+	seq := s.rooms.wait(r, sid, dir, since, time.Duration(timeout*float64(time.Second)))
 	sendJSON(w, 200, waitResult{SubmitSeq: seq, Changed: seq > since})
 }
 
@@ -471,26 +460,16 @@ type sessionRow struct {
 }
 
 func (s *server) listSessions() []sessionRow {
-	ents, err := os.ReadDir(session.SessionsDir())
-	if err != nil {
-		return []sessionRow{}
-	}
-	var ids []string
-	for _, e := range ents {
-		ids = append(ids, e.Name())
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(ids)))
 	out := []sessionRow{}
-	for _, id := range ids {
+	for _, id := range session.IDs() {
 		dir := session.Dir(id)
 		sess, err := session.LoadSession(dir)
 		if err != nil || sess.ID == "" {
 			continue
 		}
-		d := diff.Load(dir)
 		notes := diff.LoadNotes(dir)
 		cs := session.Comments(dir)
-		files, add, del, _ := d.Totals()
+		files, add, del, _ := diff.Load(dir).Totals()
 		title := notes.Title
 		if title == "" {
 			title = sess.Title
@@ -544,39 +523,28 @@ func sendJSON(w http.ResponseWriter, code int, v any) {
 	send(w, code, []byte(strings.TrimSuffix(sb.String(), "\n")), "application/json; charset=utf-8")
 }
 
-func nowISO() string {
-	return time.Now().Format("2006-01-02T15:04:05-07:00")
-}
-
 // rooms tracks who is long-polling each session, so the page can show
 // "an agent is waiting" and submit knows whether anyone will pick it up.
 type rooms struct {
 	mu      sync.Mutex
-	byPane  map[string]map[string]int
+	waiting map[string]int
 	changed chan struct{}
 }
 
 func newRooms() *rooms {
-	return &rooms{byPane: map[string]map[string]int{}, changed: make(chan struct{})}
+	return &rooms{waiting: map[string]int{}, changed: make(chan struct{})}
 }
 
 func (r *rooms) count(sid string) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	n := 0
-	for _, v := range r.byPane[sid] {
-		n += v
-	}
-	return n
+	return r.waiting[sid]
 }
 
-func (r *rooms) enter(sid, pane string, delta int) {
+func (r *rooms) enter(sid string, delta int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.byPane[sid] == nil {
-		r.byPane[sid] = map[string]int{}
-	}
-	r.byPane[sid][pane] += delta
+	r.waiting[sid] += delta
 }
 
 // Notify wakes every /api/wait; called after submit_seq changes.
@@ -593,9 +561,9 @@ func (r *rooms) sub() chan struct{} {
 	return r.changed
 }
 
-func (r *rooms) wait(req *http.Request, sid, dir, pane string, since int, timeout time.Duration) int {
-	r.enter(sid, pane, 1)
-	defer r.enter(sid, pane, -1)
+func (r *rooms) wait(req *http.Request, sid, dir string, since int, timeout time.Duration) int {
+	r.enter(sid, 1)
+	defer r.enter(sid, -1)
 	deadline := time.After(timeout)
 	for {
 		ch := r.sub()

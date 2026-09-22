@@ -26,6 +26,16 @@ type Config struct {
 
 func DefaultConfig() Config { return Config{Engine: "d2"} }
 
+// ConfigFor reads the engine the session was created with. M5 layers
+// config.json on top of it.
+func ConfigFor(meta map[string]any) Config {
+	cfg := DefaultConfig()
+	if e, ok := meta["diagram_engine"].(string); ok && e != "" {
+		cfg.Engine = e
+	}
+	return cfg
+}
+
 func (c Config) engine() string {
 	if c.Engine == "mermaid" {
 		return "mermaid"

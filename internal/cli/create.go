@@ -14,8 +14,8 @@ import (
 	"github.com/kackerx/hudiff/internal/source"
 )
 
-func (o *ReviewOpts) opts(title string) source.Opts {
-	return source.Opts{Title: title, Diagram: o.Diagram}
+func (o *ReviewOpts) opts() source.Opts {
+	return source.Opts{Diagram: o.Diagram}
 }
 
 func (c *WorkspaceCmd) Run(g *Globals) error {
@@ -26,7 +26,7 @@ func (c *WorkspaceCmd) Run(g *Globals) error {
 	case c.Unstaged:
 		scope = source.Unstaged
 	}
-	o := c.opts("")
+	o := c.opts()
 	o.Pathspec = c.Pathspec
 	src, err := source.FromWorktree(scope, o)
 	if err != nil {
@@ -36,7 +36,7 @@ func (c *WorkspaceCmd) Run(g *Globals) error {
 }
 
 func (c *CommitCmd) Run(g *Globals) error {
-	src, err := source.FromCommit(c.Rev, c.opts(""))
+	src, err := source.FromCommit(c.Rev, c.opts())
 	if err != nil {
 		return envErr("%v", err)
 	}
@@ -44,7 +44,7 @@ func (c *CommitCmd) Run(g *Globals) error {
 }
 
 func (c *RangeCmd) Run(g *Globals) error {
-	src, err := source.FromRange(c.Spec, c.opts(""))
+	src, err := source.FromRange(c.Spec, c.opts())
 	if err != nil {
 		return envErr("%v", err)
 	}
@@ -55,7 +55,7 @@ func (c *PRCmd) Run(g *Globals) error {
 	if source.PRNumber(c.Ref) == "" {
 		return usage("%q is not a PR number, #number or URL", c.Ref)
 	}
-	src, err := source.FromPR(c.Ref, c.opts(""))
+	src, err := source.FromPR(c.Ref, c.opts())
 	if err != nil {
 		return envErr("%v", err)
 	}
@@ -63,7 +63,7 @@ func (c *PRCmd) Run(g *Globals) error {
 }
 
 func (c *PatchCmd) Run(g *Globals) error {
-	src, err := source.FromPatch(c.File, c.opts(""))
+	src, err := source.FromPatch(c.File, c.opts())
 	if err != nil {
 		return envErr("%v", err)
 	}
@@ -200,27 +200,19 @@ func expandHome(p string) string {
 	return p
 }
 
-type createdFile struct {
-	Path   string `json:"path"`
-	Status string `json:"status"`
-	Add    int    `json:"add"`
-	Del    int    `json:"del"`
-	Hunks  int    `json:"hunks"`
-}
-
 type createdOut struct {
-	Session       string        `json:"session"`
-	Dir           string        `json:"dir"`
-	URL           string        `json:"url"`
-	Kind          string        `json:"kind"`
-	Title         string        `json:"title"`
-	Reused        bool          `json:"reused"`
-	Refreshed     bool          `json:"refreshed"`
-	NotesDropped  []string      `json:"notes_dropped"`
-	CommentsStale []string      `json:"comments_stale"`
-	Meta          any           `json:"meta"`
-	Files         []createdFile `json:"files"`
-	Next          []string      `json:"next"`
+	Session       string    `json:"session"`
+	Dir           string    `json:"dir"`
+	URL           string    `json:"url"`
+	Kind          string    `json:"kind"`
+	Title         string    `json:"title"`
+	Reused        bool      `json:"reused"`
+	Refreshed     bool      `json:"refreshed"`
+	NotesDropped  []string  `json:"notes_dropped"`
+	CommentsStale []string  `json:"comments_stale"`
+	Meta          any       `json:"meta"`
+	Files         []fileRow `json:"files"`
+	Next          []string  `json:"next"`
 }
 
 func createJSON(sid, dir, url string, src *source.Source, reused bool, r session.RefreshResult) createdOut {
@@ -228,10 +220,10 @@ func createJSON(sid, dir, url string, src *source.Source, reused bool, r session
 		Session: sid, Dir: dir, URL: url, Kind: src.Kind, Title: src.Title,
 		Reused: reused, Refreshed: r.Changed,
 		NotesDropped: orEmpty(r.Dropped), CommentsStale: orEmpty(r.Stale), Meta: src.Meta,
-		Files: []createdFile{},
+		Files: []fileRow{},
 	}
 	for _, f := range r.Files {
-		out.Files = append(out.Files, createdFile{f.Path, f.Status, f.Add, f.Del, len(f.Hunks)})
+		out.Files = append(out.Files, fileRow{f.Path, f.Status, f.Add, f.Del, len(f.Hunks)})
 	}
 	if reused {
 		out.Next = append(out.Next, reuseNote(r))
@@ -256,10 +248,7 @@ func reuseNote(r session.RefreshResult) string {
 }
 
 func printCreated(sid, dir, url string, src *source.Source, reused bool, r session.RefreshResult) {
-	add, del, hunks := 0, 0, 0
-	for _, f := range r.Files {
-		add, del, hunks = add+f.Add, del+f.Del, hunks+len(f.Hunks)
-	}
+	_, add, del, hunks := diff.Diff{Files: r.Files}.Totals()
 	tag := ""
 	if reused {
 		tag = "  (existing, reused)"

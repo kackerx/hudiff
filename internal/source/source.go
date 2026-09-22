@@ -71,18 +71,6 @@ type Opts struct {
 	Pathspec []string
 }
 
-type Error struct {
-	Code int
-	Msg  string
-}
-
-func (e *Error) Error() string { return e.Msg }
-
-func usage(f string, a ...any) error { return &Error{1, fmt.Sprintf(f, a...)} }
-func envErr(f string, a ...any) error {
-	return &Error{2, fmt.Sprintf(f, a...)}
-}
-
 func git(repo string, args ...string) (string, error) { return gitEnv(repo, nil, args...) }
 
 func gitEnv(repo string, env []string, args ...string) (string, error) {
@@ -95,7 +83,7 @@ func gitEnv(repo string, env []string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", envErr("git %s failed:\n%s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("git %s failed:\n%s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
 }
@@ -153,7 +141,7 @@ func gitOK(repo string, args ...string) string {
 func Root() (string, error) {
 	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
-		return "", envErr("not inside a git repository (use `hudiff patch` for a plain patch file)")
+		return "", fmt.Errorf("not inside a git repository (use `hudiff patch` for a plain patch file)")
 	}
 	return strings.TrimSpace(string(out)), nil
 }
@@ -172,19 +160,13 @@ func readHead(root string) (head, error) {
 	return head{strings.TrimSpace(b), strings.TrimSpace(s)}, nil
 }
 
-// pathspec appends `-- <paths>` and the matching refresh tokens.
-func pathspec(args, paths []string) []string {
+// withPaths appends `-- <paths>`, for both the git argv and the refresh tokens
+// stored in the session.
+func withPaths(args, paths []string) []string {
 	if len(paths) == 0 {
 		return args
 	}
 	return append(append(args, "--"), paths...)
-}
-
-func refreshWith(base []string, paths []string) []string {
-	if len(paths) == 0 {
-		return base
-	}
-	return append(append(base, "--"), paths...)
 }
 
 func withUntracked(repo string, args ...string) (string, error) { return diffUntracked(repo, args) }

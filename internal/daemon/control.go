@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -18,7 +19,9 @@ type Info struct {
 
 func ReadInfo() Info {
 	var i Info
-	_ = session.ReadJSON(session.ServerFile(), &i)
+	if b, err := os.ReadFile(session.ServerFile()); err == nil {
+		_ = json.Unmarshal(b, &i)
+	}
 	return i
 }
 
