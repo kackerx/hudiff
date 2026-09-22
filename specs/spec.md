@@ -12,7 +12,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 ## 1. 目标与非目标
 
 目标
-- 单二进制, 零运行时依赖, **离线可用**(mermaid.js / highlight.js 都 embed, 不引 CDN; 可选外部工具: `git` 必需, `gh` 看 PR 时, `d2` 选 d2 引擎时)
+- 单二进制, 零运行时依赖, **离线可用**(d2 引擎以 Go 库内嵌, mermaid.js / highlight.js 都 embed, 不引 CDN; 外部工具只剩 `git` 必需、`gh` 看 PR 时)
 - 页面 HTML/CSS/JS 是真文件(`web/`), embed 进二进制; 开发时可从磁盘热读
 - CLI 表面现代、统一(参考 `hunk`), `hudiff -h` 就是 agent 的说明书
 - 不绑定任何终端复用器(tmux / ccmux 全部去掉), 用户级"通知"走可配置的 shell hook
@@ -26,7 +26,8 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 - WebSocket / SSE(5 秒轮询 + `/api/wait` 长轮询够用)
 - sqlite(磁盘 JSON 是 agent 可直接读的契约)
 - 非 git 的 VCS
-- 把 d2 当 Go 库嵌入(`oss.terrastruct.com/d2` 可 import, 但布局引擎 dagre/ELK 是 JS 靠 goja 跑: d2 二进制 51MB, 嵌入 = hudiff 12MB → ~50MB、go.mod +30 依赖)
+- 嵌入 d2 的 dagre / ELK 布局(只嵌 TALA, 布局不可配; 见 §7)
+- 调用外部 `d2` 二进制(内嵌后不需要; 也不做 `d2_bin` 配置)
 - plantuml(Java + graphviz, 依赖最重; 真有人要时它和 d2 同形状 —— 外部二进制 → SVG —— 几十行加得上)
 
 ## 2. 技术选型(已定)
@@ -35,13 +36,13 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 |---|---|---|
 | 语言 | Go, `go 1.25`(本机 1.26.3) | 单二进制、embed、维护者更熟 |
 | module | `github.com/kackerx/hudiff` | 个人号; 根目录就是 `package main`, `go install …@latest` 直接可用 |
-| CLI | **kong** v1.16(唯一第三方依赖) | 18 子命令 / 47 参数 / 两层子命令 / 可重复 flag / flag 可在位置参数后 —— 标准库 `flag` 全要手写, 且 `-h` 质量差 |
+| CLI | **kong** v1.16 | 18 子命令 / 47 参数 / 两层子命令 / 可重复 flag / flag 可在位置参数后 —— 标准库 `flag` 全要手写, 且 `-h` 质量差 |
 | HTTP | 标准库 `net/http`, Go 1.22 mux 模式(`GET /s/{sid}/api/session`) | 十几条路由, 框架无收益 |
 | 前端 | 保留现有原生 JS + JSON API, 拆成文件 | **否掉 htmx**: 页面是重客户端状态(5k 行表 + content-visibility + IntersectionObserver 判 hunk + 拖栏 + localStorage + 客户端 hljs); htmx 要重写我们想原样保留的 60% 代码, 且 agent 走的就是同一套 JSON API |
-| 资源 | `//go:embed web skills`, 含 `web/vendor/{mermaid.min.js(3.4MB), highlight.min.js(120KB)}` | 页面零 CDN, 内网/离线可用; 二进制 ~12MB → ~16MB; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
-| 图解 | **默认 mermaid**(浏览器侧, embed, 零安装)/ 可选 d2(daemon 侧, 需用户装二进制) | 用户偏好 d2 的画风, 但"给别人用尽量少装东西"优先; mermaid 靠 hudiff 自带主题把画风拉齐, 见 §7 |
+| 资源 | `//go:embed web skills`, 含 `web/vendor/{mermaid.min.js(3.4MB), highlight.min.js(130KB)}` | 页面零 CDN, 内网/离线可用; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
+| 图解 | **默认 d2, 以 Go 库内嵌**(`github.com/d2lang/d2` v0.9.0 + `d2layouts/d2talalayout`, 布局固定 TALA, daemon 进程内渲染)/ 可选 mermaid(浏览器侧 embed) | 2026-09-22 实测: TALA 是纯 Go(0 goja), 只嵌 d2lib+TALA+svg 的程序 strip 后 22MB, hudiff 8.2MB → 合计约 29MB, go.mod +51 模块, 渲染 auto-map 13ms; 换来零安装 + 用户偏好的画风 + `notes` 写入即编译校验。见 §7 |
 | 高亮 | 浏览器侧 highlight.js(embed) | 不引 chroma |
-| 分发 | goreleaser → GitHub Releases(darwin/linux/windows × arm64/amd64)+ homebrew tap; `go install` | 版本号 `-ldflags -X main.version` |
+| 分发 | goreleaser → GitHub Releases(darwin/linux/windows × arm64/amd64)+ homebrew tap; `go install` | 版本号 `-ldflags -X main.version`; 一律 `-s -w` strip(d2 内嵌后体积敏感) |
 
 ## 3. CLI 表面(v1)
 
@@ -108,8 +109,7 @@ hudiff version
   "web":     { "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
                "open": true,              // 建会话后自动开浏览器
                "browser": "" },           // 覆盖打开命令, 空 = 系统默认(open / xdg-open / start)
-  "diagram": { "engine": "mermaid",       // mermaid(默认, 零安装)| d2(需要 d2 二进制)
-               "d2_bin": "d2" },
+  "diagram": { "engine": "d2" },          // d2(默认, 内嵌, 布局固定 TALA)| mermaid(浏览器侧)
   "data_dir": "",                         // 会话数据目录, 空 = ${XDG_STATE_HOME:-~/.local/state}/hudiff
   "prompts_dir": "",                      // 预设审查要求, 空 = <config dir>/prompts/{default,<repo>}.md
   "hooks": {                              // 替代 tmux 投递: shell 命令, 环境变量 HUDIFF_SESSION / HUDIFF_URL / HUDIFF_REPO / HUDIFF_COUNT
@@ -138,7 +138,7 @@ hudiff/
                           (meta 结构体的字段顺序 = session.json 里的键顺序, 别重排)
     repoctx/              git log / 符号提取 / 引用查找(原 collect_ctx); 不叫 context/ 是为了不遮蔽标准库
     review/               validate(file:line 在 diff 里)+ merge(并入规则, 见 §8.4)
-    diagram/              d2 渲染缓存、auto-map 生成(两种方言各一个 emitter)
+    diagram/              d2lib + TALA 进程内渲染与缓存(唯一引入 d2 的包)、auto-map 生成(两种方言各一个 emitter)
     daemon/               net/http server, 长轮询 waiters, server.json, 拉起/停止
     (没有 viewer/ 包)     只有 web 一种查看器时不抽 interface, 建会话后直接开浏览器; TUI 真做的时候再抽
   (web 资源的读取在 daemon/assets.go, 只有 daemon 用)
@@ -188,28 +188,30 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 
 ## 7. 图解引擎
 
-默认 **mermaid**, 可选 **d2**。选型依据(2026-09-22 拍板): 给别人用要零安装; mermaid 在浏览器里渲染, daemon 不依赖
-任何东西, 3.4MB 的 `mermaid.min.js` embed 进二进制后连 CDN 都不要; d2 要用户 `brew install d2`, 作为 Go 库嵌入又太重
-(见 §1 非目标)。agent 写 mermaid 的出错率也比 d2 低(训练语料最多)。
+默认 **d2(内嵌)**, 可选 **mermaid**。拍板过程: 2026-09-21 曾定 mermaid 默认(依据是 d2 二进制 51MB、布局引擎是 JS 靠 goja),
+2026-09-22 实测 v0.9.0 后反转 —— TALA 已开源且是纯 Go, 只嵌 d2lib + TALA 体积可控(见 §2 表), 于是零安装和用户偏好的画风
+可以同时拿到, 还多一个功能性好处: daemon 进程内编译, `hudiff notes` 写入时就能拒掉画错的图。
 
-- **mermaid**: 页面 `<script src="/vendor/mermaid.min.js">`(embed)。渲染错误由页面 `POST /s/{sid}/api/diagram/{id}/error`
-  回传, daemon 记在内存, `hudiff diagram <id>` 与 `hudiff wait` 输出里带 `render error: …`, agent 下一轮能看到。
-  daemon **不做** mermaid 语法校验(没有 JS 引擎, 也不为此嵌 goja); `notes` 只做结构校验(非空、首行是合法图类型)。
-- **画风约定**(解决"mermaid 默认主题难看"): hudiff 自带主题, `mermaid.initialize({ theme: 'base', themeVariables })`,
-  颜色 / 字体取页面 CSS 变量(`--bg2 / --line / --fg / --add-bg / --del-bg`), 浅深各一套, 跟随页面主题切换;
-  `flowchart.curve: 'linear'`。预定义 `classDef added / removed / changed / external`, **SKILL.md 规定 agent 只用这四个
-  class, 不自己调色**。
-- **d2**: daemon 调 `config.diagram.d2_bin`, 按 `hash(src, theme)` 缓存 SVG(沿用 Python 版); `notes` 写入时用 d2 真编译
-  校验; 二进制找不到 → `hudiff notes` 报错并提示 `brew install d2` / 改 `diagram.engine`。
-- **自动改动地图**按当前引擎方言生成(`diagram/automap_mermaid.go` / `automap_d2.go`), 内容相同: 文件 → 本次改动的
-  符号 → 改动文件之外的引用方。
-- `notes.json.diagrams[].kind` ∈ {mermaid, d2}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
+- **d2(默认)**: `github.com/d2lang/d2` v0.9.0 作为 Go 库, 只 import `d2lib` / `d2renderers/d2svg` / `d2layouts/d2talalayout` /
+  `d2themes` / `lib/textmeasure`; **不 import dagre / ELK**, 布局固定 TALA, 不提供布局配置。`d2lib.Compile` 的
+  `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。按 `hash(src, theme)` 缓存 SVG 到会话目录(沿用 Python 版);
+  `steps` 多板图用 d2 自带的动画渲染(对应 Python 版 `--animate-interval`)。`notes` 写入时真编译, 编不过报 400 并把 d2 的
+  错误原文给 agent。主题: 浅色 `NeutralDefault`(id 0), 深色沿用 Python 版 `D2_THEME` 映射, 与现有 SVG 缓存键兼容。
+  许可: d2 是 **MPL-2.0**(文件级 copyleft), hudiff 不修改 d2 源文件, 二进制分发附 NOTICE 列出 d2 与其许可即可;
+  依赖树其余为 MIT / BSD / Apache, 无 GPL(2026-09-22 扫过)。
+- **mermaid(可选)**: 页面 `<script src="/vendor/mermaid.min.js">`(embed)。渲染错误由页面 `POST /s/{sid}/api/diagram/{id}/error`
+  回传, daemon 记在内存, `hudiff diagram <id>` 与 `hudiff wait` 输出里带 `render error: …`。daemon 不做 mermaid 语法校验
+  (没有 JS 引擎, 也不为此嵌 goja); `notes` 只做结构校验(非空、首行是合法图类型)。
+  画风: hudiff 自带主题 `mermaid.initialize({ theme: 'base', themeVariables })`, 颜色 / 字体取页面 CSS 变量, 浅深各一套;
+  `flowchart.curve: 'linear'`; 预定义 `classDef added / removed / changed / external`, SKILL.md 规定 agent 只用这四个 class。
+- **自动改动地图**按当前引擎方言生成(`diagram/automap_d2.go` / `automap_mermaid.go`), 内容相同: 文件 → 本次改动的符号 →
+  改动文件之外的引用方。d2 版布局由 TALA 决定(实测比 dagre 紧凑: 同一张图 dagre 竖排三层, TALA 2×2)。
+- `notes.json.diagrams[].kind` ∈ {d2, mermaid}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
   `hudiff session info` 暴露出来, SKILL.md 规定 agent 先看它再画; `--diagram` 只在建会话时生效, 会话内固定。
 
 **图 ↔ 代码的引用跳转与引擎无关, 是 hudiff 自己的功能**: `diagrams[].hunks[]`(如 `internal/cli/config.go#0`)由页面
 渲染成图卡片顶部的 chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片反向列出引用它的图。SVG 内部目前
-只有"点击放大"(lightbox)。v1 之后可选: 节点级跳转 —— mermaid `click <node> hudiffJump "<file#hunk>"` 回调 /
-d2 `link: "#<file#hunk>"`, 两边都能做, 不进 v1。
+只有"点击放大"(lightbox)。v1 之后可选: 节点级跳转 —— d2 `link: "#<file#hunk>"` / mermaid `click <node> hudiffJump`, 不进 v1。
 
 ## 8. 数据契约(冻结, 与 Python 版兼容; 现有会话零迁移可打开)
 
@@ -279,3 +281,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 5. License → **MIT**
 6. README → **英文**, 顶部放 `uvx pyfiglet -w 200 -f ansi_shadow hudiff` 生成的 banner, 然后 logo, 结构按常见开源项目
    (Features / Install / Quickstart / Agent skill / Configuration / How it works / Development / License)
+7. (2026-09-22) 图解 → **d2 内嵌为默认, 布局固定 TALA, 不嵌 dagre/ELK**; 条件是"能内嵌且不会大太多", 实测 +~21MB(8 → ~29MB strip 后)
+   接受。mermaid 保留为浏览器侧可选。
+8. (2026-09-22) 裸 `hudiff` **含未跟踪文件**(§3 原文不变, M2 先照 oracle 不含是临时取舍, M2-fix 补上; parity 用无未跟踪文件的夹具
+   仓库比字节, 另加一条 Go 单侧检查"未跟踪文件出现在 diff.json 里")
