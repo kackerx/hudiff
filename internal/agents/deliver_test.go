@@ -2,7 +2,12 @@
 
 package agents
 
-import "testing"
+import (
+	"net"
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestMatchTmuxPane(t *testing.T) {
 	list := "/dev/ttys028 %0\n/dev/ttys031 %4\n/dev/ttys999 %9\n"
@@ -60,5 +65,23 @@ func TestDeliverRefusesNothing(t *testing.T) {
 	}
 	if d := Deliver(1, ""); d.Via != "copy" {
 		t.Errorf("no text should fall through to copy, got %q", d.Via)
+	}
+}
+
+func TestSocketsIn(t *testing.T) {
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "kitty-123")
+	l, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Skipf("no unix sockets here: %v", err)
+	}
+	defer l.Close()
+	// the kind of stray file /tmp collects
+	if err := os.WriteFile(filepath.Join(dir, "kitty-changelog.rst"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := socketsIn(filepath.Join(dir, "kitty*"), filepath.Join(dir, "kitty*")) // twice: must not duplicate
+	if len(got) != 1 || got[0] != sock {
+		t.Errorf("socketsIn = %v, want just %q", got, sock)
 	}
 }

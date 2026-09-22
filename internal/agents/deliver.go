@@ -59,6 +59,25 @@ func matchTmuxPane(tty, paneList string) string {
 	return ""
 }
 
+// socketsIn keeps only the real sockets a glob turned up: /tmp also holds files
+// like kitty-changelog.rst, and probing one costs a failed exec every delivery.
+func socketsIn(patterns ...string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, pat := range patterns {
+		paths, _ := filepath.Glob(pat)
+		for _, p := range paths {
+			st, err := os.Lstat(p)
+			if err != nil || st.Mode()&os.ModeSocket == 0 || seen[p] {
+				continue
+			}
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // tmuxSockets: every server, not just the default one — a user can run tmux on
 // a named socket, and the parity fixture does exactly that.
 func tmuxSockets() []string {
@@ -66,8 +85,7 @@ func tmuxSockets() []string {
 	if dir == "" {
 		dir = "/tmp"
 	}
-	socks, _ := filepath.Glob(filepath.Join(dir, "tmux-*", "*"))
-	return socks
+	return socketsIn(filepath.Join(dir, "tmux-*", "*"))
 }
 
 func viaTmux(pid int, text string) (Delivery, bool) {
@@ -146,12 +164,7 @@ func matchKittyWindow(pid int, parent map[int]int, lsJSON []byte) (int, bool) {
 }
 
 func kittySockets() []string {
-	var out []string
-	for _, dir := range []string{os.TempDir(), "/tmp"} {
-		paths, _ := filepath.Glob(filepath.Join(dir, "kitty*"))
-		out = append(out, paths...)
-	}
-	return out
+	return socketsIn(filepath.Join(os.TempDir(), "kitty*"), "/tmp/kitty*")
 }
 
 func viaKitty(pid int, text string) (Delivery, bool) {
