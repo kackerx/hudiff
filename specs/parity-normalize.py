@@ -10,6 +10,7 @@ different data still shows up as a difference.
     parity-normalize.py read <file>     hudiff read / hudiff show
     parity-normalize.py list <file>     hudiff session list / hudiff ls
     parity-normalize.py body <file>     a --dump-dom capture of a page
+    parity-normalize.py comments <file> hudiff comments / hudiff wait
 """
 import re
 import sys
@@ -75,12 +76,67 @@ def norm_body(path):
     return BODY_ASSETS.sub("", html[html.index("<body"):])
 
 
+# comments: status words, the side word, the reply author label and the two
+# headers are labels. Ids, file, hunk, line, the quoted source and every body
+# line are data and are compared as they are. Session ids differ by definition.
+STATUS = {"not sent": "OPEN", "未发送": "OPEN", "pending": "SENT", "待处理": "SENT",
+          "replied": "REPLIED", "已回复": "REPLIED", "resolved": "RESOLVED", "已解决": "RESOLVED"}
+SIDE = {"new": "NEW", "新版": "NEW", "old": "OLD", "旧版": "OLD"}
+WHO = {"agent": "AGENT", "me": "USER", "我": "USER", "me (new)": "USER-NEW", "我(新)": "USER-NEW"}
+
+C_HEAD = re.compile(r"^# (?:session|会话) \S+: (.*?)\s+(?:(\d+) total, showing (\d+)|共 (\d+) 条, 显示 (\d+) 条)$")
+C_ROW = re.compile(r"^\[(\w+)\] (\S+(?: \(new\))?)  (.*)$")
+C_REF = re.compile(r"^(\S+)  (\S+) L(\d+)  \(hunk (\d+)\)$")
+C_REPLY = re.compile(r"^    (agent|me \(new\)|me|我\(新\)|我): (.*)$")
+C_WAIT = [(re.compile(r"^# (?:the user sent (\d+) comments|用户发来 (\d+) 条评论)$"), "<SENT>"),
+          (re.compile(r"^# (?:(\d+) comments were already pending.*|已有 (\d+) 条待处理评论.*)$"), "<ALREADY>")]
+
+
+def norm_comments(line):
+    if line in ("(no comments)", "(没有评论)"):
+        return "<NONE>"
+    for rx, tag in C_WAIT:
+        m = rx.match(line)
+        if m:
+            return f"{tag} {m.group(1) or m.group(2)}"
+    m = C_HEAD.match(line)
+    if m:
+        return f"<HDR> {m.group(1)} {m.group(2) or m.group(4)} {m.group(3) or m.group(5)}"
+    m = C_REPLY.match(line)
+    if m:
+        return f"    {WHO[m.group(1)]}: {m.group(2)}"
+    m = C_ROW.match(line)
+    if m:
+        cid, status, rest = m.groups()
+        return f"[{cid}] {STATUS.get(status, status)} {norm_ref(rest)}"
+    return line
+
+
+FLAGS = [(re.compile(r"\s*⚠ (?:行内容已变.*|the line's content changed.*?)(?=\s*✔|$)"), " <STALE>"),
+         (re.compile(r"\s*✔ (?:agent 已处理.*|handled by the agent.*)$"), " <AGENT-DONE>")]
+
+
+def norm_ref(rest):
+    flags = ""
+    for rx, tag in FLAGS:
+        rest, n = rx.subn("", rest)
+        if n:
+            flags += tag
+    rest = rest.strip()
+    if rest in ("overall", "整体意见"):
+        return "<OVERALL>" + flags
+    m = C_REF.match(rest)
+    if m:
+        return f"{m.group(1)} {SIDE.get(m.group(2), m.group(2))} L{m.group(3)} hunk {m.group(4)}{flags}"
+    return rest.replace("整段 hunk ", "whole hunk ") + flags
+
+
 def main():
     mode, path = sys.argv[1], sys.argv[2]
     if mode == "body":
         sys.stdout.write(norm_body(path))
         return
-    fn = {"read": norm_read, "list": norm_list}[mode]
+    fn = {"read": norm_read, "list": norm_list, "comments": norm_comments}[mode]
     with open(path) as fh:
         for line in fh:
             print(fn(line.rstrip("\n")))

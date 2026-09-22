@@ -26,7 +26,9 @@ func main() {
 	}
 	var ex *cli.ExitError
 	if errors.As(err, &ex) {
-		fmt.Fprintf(os.Stderr, "hudiff: %s\n", ex.Msg)
+		if ex.Msg != "" { // `wait` already said why it is exiting 124
+			fmt.Fprintf(os.Stderr, "hudiff: %s\n", ex.Msg)
+		}
 		os.Exit(ex.Code)
 	}
 	fmt.Fprintf(os.Stderr, "hudiff: %v\n", err)

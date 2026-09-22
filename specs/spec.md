@@ -265,7 +265,9 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 冻结四个契约(§8 数据、§3 CLI、§8 HTTP、`read` 文本), 现有 3 个会话是夹具, Python 版是 oracle。
 `specs/parity.sh` 对同一会话跑 `read`(含 `-W` / `-U`)/ `session info --json` / `session list` /
 `GET /api/session` / `GET /api/sessions` / 每张图的 SVG(两个主题)/ 冷缓存重渲染 / 页面截图;
-`specs/parity-m2.sh`(被它 source)再用两边各建一次会话, 比 `diff.json` 字节和 `session.json`。全部相等才算过。
+`specs/parity-m2.sh` 再用两边各建一次会话, 比 `diff.json` 字节和 `session.json`;
+`specs/parity-m3.sh` 在同一对会话上各走一遍「页面发评论 → Send → agent wait → reply → resolve」, 比
+`comments.json` 和 `comments` 的输出。全部相等才算过。
 两个 daemon 共用 server.json, 所以脚本让它们轮流上: 先抓 Python 侧, 换 Go daemon 再抓一遍, 退出前把
 Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `steps` 图是动画, 每次截到的帧不同, 真正的
 对照是上面逐字节比的 SVG。
@@ -275,7 +277,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
   Python 写好的会话在 Go daemon 下页面完整可用 → 契约正确的证明。`git mv hudiff legacy/hudiff.py`,
   根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
 - **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
-- **M3** 写路径: `notes / comments / submit / wait / reply / resolve`
+- **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
 - **M4** `review`(并入)/ `diagram`(双引擎)/ `context`
 - **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段
 - **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap

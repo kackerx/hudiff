@@ -152,3 +152,25 @@ func truthy(v any) bool {
 	}
 	return true
 }
+
+// FindLine returns the line at (hunk, side, lineno) on the side that has one:
+// a deleted line has no new number and vice versa.
+func (d Diff) FindLine(path string, hunkIdx int, side string, lineno int) *Line {
+	for _, f := range d.Files {
+		if f.Path != path || hunkIdx < 0 || hunkIdx >= len(f.Hunks) {
+			continue
+		}
+		for i := range f.Hunks[hunkIdx].Lines {
+			ln := &f.Hunks[hunkIdx].Lines[i]
+			n := ln.O
+			skip := ln.T == "+"
+			if side == "new" {
+				n, skip = ln.N, ln.T == "-"
+			}
+			if n != nil && *n == lineno && !skip {
+				return ln
+			}
+		}
+	}
+	return nil
+}

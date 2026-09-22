@@ -110,7 +110,7 @@ func Reanchor(files []diff.File, comments []map[string]any) {
 		f := find(files, path)
 		if target != "line" {
 			if target == "hunk" {
-				c["stale"] = !(f != nil && int(num(c["hunk"])) < len(f.Hunks))
+				c["stale"] = !(f != nil && asInt(c["hunk"]) < len(f.Hunks))
 			}
 			continue
 		}
@@ -129,7 +129,7 @@ func Reanchor(files []diff.File, comments []map[string]any) {
 func bestLine(f *diff.File, c map[string]any) (int, int, bool) {
 	side, _ := c["side"].(string)
 	snippet, _ := c["snippet"].(string)
-	want := int(num(c["line"]))
+	want := asInt(c["line"])
 	bestDist, bestHunk, bestNum, found := 0, 0, 0, false
 	for hi := range f.Hunks {
 		for _, ln := range f.Hunks[hi].Lines {
@@ -149,11 +149,6 @@ func bestLine(f *diff.File, c map[string]any) (int, int, bool) {
 		}
 	}
 	return bestHunk, bestNum, found
-}
-
-func num(v any) float64 {
-	f, _ := v.(float64)
-	return f
 }
 
 func abs(n int) int {

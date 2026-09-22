@@ -174,10 +174,7 @@ else
     bad "untracked  ($u/out $u/err)"
 fi
 
-rm -rf "$FIX"
 
 if [ -n "${PARITY_PR:-}" ]; then
     create "create-pr-$PARITY_PR" "${PARITY_PR_REPO:-$ROOT}" pr "$PARITY_PR" -- pr "$PARITY_PR"
 fi
-
-sweep_states

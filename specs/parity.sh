@@ -204,6 +204,10 @@ done
 echo "M2: session creation"
 . "$ROOT/specs/parity-m2.sh"
 
+echo "M3: the write path"
+. "$ROOT/specs/parity-m3.sh"
+rm -rf "$FIX"
+
 if [ "$FAILED" = 0 ]; then
     echo "parity ok"
     rm -rf "$WORK"

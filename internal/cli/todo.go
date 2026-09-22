@@ -44,8 +44,6 @@ type NotesCmd struct {
 	Force bool   `help:"Write even if validation fails."`
 }
 
-func (c *NotesCmd) Run(g *Globals) error { return todo("notes") }
-
 type DiagramCmd struct {
 	Which string `arg:"" optional:"" help:"list, auto-map, or a diagram id." placeholder:"<id>"`
 	Src   bool   `help:"Print the diagram source instead of rendering."`
@@ -108,14 +106,10 @@ type CommentsCmd struct {
 	JSON bool `help:"Machine-readable output."`
 }
 
-func (c *CommentsCmd) Run(g *Globals) error { return todo("comments") }
-
 type WaitCmd struct {
 	Timeout float64 `default:"1800" help:"Seconds; exit 124 on timeout."`
 	JSON    bool    `help:"Machine-readable output."`
 }
-
-func (c *WaitCmd) Run(g *Globals) error { return todo("wait") }
 
 type ReplyCmd struct {
 	ID      string `arg:"" help:"Comment id."`
@@ -123,15 +117,11 @@ type ReplyCmd struct {
 	Resolve bool   `help:"Also mark it handled, awaiting confirmation."`
 }
 
-func (c *ReplyCmd) Run(g *Globals) error { return todo("reply") }
-
 type ResolveCmd struct {
 	IDs    []string `arg:"" help:"Comment ids."`
 	Reopen bool     `help:"Reopen instead."`
 	By     string   `default:"agent" help:"agent or user."`
 }
-
-func (c *ResolveCmd) Run(g *Globals) error { return todo("resolve") }
 
 type SkillCmd struct {
 	Path    SkillPathCmd    `cmd:"" default:"1" help:"Print the skill path, materialising it if needed."`

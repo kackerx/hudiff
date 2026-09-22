@@ -92,6 +92,12 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /s/{sid}/api/agents", s.withSession(s.apiAgents))
 	m.HandleFunc("GET /s/{sid}/api/hang", s.withSession(s.apiHang))
 	m.HandleFunc("GET /s/{sid}/api/wait", s.withSession(s.apiWait))
+	m.HandleFunc("POST /s/{sid}/api/comments", s.withSession(s.postComment))
+	m.HandleFunc("POST /s/{sid}/api/comments/{id}/reply", s.withSession(s.postReply))
+	m.HandleFunc("PATCH /s/{sid}/api/comments/{id}", s.withSession(s.patchComment))
+	m.HandleFunc("DELETE /s/{sid}/api/comments/{id}", s.withSession(s.deleteComment))
+	m.HandleFunc("POST /s/{sid}/api/submit", s.withSession(s.postSubmit))
+	m.HandleFunc("POST /s/{sid}/api/notes", s.withSession(s.postNotes))
 	m.HandleFunc("/", notImplemented)
 	return m
 }
@@ -252,6 +258,85 @@ func (s *server) apiWait(w http.ResponseWriter, r *http.Request, sid, dir string
 	}
 	seq := s.rooms.wait(r, sid, dir, pane, since, time.Duration(timeout*float64(time.Second)))
 	sendJSON(w, 200, waitResult{SubmitSeq: seq, Changed: seq > since})
+}
+
+func readBody(r *http.Request) map[string]any {
+	var m map[string]any
+	if json.NewDecoder(r.Body).Decode(&m) != nil || m == nil {
+		return map[string]any{}
+	}
+	return m
+}
+
+func (s *server) postComment(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	c, err := session.AddComment(dir, readBody(r))
+	if err != nil {
+		sendJSON(w, 400, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, c)
+}
+
+func (s *server) postReply(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	b := readBody(r)
+	who, _ := b["who"].(string)
+	if who == "" {
+		who = "user"
+	}
+	body, _ := b["body"].(string)
+	c, err := session.AddReply(dir, r.PathValue("id"), who, body)
+	if err != nil {
+		sendJSON(w, 404, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, c)
+}
+
+func (s *server) patchComment(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	c, err := session.PatchComment(dir, r.PathValue("id"), readBody(r))
+	if err != nil {
+		sendJSON(w, 404, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, c)
+}
+
+func (s *server) deleteComment(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	if err := session.DeleteComment(dir, r.PathValue("id")); err != nil {
+		sendJSON(w, 500, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+// postSubmit is the session's inbox bell: whoever is in /api/wait wakes up.
+func (s *server) postSubmit(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	n, seq, err := session.Submit(dir)
+	if err != nil {
+		sendJSON(w, 500, map[string]any{"error": err.Error()})
+		return
+	}
+	s.rooms.Notify()
+	waiting := s.rooms.count(sid)
+	var delivered any
+	if waiting > 0 {
+		delivered = "wait"
+	}
+	sendJSON(w, 200, map[string]any{"sent": n, "submit_seq": seq, "waiting": waiting,
+		"delivered": delivered, "label": nil, "error": nil})
+}
+
+func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	var notes any
+	if json.NewDecoder(r.Body).Decode(&notes) != nil {
+		sendJSON(w, 400, map[string]any{"error": "notes is not valid JSON"})
+		return
+	}
+	if err := session.WriteNotes(dir, notes); err != nil {
+		sendJSON(w, 500, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
 type waitResult struct {
