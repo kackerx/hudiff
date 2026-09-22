@@ -11,6 +11,8 @@ import (
 	"github.com/d2lang/d2/d2layouts/d2talalayout"
 	"github.com/d2lang/d2/d2lib"
 	"github.com/d2lang/d2/d2renderers/d2animate"
+	"github.com/d2lang/d2/d2renderers/d2ascii"
+	"github.com/d2lang/d2/d2renderers/d2ascii/charset"
 	"github.com/d2lang/d2/d2renderers/d2svg"
 	"github.com/d2lang/d2/d2target"
 	"github.com/d2lang/d2/lib/log"
@@ -29,10 +31,10 @@ var themeID = map[string]int64{"light": 0, "dark": 200}
 // The ruler is expensive to build and safe to share.
 var ruler = sync.OnceValues(textmeasure.NewRuler)
 
-func renderD2(src, theme string, sketch bool) ([]byte, error) {
+func compile(src, theme string, sketch bool) (*d2target.Diagram, *d2svg.RenderOpts, error) {
 	r, err := ruler()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	id, ok := themeID[theme]
 	if !ok {
@@ -44,7 +46,12 @@ func renderD2(src, theme string, sketch bool) ([]byte, error) {
 		Ruler:          r,
 		LayoutResolver: func(string) (d2graph.LayoutGraph, error) { return d2talalayout.DefaultLayout, nil },
 	}
-	diagram, _, err := d2lib.Compile(log.WithDefault(context.Background()), Preamble+src, co, ro)
+	d, _, err := d2lib.Compile(log.WithDefault(context.Background()), Preamble+src, co, ro)
+	return d, ro, err
+}
+
+func renderD2(src, theme string, sketch bool) ([]byte, error) {
+	diagram, ro, err := compile(src, theme, sketch)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +72,22 @@ func renderD2(src, theme string, sketch bool) ([]byte, error) {
 
 func multiboard(d *d2target.Diagram) bool {
 	return len(d.Steps)+len(d.Layers)+len(d.Scenarios) > 0
+}
+
+// RenderASCII draws the diagram as text, so an agent can read its own diagram
+// in the terminal. The d2 CLI switches to ELK for this; we keep TALA rather
+// than embed a second layout engine.
+func RenderASCII(src string) (string, error) {
+	d, ro, err := compile(src, "light", false)
+	if err != nil {
+		return "", err
+	}
+	out, err := d2ascii.NewASCIIartist().Render(log.WithDefault(context.Background()), d, &d2ascii.RenderOpts{
+		Scale: ro.Scale, Charset: charset.ASCII})
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
 // CheckD2 compiles a source and returns the compiler's own message, which is

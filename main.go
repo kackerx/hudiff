@@ -19,6 +19,7 @@ var version = "dev"
 
 func main() {
 	daemon.SetAssets(assets)
+	cli.SetSkills(assets)
 	ctx, c := cli.Parse(version)
 	err := ctx.Run(&c.Globals, cli.Version(version))
 	if err == nil {

@@ -16,27 +16,27 @@
 <main id="main">
   <nav id="tree">
     <div class="tbar">
-      <div class="q"><span class="nf" id="q-ic"></span><input id="q" placeholder="过滤文件…" autocomplete="off" spellcheck="false"><button class="ghost sm" id="q-x" title="清空" style="display:none">×</button></div>
-      <details id="extf"><summary class="sm" title="按扩展名过滤">类型</summary><div class="pop" id="extf-list"></div></details>
-      <button class="ghost sm" id="fold-all" title="全部折叠 / 展开">⊟</button>
-      <button class="ghost sm" id="hide-nav" title="收起文件栏  [">◧</button>
+      <div class="q"><span class="nf" id="q-ic"></span><input id="q" placeholder="filter files…" autocomplete="off" spellcheck="false"><button class="ghost sm" id="q-x" title="clear" style="display:none">×</button></div>
+      <details id="extf"><summary class="sm" title="filter by extension">type</summary><div class="pop" id="extf-list"></div></details>
+      <button class="ghost sm" id="fold-all" title="fold / unfold all">⊟</button>
+      <button class="ghost sm" id="hide-nav" title="collapse the file pane  [">◧</button>
     </div>
     <div id="tree-list"></div>
   </nav>
-  <div class="sash l" id="sash-l" title="拖动改宽度, 双击折叠"><button id="tog-l">‹</button></div>
+  <div class="sash l" id="sash-l" title="drag to resize, double-click to fold"><button id="tog-l">‹</button></div>
   <section id="mid">
     <div class="midbar" id="midbar"></div>
     <div class="diff" id="diff"></div>
     <div class="diagrams" id="diagrams" style="display:none"></div>
     <div class="review" id="review" style="display:none"></div>
   </section>
-  <div class="sash r" id="sash-r" title="拖动改宽度, 双击折叠"><button id="tog-r">›</button></div>
+  <div class="sash r" id="sash-r" title="drag to resize, double-click to fold"><button id="tog-r">›</button></div>
   <aside id="notes"></aside>
 </main>
 <div class="toast" id="toast"></div>
-<div id="lb" style="display:none"><div class="lbbar"><span id="lb-title"></span><span class="hint">滚轮缩放 · 拖动平移 · <kbd>0</kbd> 复位 · <kbd>Esc</kbd> 关闭</span><button class="sm" id="lb-x">关闭</button></div><div class="lbbody" id="lb-body"><img id="lb-img" alt=""></div></div>
+<div id="lb" style="display:none"><div class="lbbar"><span id="lb-title"></span><span class="hint">wheel to zoom · drag to pan · <kbd>0</kbd> to reset · <kbd>Esc</kbd> to close</span><button class="sm" id="lb-x">close</button></div><div class="lbbody" id="lb-body"><img id="lb-img" alt=""></div></div>
 <!--DLG-->
-<div id="offline" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9;background:var(--del-fg);color:#fff;text-align:center;font-size:12.5px;padding:5px 12px">server 断开了 —— 在终端跑任意一条 <code style="background:rgba(255,255,255,.2);padding:0 5px;border-radius:3px">hudiff ls</code> 就会拉起来, 这个页面会自动接上, 已写的评论都在。</div>
+<div id="offline" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9;background:var(--del-fg);color:#fff;text-align:center;font-size:12.5px;padding:5px 12px">the daemon went away — run any <code style="background:rgba(255,255,255,.2);padding:0 5px;border-radius:3px">hudiff ls</code> in a terminal and it comes back; this page reconnects on its own and your comments are all still there.</div>
 <script src="/app.js"></script>
 </body>
 </html>

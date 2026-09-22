@@ -45,6 +45,7 @@ type NotesCmd struct {
 type DiagramCmd struct {
 	Which string `arg:"" optional:"" help:"list, auto-map, or a diagram id." placeholder:"<id>"`
 	Src   bool   `help:"Print the diagram source instead of rendering."`
+	ASCII bool   `name:"ascii" help:"Render as text, readable in a terminal."`
 	Theme string `default:"light" enum:"light,dark" help:"Render theme."`
 	Out   string `short:"o" help:"Write the SVG here instead of stdout." placeholder:"<svg>"`
 }
@@ -128,33 +129,11 @@ type SkillCmd struct {
 	Install SkillInstallCmd `cmd:"" help:"Install the skill for an agent."`
 }
 
-type SkillPathCmd struct{}
-
-func (c *SkillPathCmd) Run(g *Globals) error { return todo("skill path") }
-
-type SkillInstallCmd struct {
-	For string `default:"all" enum:"claude,pi,opencode,codex,all" help:"Which agent to install for."`
-}
-
-func (c *SkillInstallCmd) Run(g *Globals) error { return todo("skill install") }
-
 type ConfigCmd struct {
 	Path ConfigPathCmd `cmd:"" default:"1" help:"Print the config file path."`
 	Show ConfigShowCmd `cmd:"" help:"Print the effective config."`
 	Init ConfigInitCmd `cmd:"" help:"Write a config file with the defaults."`
 }
-
-type ConfigPathCmd struct{}
-
-func (c *ConfigPathCmd) Run(g *Globals) error { return todo("config path") }
-
-type ConfigShowCmd struct{}
-
-func (c *ConfigShowCmd) Run(g *Globals) error { return todo("config show") }
-
-type ConfigInitCmd struct{}
-
-func (c *ConfigInitCmd) Run(g *Globals) error { return todo("config init") }
 
 type VersionCmd struct{}
 

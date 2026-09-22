@@ -221,15 +221,15 @@ func Count(rv Report) Counts {
 
 // Markdown exports the report in the template the user asked for.
 func Markdown(rv Report) string {
-	out := []string{"## 总体评价\n", strings.TrimSpace(str(rv, "summary")) + "\n", "## 优点\n"}
+	out := []string{"## Overall\n", strings.TrimSpace(str(rv, "summary")) + "\n", "## Strengths\n"}
 	strengths, _ := rv["strengths"].([]any)
 	if len(strengths) == 0 {
-		out = append(out, "- (无)")
+		out = append(out, "- (none)")
 	}
 	for _, s := range strengths {
 		out = append(out, "- "+fmt.Sprint(s))
 	}
-	out = append(out, "\n## 待处理项\n")
+	out = append(out, "\n## Items\n")
 	for _, pr := range order {
 		out = append(out, priorityBlock(rv, pr)...)
 	}
@@ -276,13 +276,13 @@ func itemMarkdown(it Item) []string {
 		if v := strings.TrimSpace(str(it, k)); v != "" {
 			prefix := "  "
 			if k == "suggestion" {
-				prefix = "  **修改建议**: "
+				prefix = "  **Suggested fix**: "
 			}
 			out = append(out, prefix+strings.ReplaceAll(v, "\n", "\n  "))
 		}
 	}
 	if r := str(it, "resolution"); r != "" {
-		out = append(out, fmt.Sprintf("  ✔ 处理结果(%s): %s", str(it, "resolved_by"), r))
+		out = append(out, fmt.Sprintf("  ✔ resolution (%s): %s", str(it, "resolved_by"), r))
 	}
 	notes, _ := it["notes"].([]any)
 	for _, n := range notes {
@@ -294,7 +294,7 @@ func itemMarkdown(it Item) []string {
 		case "disagree":
 			mark = "⚠"
 		}
-		out = append(out, fmt.Sprintf("  - %s 复核(%s, 第 %v 轮): %s", mark, str(m, "who"), m["round"], str(m, "body")))
+		out = append(out, fmt.Sprintf("  - %s re-review (%s, round %v): %s", mark, str(m, "who"), m["round"], str(m, "body")))
 	}
 	return append(out, "")
 }

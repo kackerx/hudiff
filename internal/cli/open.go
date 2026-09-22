@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/daemon"
 	"github.com/kackerx/hudiff/internal/session"
 )
@@ -77,6 +78,10 @@ func matchPrefix(prefix string) (string, error) {
 }
 
 func openBrowser(url string) error {
+	if b := config.Load().Web.Browser; b != "" {
+		parts := strings.Fields(b)
+		return exec.Command(parts[0], append(parts[1:], url)...).Start()
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":

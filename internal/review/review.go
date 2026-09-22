@@ -17,13 +17,14 @@ import (
 type Item = map[string]any
 type Report = map[string]any
 
+// prioAlias accepts what a reviewer agent might write, including Chinese.
 var prioAlias = map[string]string{
 	"高": "high", "高优": "high", "h": "high", "p0": "high",
 	"中": "medium", "中优": "medium", "m": "medium", "p1": "medium",
 	"低": "low", "低优": "low", "l": "low", "p2": "low",
 }
 
-var prioLabel = map[string]string{"high": "高优", "medium": "中优", "low": "低优"}
+var prioLabel = map[string]string{"high": "High", "medium": "Medium", "low": "Low"}
 
 var order = []string{"high", "medium", "low"}
 

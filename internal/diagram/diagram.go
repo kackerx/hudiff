@@ -11,19 +11,21 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/diff"
 )
 
-const autoMapCaption = "文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。" +
-	"红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。"
+const autoMapCaption = "File → the symbols this change adds (green) / removes (red) / edits (amber) → " +
+	"who references them outside the changed files. A red edge means the symbol is gone but something " +
+	"still calls it. Generated from `hudiff context`, not drawn by an agent."
 
-// Config is what M5 will fill from config.json. d2 is the only engine
-// (2026-09-22: mermaid dropped), so sketch is all that is left.
+// Config comes from config.json. d2 is the only engine (2026-09-22: mermaid
+// dropped), so sketch is all that is left.
 type Config struct {
 	Sketch bool
 }
 
-func DefaultConfig() Config { return Config{} }
+func DefaultConfig() Config { return Config{Sketch: config.Load().Diagram.Sketch} }
 
 type Entry struct {
 	ID      string   `json:"id"`
@@ -81,7 +83,7 @@ func strList(m map[string]any, k string) []string {
 func List(dir string, d diff.Diff, cfg Config) []Entry {
 	out := []Entry{}
 	if anyHunks(d) {
-		out = append(out, Entry{ID: "auto-map", Title: "改动地图(自动)", Kind: "d2",
+		out = append(out, Entry{ID: "auto-map", Title: "Change map (automatic)", Kind: "d2",
 			Auto: true, Hunks: []string{}, Caption: autoMapCaption})
 	}
 	for i, dg := range loadRawDiagrams(dir) {
@@ -94,7 +96,7 @@ func List(dir string, d diff.Diff, cfg Config) []Entry {
 		}
 		title := str(dg, "title")
 		if title == "" {
-			title = fmt.Sprintf("图 %d", i+1)
+			title = fmt.Sprintf("Diagram %d", i+1)
 		}
 		src, idx := strOr(dg, "src", ""), i
 		out = append(out, Entry{ID: id, Title: title, Kind: strOr(dg, "kind", "d2"), Auto: false,
@@ -131,7 +133,7 @@ func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind 
 		}
 	}
 	if dg == nil {
-		return "", "", fmt.Errorf("没有这张图: %s", which)
+		return "", "", fmt.Errorf("no such diagram: %s", which)
 	}
 	return strOr(dg, "src", ""), strOr(dg, "kind", "d2"), nil
 }
@@ -203,6 +205,6 @@ func errorSVG(msg string) []byte {
 	}
 	return []byte(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="860" height="%d">`+
 		`<rect width="100%%" height="100%%" fill="#fff5f5" stroke="#f0a0a0"/>`+
-		`<text x="16" y="22" font-family="sans-serif" font-size="13" fill="#82071e">图渲染失败</text>%s</svg>`,
+		`<text x="16" y="22" font-family="sans-serif" font-size="13" fill="#82071e">diagram failed to render</text>%s</svg>`,
 		60+18*n, body.String()))
 }

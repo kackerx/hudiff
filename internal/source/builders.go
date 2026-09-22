@@ -17,12 +17,11 @@ const (
 	Unstaged Scope = "unstaged"
 )
 
-// Default titles stay Chinese: they are stored in session.json and shown on the
-// page, which turns English in M5 together with the rest of the UI.
+// Default titles are stored in session.json and shown on the page.
 var scopeTitle = map[Scope]string{
-	Worktree: "工作区未提交的改动",
-	Staged:   "已暂存的改动",
-	Unstaged: "未暂存的改动",
+	Worktree: "Uncommitted changes",
+	Staged:   "Staged changes",
+	Unstaged: "Unstaged changes",
 }
 
 func FromWorktree(scope Scope, o Opts) (*Source, error) {
@@ -224,7 +223,7 @@ func FromPatch(file string, o Opts) (*Source, error) {
 	}
 	cwd, _ := os.Getwd()
 	return &Source{
-		Kind: "patch", Title: title(o, "补丁: "+file),
+		Kind: "patch", Title: title(o, "Patch: "+file),
 		Meta: PatchMeta{Source: file}, Patch: text, Repo: cwd, Refresh: nil,
 	}, nil
 }

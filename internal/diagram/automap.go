@@ -8,7 +8,7 @@ import (
 	"github.com/kackerx/hudiff/internal/repoctx"
 )
 
-var statusLabel = map[string]string{"A": "新增", "D": "删除", "R": "重命名", "M": "修改"}
+var statusLabel = map[string]string{"A": "added", "D": "deleted", "R": "renamed", "M": "modified"}
 var symClass = map[string]string{"+": "added", "-": "removed", "~": "changed"}
 
 const autoMapHeader = `direction: right
@@ -57,7 +57,7 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 		for _, sym := range capSyms(it.Syms) {
 			lab := sym.Kind + " " + sym.Name
 			if sym.Total != 0 && sym.Noisy {
-				lab += fmt.Sprintf("  ·%d 处引用", sym.Total)
+				lab += fmt.Sprintf("  ·%d refs", sym.Total)
 			}
 			L = append(L, fmt.Sprintf("  %s: { label: %s; class: %s }", q(sym.Name), q(lab), symClass[sym.Kind]))
 		}
@@ -81,7 +81,7 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 				edges = append(edges, refEdge(fid, sym.Name, f, sym.Kind == "-"))
 			}
 			if len(files) > 4 {
-				more := fmt.Sprintf("…另 %d 个文件引用 %s", len(files)-4, sym.Name)
+				more := fmt.Sprintf("…%d more files reference %s", len(files)-4, sym.Name)
 				mid := q(fmt.Sprintf("more:%s:%s", it.Path, sym.Name))
 				L = append(L, fmt.Sprintf("%s: { label: %s; class: ext }", mid, q(more)))
 				edges = append(edges, fmt.Sprintf("%s.%s -> %s { class: ref }", fid, q(sym.Name), mid))
@@ -100,7 +100,7 @@ func refEdge(fid, sym, target string, danger bool) string {
 	e := fmt.Sprintf("%s.%s -> %s", fid, q(sym), q(target))
 	cls := "ref"
 	if danger {
-		e += ": " + q("仍在引用!")
+		e += ": " + q("still referenced!")
 		cls = "danger"
 	}
 	return e + " { class: " + cls + " }"
@@ -111,7 +111,7 @@ func plainNodes(plain []plainFile) []string {
 		return nil
 	}
 	if len(plain) > 8 {
-		lab := fmt.Sprintf("其它 %d 个文件(无符号级改动)", len(plain))
+		lab := fmt.Sprintf("%d other files (no symbol-level change)", len(plain))
 		return []string{fmt.Sprintf("others: { label: %s; class: file }", q(lab))}
 	}
 	out := make([]string, 0, len(plain))

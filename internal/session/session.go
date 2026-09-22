@@ -10,19 +10,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/kackerx/hudiff/internal/config"
 )
 
-func StateDir() string {
-	if d := os.Getenv("HUDIFF_STATE"); d != "" {
-		return d
-	}
-	base := os.Getenv("XDG_STATE_HOME")
-	if base == "" {
-		home, _ := os.UserHomeDir()
-		base = filepath.Join(home, ".local", "state")
-	}
-	return filepath.Join(base, "hudiff")
-}
+func StateDir() string { return config.StateDir() }
 
 func SessionsDir() string { return filepath.Join(StateDir(), "sessions") }
 func CurrentFile() string { return filepath.Join(StateDir(), "current") }
@@ -129,13 +121,12 @@ func LoadSession(dir string) (*Session, error) {
 
 // State mirrors sess_state(): mtimes in ns so the page can poll cheaply.
 type State struct {
-	NotesV     int64 `json:"notes_v"`
-	CommentsV  int64 `json:"comments_v"`
-	ReviewV    int64 `json:"review_v"`
-	DiffV      int64 `json:"diff_v"`
-	SubmitSeq  int   `json:"submit_seq"`
-	Waiting    *int  `json:"waiting,omitempty"`
-	BoundAlive *bool `json:"bound_alive,omitempty"`
+	NotesV    int64 `json:"notes_v"`
+	CommentsV int64 `json:"comments_v"`
+	ReviewV   int64 `json:"review_v"`
+	DiffV     int64 `json:"diff_v"`
+	SubmitSeq int   `json:"submit_seq"`
+	Waiting   *int  `json:"waiting,omitempty"`
 }
 
 func mtimeNS(path string) int64 {

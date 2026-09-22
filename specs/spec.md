@@ -130,7 +130,7 @@ hudiff/
   main.go                 kong 入口(package main)
   internal/
     cli/                  kong 结构体 + Run(); 只做参数 → 调核心 → 输出
-    config/               加载 / 默认值 / `config path|show|init`
+    config/               加载 / 默认值 / keymap 默认表 / `config path|show|init`
     session/              data_dir 布局, JSON 原子读写(temp+rename), source_key 幂等, archive, 列表
     diff/                 unified diff → files/hunks/lines; hunk 编号必须与 Python 逐字一致(讲解按它对位)
     source/               git worktree/ref/range、commit、gh pr、patch → diff 文本 + meta
@@ -267,7 +267,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 - **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
 - **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
 - **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌)/ `context`
-- **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段
+- **M5** ✅ 2026-09-22 config / keymap / hooks / `skill install` / 英文化 / author 字段
 - **M6** parity 全过 → 删 `legacy/` → shim 换成 `go build` 产物(`.gitignore /hudiff`)→ goreleaser + tap
 
 ## 11. 拍板记录(2026-09-21, kackerx)

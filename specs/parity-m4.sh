@@ -64,7 +64,7 @@ print(json.dumps(rv, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
 strip_review "$FPS/review.json" >"$FP/review.norm"
 strip_review "$FGS/review.json" >"$FG/review.norm"
 same "review.json after two rounds" "$FP/review.norm" "$FG/review.norm"
-same "review md" "$FP/review.md" "$FG/review.md"
+same_norm "review md" md "$FP/review.md" "$FG/review.md"
 
 # --replace throws the old report away, including the user's ticks.
 XDG_STATE_HOME=$FP $PY_ORACLE -s "$(basename "$FPS")" review set "$WORK/r1.json" --replace --author reviewer-A >/dev/null 2>&1 || true

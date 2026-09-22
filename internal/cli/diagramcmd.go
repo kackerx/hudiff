@@ -23,6 +23,18 @@ func (c *DiagramCmd) Run(g *Globals) error {
 	if c.Which == "" || c.Which == "list" {
 		return listDiagrams(dir, d, cfg)
 	}
+	if c.ASCII {
+		src, _, err := diagram.Source(dir, sess.Repo, d, c.Which, cfg)
+		if err != nil {
+			return usage("%v", err)
+		}
+		txt, err := diagram.RenderASCII(src)
+		if err != nil {
+			return usage("%v", err)
+		}
+		fmt.Print(txt)
+		return nil
+	}
 	if c.Src {
 		src, _, err := diagram.Source(dir, sess.Repo, d, c.Which, cfg)
 		if err != nil {

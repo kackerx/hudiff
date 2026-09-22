@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/daemon"
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/session"
@@ -94,7 +95,7 @@ func (o *ReviewOpts) create(g *Globals, src *source.Source) error {
 		return printJSON(createJSON(sid, dir, url, src, existing != nil, res))
 	}
 	printCreated(sid, dir, url, src, existing != nil, res)
-	if !o.NoOpen {
+	if !o.NoOpen && config.Load().Web.Open {
 		if err := openBrowser(url); err != nil {
 			fmt.Fprintf(os.Stderr, "hudiff: cannot open a browser: %v\n", err)
 		}
@@ -144,7 +145,7 @@ func sameBrief(a, b *session.Brief) bool {
 func buildBrief(o *ReviewOpts, repo string) (*session.Brief, error) {
 	b := &session.Brief{Presets: []session.Preset{}, Context: []string{}}
 	for _, name := range []string{"default.md", filepath.Base(repo) + ".md"} {
-		f := filepath.Join(promptsDir(), name)
+		f := filepath.Join(config.PromptsDir(), name)
 		if text, err := os.ReadFile(f); err == nil {
 			b.Presets = append(b.Presets, session.Preset{Path: f, Text: strings.TrimSpace(string(text))})
 		}
@@ -168,26 +169,10 @@ func buildBrief(o *ReviewOpts, repo string) (*session.Brief, error) {
 		}
 		b.Context = append(b.Context, p)
 	}
-	// "  (missing)" is where the oracle wrote "  (不存在)"; the rest of the brief
-	// is the user's own text and is stored verbatim.
 	if len(b.Presets) == 0 && b.Prompt == "" && len(b.Context) == 0 {
 		return nil, nil
 	}
 	return b, nil
-}
-
-// promptsDir follows spec §4; the oracle kept presets one level up, in
-// <config>/hudiff/. config.prompts_dir lands in M5.
-func promptsDir() string {
-	if d := os.Getenv("HUDIFF_PROMPTS"); d != "" {
-		return d
-	}
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		home, _ := os.UserHomeDir()
-		base = filepath.Join(home, ".config")
-	}
-	return filepath.Join(base, "hudiff", "prompts")
 }
 
 func expandHome(p string) string {

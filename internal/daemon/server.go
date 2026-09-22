@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/diagram"
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/review"
@@ -81,6 +82,10 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /api/sessions", func(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"sessions": s.listSessions(), "port": s.port})
 	})
+	m.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
+		cfg := config.Load()
+		sendJSON(w, 200, map[string]any{"keymap": cfg.MergedKeymap(), "ui": cfg.UI})
+	})
 	m.HandleFunc("GET /favicon.svg", s.favicon)
 	m.HandleFunc("GET /favicon.ico", s.favicon)
 	for _, name := range rootAssets {
@@ -93,7 +98,6 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /s/{sid}/api/session", s.withSession(s.apiSession))
 	m.HandleFunc("GET /s/{sid}/api/state", s.withSession(s.apiState))
 	m.HandleFunc("GET /s/{sid}/api/diagram", s.withSession(s.apiDiagram))
-	m.HandleFunc("GET /s/{sid}/api/agents", s.withSession(s.apiAgents))
 	m.HandleFunc("GET /s/{sid}/api/hang", s.withSession(s.apiHang))
 	m.HandleFunc("GET /s/{sid}/api/wait", s.withSession(s.apiWait))
 	m.HandleFunc("POST /s/{sid}/api/comments", s.withSession(s.postComment))
@@ -102,6 +106,7 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("DELETE /s/{sid}/api/comments/{id}", s.withSession(s.deleteComment))
 	m.HandleFunc("POST /s/{sid}/api/submit", s.withSession(s.postSubmit))
 	m.HandleFunc("POST /s/{sid}/api/notes", s.withSession(s.postNotes))
+	m.HandleFunc("POST /s/{sid}/api/review-request", s.withSession(s.postReviewRequest))
 	m.HandleFunc("POST /s/{sid}/api/review", s.withSession(s.postReview))
 	m.HandleFunc("PATCH /s/{sid}/api/review/{id}", s.withSession(s.patchReview))
 	m.HandleFunc("POST /s/{sid}/api/review/{id}/note", s.withSession(s.postReviewNote))
@@ -162,8 +167,7 @@ func (s *server) withSession(h sessionHandler) http.HandlerFunc {
 		dir := session.Dir(sid)
 		st, err := os.Stat(dir)
 		if !sidRe.MatchString(sid) || err != nil || !st.IsDir() {
-			// Page text stays Chinese until M5 rewrites the whole UI.
-			sendHTML(w, 404, []byte(fmt.Sprintf("<h3>会话 %s 不存在</h3><a href='/'>← 全部会话</a>", sid)))
+			sendHTML(w, 404, []byte(fmt.Sprintf("<h3>No session %s</h3><a href='/'>← all sessions</a>", sid)))
 			return
 		}
 		h(w, r, sid, dir)
@@ -203,8 +207,8 @@ func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir str
 
 func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir string) {
 	st := session.ReadState(dir)
-	n, no := s.rooms.count(sid), false
-	st.Waiting, st.BoundAlive = &n, &no
+	n := s.rooms.count(sid)
+	st.Waiting = &n
 	sendJSON(w, 200, st)
 }
 
@@ -229,12 +233,6 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	w.Header().Set("Content-Length", strconv.Itoa(len(svg)))
 	w.WriteHeader(200)
 	_, _ = w.Write(svg)
-}
-
-// apiAgents is a stub: tmux agent discovery is gone (spec §5), the page's
-// selector is removed in M5.
-func (s *server) apiAgents(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	sendJSON(w, 200, map[string]any{"agents": []any{}, "waiting": s.rooms.count(sid), "bound": nil})
 }
 
 func (s *server) apiHang(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -318,9 +316,11 @@ func (s *server) postSubmit(w http.ResponseWriter, r *http.Request, sid, dir str
 	var delivered any
 	if waiting > 0 {
 		delivered = "wait"
+	} else {
+		runHook(hooks().OnSubmit, sid, dir, n)
 	}
 	sendJSON(w, 200, map[string]any{"sent": n, "submit_seq": seq, "waiting": waiting,
-		"delivered": delivered, "label": nil, "error": nil})
+		"delivered": delivered, "command": "hudiff -s " + sid + " wait"})
 }
 
 func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -334,6 +334,13 @@ func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir stri
 		return
 	}
 	sendJSON(w, 200, map[string]any{"ok": true})
+}
+
+// postReviewRequest has nothing to deliver to any more (spec §5 dropped tmux):
+// it returns the command for the user to paste and fires the hook.
+func (s *server) postReviewRequest(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	runHook(hooks().OnReviewRequest, sid, dir, 0)
+	sendJSON(w, 200, map[string]any{"ok": true, "command": "/hudiff review " + sid})
 }
 
 // postReview also bumps submit_seq: a new round is something an agent waiting
@@ -409,6 +416,7 @@ type sessionRow struct {
 	Del      int            `json:"del_"`
 	Comments int            `json:"comments"`
 	Counts   map[string]int `json:"counts"`
+	Authors  map[string]int `json:"authors"`
 	Noted    bool           `json:"noted"`
 	Waiting  bool           `json:"waiting"`
 }
@@ -435,11 +443,25 @@ func (s *server) listSessions() []sessionRow {
 		out = append(out, sessionRow{
 			ID: sess.ID, Kind: sess.Kind, Title: title, Repo: sess.Repo, Created: sess.Created,
 			Meta: meta, Archived: sess.IsArchived(), Files: files, Add: add, Del: del,
-			Comments: len(cs), Counts: commentCounts(cs),
+			Comments: len(cs), Counts: commentCounts(cs), Authors: commentAuthors(cs),
 			Noted: len(notes.Files) > 0, Waiting: s.rooms.count(id) > 0,
 		})
 	}
 	return out
+}
+
+// commentAuthors powers the per-author counts on the home page; a comment
+// written before the author field existed counts as the user's.
+func commentAuthors(cs []map[string]any) map[string]int {
+	a := map[string]int{}
+	for _, x := range cs {
+		who, _ := x["author"].(string)
+		if who == "" {
+			who = "user"
+		}
+		a[who]++
+	}
+	return a
 }
 
 func commentCounts(cs []map[string]any) map[string]int {

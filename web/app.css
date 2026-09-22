@@ -50,7 +50,7 @@ code,pre{font-family:var(--mono)}
 kbd{font:11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--bg2);color:var(--fg2)}
 .hint{color:var(--fg2);font-size:11.5px}
 
-/* ── 头部 ── */
+/* ── header ── */
 header{border-bottom:1px solid var(--line);padding:12px 20px 10px;background:var(--bg2);flex:0 0 auto}
 header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
@@ -75,30 +75,13 @@ header .summary p{margin:0 0 6px} header .summary p:last-child{margin:0} header 
 header .summary code,.card .body code,.thread code{font-size:11.5px;background:var(--bg3);padding:1px 5px;border-radius:4px}
 header .toolbar{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:12px}
 .sendgrp{display:inline-flex;align-items:stretch;position:relative}
-.sendgrp>button.primary{border-radius:6px 0 0 6px}
-.sendgrp>button.drop{border-radius:0 6px 6px 0;border-left:1px solid rgba(255,255,255,.35);padding:4px 7px;background:var(--accent);border-color:var(--accent);color:#fff}
-.sendgrp>button.drop:hover{filter:brightness(1.08)}
 .sendgrp .tgt{position:absolute;right:0;top:100%;margin-top:2px;font-size:10.5px;color:var(--fg2);white-space:nowrap}
 .sendgrp .tgt .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:4px;vertical-align:middle}
 .sendgrp .tgt .dot.off{background:var(--fg3)}
-.agentpop{position:absolute;right:0;top:calc(100% + 4px);z-index:20;width:640px;max-width:calc(100vw - 40px);background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 36px rgba(0,0,0,.2);padding:6px;display:none}
-.agentpop.on{display:block}
-.agentpop .rf{position:absolute;right:8px;top:6px;z-index:1}
-.agentpop .ag{display:grid;grid-template-columns:14px minmax(140px,1.2fr) minmax(120px,1fr) minmax(160px,1.4fr);gap:0 12px;align-items:center;padding:0 8px}
-.agentpop .ag{height:30px;border-radius:7px;cursor:pointer;font-size:12.5px;white-space:nowrap}
-.agentpop .ag>*{overflow:hidden;text-overflow:ellipsis}
-.agentpop .ag:hover{background:var(--bg3)} .agentpop .ag.dim{opacity:.6}
-.agentpop .ag .st{width:8px;height:8px;border-radius:50%;background:var(--fg3);justify-self:center;overflow:visible} .ag .st.working{background:var(--warn)} .ag .st.idle{background:var(--ok)} .ag .st.waiting{background:var(--del-fg);box-shadow:0 0 0 3px var(--del-bg)} .ag .st.error{background:var(--del-fg)}
-.agentpop .ag .nm{font-weight:600;display:flex;gap:5px;align-items:center;min-width:0} .agentpop .ag .nm span:first-child{overflow:hidden;text-overflow:ellipsis} .agentpop .ag .nm .chip{font-weight:400;flex:0 0 auto;font-size:10px;padding:0 5px}
-.agentpop .ag .nm .k{color:var(--fg2);font-weight:400}
-.agentpop .ag .br{font-family:var(--mono);font-size:11px;color:var(--fg2)}
-.agentpop .ag .cw{font-family:var(--mono);font-size:10.5px;color:var(--fg3)}
-.agentpop .sec{font-size:10.5px;color:var(--fg3);padding:8px 8px 3px;letter-spacing:.04em}
-.agentpop .empty{padding:14px 10px;color:var(--fg2);font-size:12px}
 header .toolbar .cnt{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:0 8px;font-size:11px;line-height:18px}
 details.body{margin-top:8px;font-size:12px;color:var(--fg2)} details.body pre{white-space:pre-wrap;font:12px/1.5 var(--sans);margin:6px 0 0;color:var(--fg);background:var(--bg);padding:8px 12px;border-radius:6px;border:1px solid var(--line2)}
 
-/* ── 三栏 ── */
+/* ── three panes ── */
 main{flex:1 1 auto;display:grid;grid-template-columns:var(--nav-w,250px) 7px minmax(0,1fr) 7px var(--aside-w,400px);min-height:0;position:relative}
 main.nav-off{--nav-w:0px!important} main.nav-off nav{display:none} main.aside-off{--aside-w:0px!important} main.aside-off aside{display:none}
 nav,section,aside{overflow:auto;min-height:0}
@@ -107,11 +90,11 @@ main>nav{grid-column:1} main>.sash.l{grid-column:2} main>section{grid-column:3} 
 .sash:hover,.sash.drag{background:var(--accent-bg)}
 .sash button{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:64px;padding:0;border-radius:7px;font-size:14px;font-weight:700;line-height:64px;color:#fff;background:var(--accent);border:0;box-shadow:0 2px 8px rgba(0,0,0,.25);opacity:0;transition:opacity .12s,transform .12s}
 .sash button:hover{transform:translate(-50%,-50%) scale(1.08);filter:brightness(1.1)}
-/* 贴边时按钮往内侧伸, 不然一半在窗口外 */
+/* at the edge the button leans inward, or half of it is off-screen */
 .sash.l button{left:0;transform:translateY(-50%);border-radius:0 7px 7px 0} .sash.l button:hover{transform:translateY(-50%) scale(1.08)}
 .sash.r button{left:auto;right:0;transform:translateY(-50%);border-radius:7px 0 0 7px} .sash.r button:hover{transform:translateY(-50%) scale(1.08)}
 .sash:hover button{opacity:1}
-/* 栏折叠着的时候: 按钮常显, 并且整条分隔条本身也上色, 一眼能找到 */
+/* while a pane is folded: keep the button visible and tint the whole sash so it is findable */
 main.nav-off .sash.l,main.aside-off .sash.r{background:var(--accent-bg);border-color:var(--accent)}
 main.nav-off .sash.l button,main.aside-off .sash.r button{opacity:1}
 body.dragging{cursor:col-resize;user-select:none} body.dragging iframe,body.dragging table{pointer-events:none}
@@ -201,13 +184,6 @@ nav .file .nn{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .rv-empty{text-align:center;color:var(--fg2);padding:60px 0;font-size:13px}
 .rvreq{max-width:760px;margin:24px auto;border:1px solid var(--line);border-radius:14px;background:var(--bg);box-shadow:var(--shadow);padding:18px 20px}
 .rvreq h2{margin:0 0 6px;font-size:16px} .rvreq p{margin:0 0 12px;font-size:13px;color:var(--fg2);line-height:1.6}
-.rvreq .rvreq-list{border:1px solid var(--line2);border-radius:10px;padding:4px;background:var(--bg2);position:relative}
-.rvreq .ag{display:grid;grid-template-columns:14px minmax(140px,1.2fr) minmax(120px,1fr) minmax(160px,1.4fr);gap:0 12px;align-items:center;padding:0 8px;height:32px;border-radius:7px;cursor:pointer;font-size:12.5px;white-space:nowrap}
-.rvreq .ag>*{overflow:hidden;text-overflow:ellipsis} .rvreq .ag:hover{background:var(--bg3)} .rvreq .ag.dim{opacity:.6}
-.rvreq .ag .st{width:8px;height:8px;border-radius:50%;background:var(--ok);justify-self:center;overflow:visible}
-.rvreq .ag .nm{font-weight:600;display:flex;gap:5px;align-items:center;min-width:0} .rvreq .ag .nm .k{color:var(--fg2);font-weight:400} .rvreq .ag .nm .chip{font-weight:400;font-size:10px;padding:0 5px}
-.rvreq .ag .br{font-family:var(--mono);font-size:11px;color:var(--fg2)} .rvreq .ag .cw{font-family:var(--mono);font-size:10.5px;color:var(--fg3)}
-.rvreq .sec{font-size:10.5px;color:var(--fg3);padding:8px 8px 3px;letter-spacing:.04em} .rvreq .empty{padding:14px 10px;color:var(--fg2);font-size:12px}
 .rvreq .rvreq-cmd{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12px} .rvreq .rvreq-cmd code{font-family:var(--mono);font-size:12px;background:var(--bg3);padding:3px 8px;border-radius:6px}
 .rv-head #rv-again{margin-left:6px;background:var(--bg3);border-color:var(--line);color:var(--fg);font-weight:500} .rv-head #rv-again:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .rv-sum .rnd{padding:4px 0} .rv-sum .rnd+.rnd{border-top:1px dashed var(--line);margin-top:6px;padding-top:8px} .rv-sum .rnd>div{margin-top:2px}
@@ -264,7 +240,7 @@ tr.crow td{padding:8px 14px 10px 76px;background:var(--bg2);border-top:1px solid
 .hljs{background:transparent!important;color:inherit;padding:0!important}
 .binhint{padding:10px 14px}
 
-/* ── 评论线程 ── */
+/* ── comment threads ── */
 .thread{border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 14px;max-width:860px;margin:4px 0;box-shadow:var(--shadow)}
 .thread .meta{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--fg2);margin-bottom:3px}
 .thread .meta .av{width:20px;height:20px;border-radius:50%;background:var(--bg3);color:var(--fg);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
@@ -279,7 +255,7 @@ tr.crow td{padding:8px 14px 10px 76px;background:var(--bg2);border-top:1px solid
 .cform .acts{margin-top:6px;display:flex;gap:6px;align-items:center;color:var(--fg2);font-size:11.5px}
 .thread .cform{margin-top:8px;padding-left:28px}
 
-/* ── 右侧说明 ── */
+/* ── right pane: notes ── */
 aside{border-left:1px solid var(--line);padding:12px 14px;font-size:13px;background:var(--bg2)}
 aside h3{font-size:11.5px;color:var(--fg2);margin:6px 0 8px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 aside .tabs{display:flex;gap:2px;align-items:center;margin:-4px -6px 10px;padding:0 6px 6px;border-bottom:1px solid var(--line);position:sticky;top:-12px;background:var(--bg2);z-index:2;padding-top:4px}
@@ -325,6 +301,10 @@ header .brief{margin-top:6px;font-size:12px;color:var(--fg2);display:flex;gap:6p
 .fsum-box{font-size:12.5px;color:var(--fg2);margin-bottom:10px;padding:6px 10px;background:var(--bg3);border-radius:6px}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:7px 16px;border-radius:8px;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.2)}
 .toast.on{opacity:.94}
-/* 窄窗口: 只改默认宽度变量, 【别】重写 grid-template-columns —— 那会把 5 列模板换成 3 列, 折叠状态全乱 */
+/* narrow window: change the width variables only. Rewriting grid-template-columns swaps the 5-column template for a 3-column one and breaks every fold state. */
 @media (max-width:1200px){main{--nav-w:210px;--aside-w:330px}}
 @media (max-width:820px){main{grid-template-columns:0 0 minmax(0,1fr) 0 0} nav,aside,.sash{display:none}}
+/* ── comment author chips ── */
+.cbar .chip.au{display:inline-flex;align-items:center;gap:5px}
+.cbar .chip.au i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.thread .meta .av{color:#fff;font-size:9.5px;font-weight:700}

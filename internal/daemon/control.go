@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/session"
 )
 
@@ -50,6 +51,9 @@ func Ensure(wantPort int) (int, error) {
 	}
 	if err := os.MkdirAll(session.StateDir(), 0o755); err != nil {
 		return 0, err
+	}
+	if wantPort == 0 {
+		wantPort = config.Load().Web.Port
 	}
 	if err := spawn(wantPort); err != nil {
 		return 0, err

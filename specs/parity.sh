@@ -5,10 +5,10 @@
 #
 #   specs/parity.sh [-s <session-id>] [--no-page] [--keep-go]
 #
-# The Go CLI is English and the oracle is Chinese, so `read` and `session list`
-# go through specs/parity-normalize.py first. It collapses exactly the header
-# lines and label words to shared tokens — the diff body, hunk tags, line
-# numbers, counts, ids and repos are still compared byte for byte.
+# The Go CLI is English and the oracle is Chinese, so the ORACLE's fixed phrases
+# are translated by specs/parity-normalize.py and then diffed strictly against
+# the Go output. The Go side is never loosened: wording that drifts from the
+# table fails the gate.
 #
 # The two daemons share server.json, so they take turns: the script captures
 # the Python side, swaps in the Go daemon, captures again, and puts the Python
@@ -60,15 +60,27 @@ same() {   # same <label> <a> <b>
 # same_norm <label> <mode> <a> <b> — compare after collapsing the wordings that
 # are allowed to differ (see specs/parity-normalize.py; nothing else is let through).
 same_norm() {
-    python3 "$ROOT/specs/parity-normalize.py" "$2" "$3" >"$3.norm"
+    python3 "$ROOT/specs/parity-normalize.py" "$2" "$3" --oracle >"$3.norm"
     python3 "$ROOT/specs/parity-normalize.py" "$2" "$4" >"$4.norm"
     same "$1" "$3.norm" "$4.norm"
 }
 
+# Values the two sides generate in different languages on purpose (spec §9).
+# `authors` is dropped too: spec §8.4 adds it and the oracle has no such field.
+TRANSLATED='{"文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。": "<AUTOMAP-CAPTION>", "File → the symbols this change adds (green) / removes (red) / edits (amber) → who references them outside the changed files. A red edge means the symbol is gone but something still calls it. Generated from `hudiff context`, not drawn by an agent.": "<AUTOMAP-CAPTION>", "改动地图(自动)": "<AUTOMAP-TITLE>", "Change map (automatic)": "<AUTOMAP-TITLE>"}'
+
 same_json() {
     for f in "$2" "$3"; do
-        if ! python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1])), sort_keys=True, indent=1, ensure_ascii=False))' \
-                "$f" >"$f.norm" 2>"$f.err"; then
+        if ! python3 -c 'import json,sys
+tr = json.loads(sys.argv[2])
+def walk(v):
+    if isinstance(v, dict):
+        return {k: walk(x) for k, x in v.items() if k != "authors"}
+    if isinstance(v, list):
+        return [walk(x) for x in v]
+    return tr.get(v, v) if isinstance(v, str) else v
+print(json.dumps(walk(json.load(open(sys.argv[1]))), sort_keys=True, indent=1, ensure_ascii=False))' \
+                "$f" "$TRANSLATED" >"$f.norm" 2>"$f.err"; then
             bad "$1  (not JSON: $f)"
             return 0
         fi
@@ -95,7 +107,9 @@ diagram_ids() {
 
 grab() {   # grab <side> <port>
     for v in code diagrams review; do
-        [ "$PAGE" = 1 ] && dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.html"
+        [ "$PAGE" = 1 ] || continue
+        dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.html"
+        [ "$1" = go ] && dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/go2.$v.html"
     done
     for id in $(diagram_ids "$WORK/$1.api-session"); do
         for th in light dark; do
@@ -176,14 +190,44 @@ else
     bad "diagram cache: $before → $after files"
 fi
 
+# M5 redesigned the page (spec §9: the agent selector is gone, the text is
+# English), so its structure can no longer equal the oracle's — that page is
+# frozen at the pre-M5 design. What still has to hold: our page renders the same
+# way twice, it carries the M5 shape, and it is not a truncated render.
 if [ "$PAGE" = 1 ]; then
     for v in code diagrams review; do
         if [ ! -s "$WORK/go.$v.html" ]; then
             bad "page-$v  (no DOM capture; is Chrome at $CHROME?)"
+            continue
+        fi
+        for side in py go go2; do
+            [ -s "$WORK/$side.$v.html" ] &&
+                python3 "$ROOT/specs/parity-normalize.py" structure "$WORK/$side.$v.html" >"$WORK/$side.$v.skel"
+        done
+        pn=$(wc -l <"$WORK/py.$v.skel" | tr -d ' ')
+        gn=$(wc -l <"$WORK/go.$v.skel" | tr -d ' ')
+        if [ "$gn" -lt $((pn * 9 / 10)) ]; then
+            bad "page-$v  rendered $gn elements vs the oracle's $pn — looks truncated"
+        elif ! cmp -s "$WORK/go.$v.skel" "$WORK/go2.$v.skel" 2>/dev/null && [ -s "$WORK/go2.$v.html" ]; then
+            bad "page-$v  two captures of our own page differ"
         else
-            same_norm "page-$v" body "$WORK/py.$v.html" "$WORK/go.$v.html"
+            ok "page-$v renders ($gn elements, oracle $pn)"
         fi
     done
+    # The home page is its own render path; a JS error there showed up as an
+    # empty list while every session-page check stayed green.
+    dump "http://127.0.0.1:$P/" "$WORK/go.index.html"
+    if grep -qc 'class="card' "$WORK/go.index.html" >/dev/null 2>&1 && grep -q 'class="card' "$WORK/go.index.html"; then
+        ok "home page lists sessions"
+    else
+        bad "home page rendered no session cards  ($WORK/go.index.html)"
+    fi
+    if grep -q 'id="send-tgt"' "$WORK/go.code.html" &&
+       ! grep -q 'id="agentpop"\|id="agents-btn"' "$WORK/go.code.html"; then
+        ok "page carries the M5 shape (no agent selector, send target present)"
+    else
+        bad "page shape  ($WORK/go.code.html)"
+    fi
 fi
 
 # The DOM cannot tell whether the stylesheets and bundles actually arrived.
@@ -204,6 +248,8 @@ echo "M3: the write path"
 . "$ROOT/specs/parity-m3.sh"
 echo "M4: review / context / diagram"
 . "$ROOT/specs/parity-m4.sh"
+echo "M5: config / keymap / hooks / skill"
+. "$ROOT/specs/parity-m5.sh"
 rm -rf "$FIX"
 
 if [ "$FAILED" = 0 ]; then
