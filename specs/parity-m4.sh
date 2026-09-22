@@ -115,6 +115,25 @@ else
     bad "steps rendered as a single static board  ($WORK/dg-steps-light.svg)"
 fi
 
+# The page asks for every diagram at once, and a shared d2 ruler turned that
+# into "fatal error: concurrent map writes" — which takes the whole daemon down,
+# not just one request. Sequential CLI renders can never see it.
+rm -rf "$SESS/diagrams"
+for id in auto-map flow steps; do
+    for th in light dark; do
+        curl -s -o "$WORK/burst-$id-$th.svg" \
+            "http://127.0.0.1:$P/s/$SID/api/diagram?i=$id&theme=$th" &
+    done
+done
+wait
+burst=$(grep -l '<svg' "$WORK"/burst-*.svg 2>/dev/null | wc -l | tr -d ' ')
+alive=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$P/api/sessions")
+if [ "$burst" = 6 ] && [ "$alive" = 200 ]; then
+    ok "six diagrams rendered in parallel, the daemon survived"
+else
+    bad "parallel render: $burst/6 SVGs, daemon HTTP $alive  ($WORK/burst-*.svg)"
+fi
+
 # ── notes is a trust boundary: bad input is rejected, with the reason ────────
 printf '{"diagrams":[{"id":"bad","title":"broken","kind":"d2","src":"a -> : {{{"}]}' >"$WORK/bad.json"
 if ! hud "$STATE" -s "$SID" notes "$WORK/bad.json" >"$WORK/notes-bad.out" 2>"$WORK/notes-bad.err"; then

@@ -28,8 +28,13 @@ const animateMS = 1400
 
 var themeID = map[string]int64{"light": 0, "dark": 200}
 
-// The ruler is expensive to build and safe to share.
+// The ruler is expensive to build, so it is shared — but it fills its font-face
+// map lazily and is not safe to use from two goroutines at once: the page asks
+// for every diagram in parallel and that killed the daemon with
+// "fatal error: concurrent map writes".
+// ponytail: one lock for all compiles; a ruler pool if cold renders pile up.
 var ruler = sync.OnceValues(textmeasure.NewRuler)
+var compiling sync.Mutex
 
 func compile(src, theme string, sketch bool) (*d2target.Diagram, *d2svg.RenderOpts, error) {
 	r, err := ruler()
@@ -46,6 +51,8 @@ func compile(src, theme string, sketch bool) (*d2target.Diagram, *d2svg.RenderOp
 		Ruler:          r,
 		LayoutResolver: func(string) (d2graph.LayoutGraph, error) { return d2talalayout.DefaultLayout, nil },
 	}
+	compiling.Lock()
+	defer compiling.Unlock()
 	d, _, err := d2lib.Compile(log.WithDefault(context.Background()), Preamble+src, co, ro)
 	return d, ro, err
 }
