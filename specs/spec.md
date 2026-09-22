@@ -193,8 +193,10 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 **不嵌 dagre / ELK**, `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。d2 只允许出现在
 `internal/diagram` 一个包里, `specs/parity-m4.sh` 有 `go list -deps` 断言守着。
 
-- **样式序言**: 每份源码(agent 画的和 auto-map 都算)前置 `**.style.border-radius: 8`。glob 作用到所有
-  层级和所有 board(含 steps), agent 自己写的 `style.border-radius` 会覆盖它。序言算进 SVG 缓存键。
+- **样式序言**: 每份源码(agent 画的和 auto-map 都算)前置 `**.style.border-radius: 8` **加 `classes` 块**
+  (`file / added / removed / changed / ext`, 与 auto-map 同一套色; 2026-09-22 拍板并进序言 —— 之前只在 auto-map 头里定义,
+  agent 图写 `class: added` 会被 d2 静默忽略)。glob 作用到所有层级和所有 board(含 steps), agent 自己写的 `style.*` 会覆盖它。
+  序言算进 SVG 缓存键。SKILL 规定 agent 只用这四个 class 上色。
 - **缓存**: `hash(theme, sketch, 序言, src)` → `<session>/diagrams/<key>.svg`。
 - **多板**(steps / layers / scenarios): 看编译后的 `diagram.Steps/Layers/Scenarios`, 走
   `d2svg.RenderMultiboard` + `d2animate.Wrap(1400ms)`, 对应 Python 版的 `--animate-interval`。
