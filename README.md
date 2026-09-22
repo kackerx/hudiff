@@ -27,7 +27,7 @@ Let your coding agent explain a diff; review it line by line in your browser; se
 
 ---
 
-> **Status:** early. The current CLI is a single-file Python script that works today; a Go rewrite (single static binary) is in progress — see [`specs/spec.md`](specs/spec.md).
+> **Status:** early. A single Go binary, no runtime dependencies; `git` is the only tool it needs (plus `gh` for pull requests). See [`specs/spec.md`](specs/spec.md).
 
 ## Why
 
@@ -57,21 +57,16 @@ After it edits, `hudiff session refresh` re-anchors your comments to the new dif
 
 ## Install
 
-> Until the Go binary ships, install the Python version (Python 3.9+, standard library only):
-
 ```bash
 git clone https://github.com/kackerx/hudiff ~/proj/hudiff
-ln -s ~/proj/hudiff/hudiff ~/.local/bin/hudiff     # any directory on your PATH
-brew install d2                                     # optional: d2 diagram engine
+cd ~/proj/hudiff
+go install -trimpath -ldflags "-s -w" .   # lands in $GOBIN, or $GOPATH/bin
 ```
 
-Planned for the Go release:
-
-```bash
-brew install kackerx/tap/hudiff
-# or
-go install github.com/kackerx/hudiff@latest
-```
+Go 1.27+. `-trimpath -ldflags "-s -w"` is what keeps the binary at ~28MB with no
+build paths baked in; plain `go install .` works too and costs ~9MB more.
+`go install github.com/kackerx/hudiff@latest` and prebuilt binaries are coming
+once the repo is public. d2 is compiled in — nothing to install for diagrams.
 
 ## Quickstart
 
@@ -148,13 +143,16 @@ Environment: `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `XDG_STATE_HOME`, `HUDIFF_DEV=1` (
   No process registry, no terminal-multiplexer tricks. If nobody is waiting, the page tells you what to run —
   or fires your `on_submit` hook.
 - **Reviews merge.** A second round keeps every earlier item and its done/won't-fix state, updates wording in place, and appends re-review notes.
-- **Diagrams:** d2 renders server-side and is cached by source hash; mermaid renders in the browser.
+- **Diagrams:** d2 is compiled into the binary, renders in the daemon and is cached by source hash.
 
 ## Development
 
 ```bash
-HUDIFF_DEV=1 hudiff daemon start     # hot-reload web/ from disk
-specs/parity.sh <session-id>         # Go vs Python oracle: read / session info / api/session must match
+go build -trimpath -ldflags "-s -w" -o bin/hudiff .   # what the size budget is measured on
+HUDIFF_DEV=1 bin/hudiff daemon start                  # hot-reload web/ from disk
+specs/parity.sh                                       # the gate: every surface vs specs/golden/
+specs/parity.sh --bless                               # regenerate the goldens after an intended change
+specs/parity.sh --self-check                          # prove the goldens still catch a regression
 ```
 
 Design notes and the migration plan live in [`specs/`](specs/).
