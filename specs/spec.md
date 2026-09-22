@@ -199,6 +199,9 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
   `--sketch` 的手绘风格)。按 `hash(src, theme, sketch)` 缓存 SVG 到会话目录(沿用 Python 版, 键多一项);
   `steps` 多板图用 d2 自带的动画渲染(对应 Python 版 `--animate-interval`)。`notes` 写入时真编译, 编不过报 400 并把 d2 的
   错误原文给 agent。主题: 浅色 `NeutralDefault`(id 0), 深色沿用 Python 版 `D2_THEME` 映射, 与现有 SVG 缓存键兼容。
+  **画风预设**: 编译前给每份 d2 源码(agent 画的和 auto-map 都算)前置一段 hudiff 自己的样式序言, 目前只有一行
+  `**.style.border-radius: 8`(glob 作用到所有层级、所有 board 含 steps; agent 自己写的 `style.border-radius` 会覆盖它 ——
+  2026-09-22 用 d2 v0.9 实测过这两点)。序言算进 SVG 缓存键。圆角值不做配置, 要改直接改常量。
   许可: d2 是 **MPL-2.0**(文件级 copyleft), hudiff 不修改 d2 源文件, 二进制分发附 NOTICE 列出 d2 与其许可即可;
   依赖树其余为 MIT / BSD / Apache, 无 GPL(2026-09-22 扫过)。
 - **mermaid(可选)**: 页面 `<script src="/vendor/mermaid.min.js">`(embed)。渲染错误由页面 `POST /s/{sid}/api/diagram/{id}/error`
@@ -209,6 +212,9 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
   预定义 `classDef added / removed / changed / external`, SKILL.md 规定 agent 只用这四个 class。
 - **自动改动地图**按当前引擎方言生成(`diagram/automap_d2.go` / `automap_mermaid.go`), 内容相同: 文件 → 本次改动的符号 →
   改动文件之外的引用方。d2 版布局由 TALA 决定(实测比 dagre 紧凑: 同一张图 dagre 竖排三层, TALA 2×2)。
+- **SKILL.md 对 agent 画图的要求**(M5 写进英文版): 用 `style.animated: true` 标出**主路径 / 数据流向**的边(一张图通常 1–3 条,
+  不要全图动; d2 的边动画在页面的 `<img>` 里能跑, steps 多板图沿用动画渲染); 颜色只用 hudiff 预定义的 classes(d2 用序言里的
+  `classes`, mermaid 用四个 `classDef`), 不自己调色; 圆角不用管, 序言已经给了。
 - `notes.json.diagrams[].kind` ∈ {d2, mermaid}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
   `hudiff session info` 暴露出来, SKILL.md 规定 agent 先看它再画; `--diagram` 只在建会话时生效, 会话内固定。
 
@@ -289,3 +295,4 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 8. (2026-09-22) 裸 `hudiff` **含未跟踪文件**(§3 原文不变, M2 先照 oracle 不含是临时取舍, M2-fix 补上; parity 用无未跟踪文件的夹具
    仓库比字节, 另加一条 Go 单侧检查"未跟踪文件出现在 diff.json 里")
 9. (2026-09-22) `diagram.sketch` 开关: d2 `--sketch` 手绘风格 / mermaid `look: handDrawn`, 默认 false, 进 SVG 缓存键
+10. (2026-09-22) d2 样式序言 `**.style.border-radius: 8` 让整体圆润(agent 显式值可覆盖); SKILL 要求主路径用 `style.animated: true`
