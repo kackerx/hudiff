@@ -2,6 +2,7 @@ package diagram
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/kackerx/hudiff/internal/diff"
@@ -14,8 +15,6 @@ var symClass = map[string]string{"+": "added", "-": "removed", "~": "changed"}
 const autoMapHeader = `direction: right`
 
 func q(s string) string { return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"` }
-
-func base(p string) string { return p[strings.LastIndex(p, "/")+1:] }
 
 type plainFile struct{ id, label, path string }
 
@@ -39,7 +38,7 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 		if !ok {
 			st = it.Status
 		}
-		label := fmt.Sprintf("%s\\n%s  +%d -%d", base(it.Path), st, it.Add, it.Del)
+		label := fmt.Sprintf("%s\\n%s  +%d -%d", path.Base(it.Path), st, it.Add, it.Del)
 		if len(it.Syms) == 0 {
 			plain = append(plain, plainFile{fid, label, it.Path})
 			continue
@@ -80,7 +79,7 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 		}
 	}
 	for _, f := range extOrder {
-		L = append(L, fmt.Sprintf("%s: { label: %s; class: ext; tooltip: %s }", q(f), q(base(f)), q(f)))
+		L = append(L, fmt.Sprintf("%s: { label: %s; class: ext; tooltip: %s }", q(f), q(path.Base(f)), q(f)))
 	}
 	L = append(L, plainNodes(plain)...)
 	L = append(L, edges...)

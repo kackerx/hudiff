@@ -98,7 +98,6 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /s/{sid}/api/session", s.withSession(s.apiSession))
 	m.HandleFunc("GET /s/{sid}/api/state", s.withSession(s.apiState))
 	m.HandleFunc("GET /s/{sid}/api/diagram", s.withSession(s.apiDiagram))
-	m.HandleFunc("GET /s/{sid}/api/hang", s.withSession(s.apiHang))
 	m.HandleFunc("GET /s/{sid}/api/wait", s.withSession(s.apiWait))
 	m.HandleFunc("POST /s/{sid}/api/comments", s.withSession(s.postComment))
 	m.HandleFunc("POST /s/{sid}/api/comments/{id}/reply", s.withSession(s.postReply))
@@ -263,15 +262,6 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	w.Header().Set("Content-Length", strconv.Itoa(len(svg)))
 	w.WriteHeader(200)
 	_, _ = w.Write(svg)
-}
-
-func (s *server) apiHang(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	ms, _ := strconv.ParseFloat(r.URL.Query().Get("ms"), 64)
-	if ms == 0 {
-		ms = 1000
-	}
-	time.Sleep(time.Duration(min(ms, 30000)) * time.Millisecond)
-	send(w, 204, nil, "text/plain")
 }
 
 func (s *server) apiWait(w http.ResponseWriter, r *http.Request, sid, dir string) {

@@ -1,5 +1,5 @@
 'use strict';
-const S = {data:null, state:null, active:0, activeHunk:null, showResolved:false, openForms:new Set(), theme:'auto', nerd:true, sumOpen:false, pin:null, tab:'notes', mid:'code', activeDg:null};
+const S = {data:null, state:null, active:0, activeHunk:null, showResolved:false, openForms:new Set(), theme:'auto', sumOpen:false, pin:null, tab:'notes', mid:'code', activeDg:null};
 const C = { q:'', st:new Set(['open','sent','replied']), au:null };   // comment list: filter text / which statuses to show
 const LS = { get(k,d){ try{ const v=localStorage.getItem('hudiff.'+k); return v===null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem('hudiff.'+k, JSON.stringify(v)); }catch(e){} } };
 
@@ -36,8 +36,8 @@ function iconFor(path){
   if(!lower.includes('.')){ return ['','#89e051']; }   // no extension usually means a script
   return FT_DEFAULT;
 }
-const icHTML = (path) => { if(!S.nerd) return ''; const [ch,color]=iconFor(path); return `<span class="ic nf" style="color:${color}">${ch}</span>`; };
-const gsHTML = (st) => S.nerd ? `<span class="gs nf ${st}" title="${GS[st]?.[1]||st}">${GS[st]?.[0]||st}</span>` : `<span class="st ${st}">${st}</span>`;
+const icHTML = (path) => { const [ch,color]=iconFor(path); return `<span class="ic nf" style="color:${color}">${ch}</span>`; };
+const gsHTML = (st) => `<span class="gs nf ${st}" title="${GS[st]?.[1]||st}">${GS[st]?.[0]||st}</span>`;
 const BASE = location.pathname.replace(/\/+$/,'');   // /s/<id>
 const $ = (sel, el=document) => el.querySelector(sel);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -76,19 +76,6 @@ function setupSash(){
       document.addEventListener('mousemove',move); document.addEventListener('mouseup',up); };
   });
   apply();
-  if(qs.has('perf')){ const im=new Image(); im.src=BASE+'/api/hang?ms=14000'; document.body.appendChild(im); }
-  if(qs.has('perf')) setTimeout(async()=>{ try{
-    const P={}; const wrap=n=>{ const f=window[n]; if(typeof f!=='function') return; window[n]=function(...a){ const t=performance.now(); const r=f.apply(this,a); P[n]=P[n]||{n:0,ms:0}; P[n].n++; P[n].ms+=performance.now()-t; return r; }; };
-    ['renderTree','renderDiff','renderComments','renderNotes','renderHeader','renderDiagrams','applyPin','markNoted','setActive'].forEach(wrap);
-    const t0=performance.now(); renderDiff(); const tDiff=performance.now()-t0;
-    const t1=performance.now(); renderTree(); const tTree=performance.now()-t1;
-    const t2=performance.now(); renderNotes(); const tNotes=performance.now()-t2;
-    const t3=performance.now(); renderComments(); const tCm=performance.now()-t3;
-    const el=$('#diff'); const t4=performance.now(); for(let i=0;i<40;i++){ el.scrollTop=i*400; await new Promise(r=>setTimeout(r,16)); } const tScroll=performance.now()-t4;
-    const t5=performance.now(); for(let i=0;i<20;i++){ document.documentElement.classList.toggle('x'); await new Promise(r=>setTimeout(r,16)); } const tCls=performance.now()-t5;
-    document.title = `nodes=${document.getElementsByTagName('*').length} renderDiff=${tDiff.toFixed(0)} tree=${tTree.toFixed(0)} notes=${tNotes.toFixed(0)} comments=${tCm.toFixed(0)} scroll40=${tScroll.toFixed(0)} rootcls20=${tCls.toFixed(0)} | `+Object.entries(P).map(([k,v])=>`${k}:${v.n}x${(v.ms/v.n).toFixed(1)}`).join(' ');
-  }catch(e){ document.title='PERF ERR '+e.message; } }, 1500);
-  if(qs.has('debug')) setTimeout(()=>{ document.title = 'IMGS=' + [...document.querySelectorAll('.dg img')].map(i=>i.closest('.dg').dataset.id+':'+i.complete+':'+i.naturalWidth+'x'+i.naturalHeight+':'+i.getBoundingClientRect().width+'x'+i.getBoundingClientRect().height).join(' | ') + ' COLS='+getComputedStyle(main).gridTemplateColumns+' | nav='+getComputedStyle($('#tree')).display+' | sashl='+$('#sash-l').getBoundingClientRect().width; }, 500);
 }
 setupSash();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>applyTheme(S.theme));
@@ -196,14 +183,14 @@ function renderTree(){
   const cmark = fi => { const cs=S.data.comments.filter(c=>c.file===files[fi].path); if(!cs.length) return '';
     const live=cs.filter(c=>c.status!=='resolved'), open=live.filter(c=>c.status==='open').length;
     const tip=`${cs.length} comments: ${open} unsent / ${live.length-open} sent or replied / ${cs.length-live.length} resolved`;
-    if(live.length) return S.nerd ? `<span class="cm nf ${open?'open':'live'}" title="${tip}">${U(0xf075)}</span>` : `<span class="cc ${open?'open':'live'}" title="${tip}">${live.length}</span>`;
-    return S.nerd ? `<span class="cm nf done" title="${tip}">${U(0xf0e5)}</span>` : `<span class="cc done" title="${tip}">✓</span>`; };
+    if(live.length) return `<span class="cm nf ${open?'open':'live'}" title="${tip}">${U(0xf075)}</span>`;
+    return `<span class="cm nf done" title="${tip}">${U(0xf0e5)}</span>`; };
   let html='';
   const walk=(n,d,prefix,hidden)=>{
     n.files.sort((a,b)=>a.name.localeCompare(b.name)).forEach(({f,i,name})=>{
       html+=`<div class="file ${i===S.active?'active':''}" data-fi="${i}" style="--d:${d};${hidden?'display:none':''}" title="${esc(f.path)}">${icHTML(f.path)}<span class="name">${esc(name)}</span>${cmark(i)}<span class="pm"><span class="a">+${f.add}</span> <span class="d">−${f.del}</span></span>${gsHTML(f.status)}</div>`; });
     Object.keys(n.dirs).sort().forEach(k=>{ const [sub,name]=squash(n.dirs[k],k); const full=prefix?prefix+'/'+name:name; const closed=!q && T.closed.has(full);
-      html+=`<div class="dir ${closed?'closed':''}" data-path="${esc(full)}" style="--d:${d};${hidden?'display:none':''}"><span class="chev">▾</span>${S.nerd?`<span class="ic nf">${FOLDER}</span>`:''}${esc(name)}</div>`; walk(sub,d+1,full,hidden||closed); });
+      html+=`<div class="dir ${closed?'closed':''}" data-path="${esc(full)}" style="--d:${d};${hidden?'display:none':''}"><span class="chev">▾</span><span class="ic nf">${FOLDER}</span>${esc(name)}</div>`; walk(sub,d+1,full,hidden||closed); });
   };
   walk(root,0,'',false);
   if(!visible.size) html=`<div class="empty">no matching files</div>`;
@@ -543,7 +530,7 @@ function showMid(m){ if(S.mid===m) return; S.mid=m; LS.set('mid',m); renderMidba
 
 function renderDiagrams(){
   const dgs=S.data.diagrams||[];
-  if(!dgs.length){ $('#diagrams').innerHTML = `<div class="hint" style="text-align:center;padding:60px 0">No diagrams yet. ${S.data.d2?'the agent attaches sequence / flow / class diagrams with its notes; the change map appears on its own when the diff touches symbols.':'the diagram engine is built in; nothing to install.'}</div>`; return; }
+  if(!dgs.length){ $('#diagrams').innerHTML = `<div class="hint" style="text-align:center;padding:60px 0">No diagrams yet. the agent attaches sequence / flow / class diagrams with its notes; the change map appears on its own when the diff touches symbols.</div>`; return; }
   let html='';
   dgs.forEach(dg=>{
     const chips=(dg.hunks||[]).map(r=>`<span class="chip hk" data-ref="${esc(r)}" title="${esc(r)}">${esc(hunkLabel(r))}</span>`).join('');

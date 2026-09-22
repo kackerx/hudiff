@@ -52,13 +52,6 @@ func loadRawDiagrams(dir string) []map[string]any {
 	return n.Diagrams
 }
 
-func str(m map[string]any, k string) string {
-	if v, ok := m[k].(string); ok {
-		return v
-	}
-	return ""
-}
-
 func strOr(m map[string]any, k, def string) string {
 	if v, ok := m[k]; ok {
 		if s, ok := v.(string); ok {
@@ -90,17 +83,17 @@ func List(dir string, d diff.Diff, cfg Config) []Entry {
 		if dg == nil {
 			continue
 		}
-		id := str(dg, "id")
+		id := strOr(dg, "id", "")
 		if id == "" {
 			id = "d" + strconv.Itoa(i)
 		}
-		title := str(dg, "title")
+		title := strOr(dg, "title", "")
 		if title == "" {
 			title = fmt.Sprintf("Diagram %d", i+1)
 		}
 		src, idx := strOr(dg, "src", ""), i
 		out = append(out, Entry{ID: id, Title: title, Kind: strOr(dg, "kind", "d2"), Auto: false,
-			Hunks: strList(dg, "hunks"), Caption: str(dg, "caption"), Src: &src, Index: &idx})
+			Hunks: strList(dg, "hunks"), Caption: strOr(dg, "caption", ""), Src: &src, Index: &idx})
 	}
 	return out
 }
@@ -126,7 +119,7 @@ func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind 
 		dg = dgs[i]
 	} else {
 		for _, x := range dgs {
-			if x != nil && str(x, "id") == which {
+			if x != nil && strOr(x, "id", "") == which {
 				dg = x
 				break
 			}

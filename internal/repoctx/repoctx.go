@@ -6,6 +6,7 @@ package repoctx
 import (
 	"maps"
 	"os/exec"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -144,14 +145,14 @@ func lines(s string) []string {
 
 // relatedTests: files whose name carries this file's stem, plus any test file
 // that already references one of the changed symbols.
-func relatedTests(path string, lsFiles []string, syms []Sym) []string {
-	stem := base(path)
+func relatedTests(file string, lsFiles []string, syms []Sym) []string {
+	stem := path.Base(file)
 	if i := strings.LastIndex(stem, "."); i > 0 {
 		stem = stem[:i]
 	}
 	found := map[string]bool{}
 	for _, l := range lsFiles {
-		if testPat.MatchString(l) && l != path && strings.Contains(base(l), stem) {
+		if testPat.MatchString(l) && l != file && strings.Contains(path.Base(l), stem) {
 			found[l] = true
 		}
 	}
@@ -160,15 +161,13 @@ func relatedTests(path string, lsFiles []string, syms []Sym) []string {
 			continue
 		}
 		for _, fn := range sym.RefFiles {
-			if testPat.MatchString(fn) && fn != path {
+			if testPat.MatchString(fn) && fn != file {
 				found[fn] = true
 			}
 		}
 	}
 	return slices.Sorted(maps.Keys(found))
 }
-
-func base(p string) string { return p[strings.LastIndex(p, "/")+1:] }
 
 type entry struct {
 	name string

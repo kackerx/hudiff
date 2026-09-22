@@ -1,5 +1,7 @@
 package config
 
+import "maps"
+
 // Keymap is the built-in table from spec §6; config.keymap overrides single
 // entries. The page asks for the merged table at startup.
 var Keymap = map[string]string{
@@ -14,10 +16,7 @@ var Keymap = map[string]string{
 }
 
 func (c Config) MergedKeymap() map[string]string {
-	out := make(map[string]string, len(Keymap))
-	for k, v := range Keymap {
-		out[k] = v
-	}
+	out := maps.Clone(Keymap)
 	for k, v := range c.Keymap {
 		if _, known := Keymap[k]; known {
 			out[k] = v
