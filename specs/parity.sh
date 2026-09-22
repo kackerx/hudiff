@@ -270,6 +270,20 @@ rc=0; hud "$STATE" -s "$SID" read -U nonsense >/dev/null 2>&1 || rc=$?
 rc=0; ( cd "$FIX" && XDG_STATE_HOME=$STATE "$GO" --no-open --json ) >/dev/null 2>&1 || rc=$?
 [ "$rc" = 2 ] && ok "outside a git repo exits 2" || bad "non-repo exit code: $rc (want 2)"
 
+# Restarting has to come back on the same port with a new pid: the page keeps
+# its URL, and the old process really is gone (that is the point after a build).
+RS=$(new_state)
+XDG_STATE_HOME=$RS "$GO" daemon start >/dev/null 2>&1 || true
+rs_port=$(port_of "$RS") rs_pid=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1] + "/hudiff/server.json"))["pid"])' "$RS")
+XDG_STATE_HOME=$RS "$GO" daemon restart >/dev/null 2>&1 || true
+rs_port2=$(port_of "$RS") rs_pid2=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1] + "/hudiff/server.json"))["pid"])' "$RS")
+if [ "$rs_port" = "$rs_port2" ] && [ "$rs_pid" != "$rs_pid2" ] &&
+   [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$rs_port2/")" = 200 ]; then
+    ok "daemon restart keeps the port ($rs_port2), on a new pid"
+else
+    bad "daemon restart: port $rs_port → $rs_port2, pid $rs_pid → $rs_pid2"
+fi
+
 echo "M2: session creation"
 . "$ROOT/specs/parity-m2.sh"
 

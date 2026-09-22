@@ -7,10 +7,11 @@ import (
 )
 
 type DaemonCmd struct {
-	Serve  DaemonServeCmd  `cmd:"" hidden:"" help:"(internal) run the server in the foreground."`
-	Start  DaemonStartCmd  `cmd:"" help:"Start the daemon if it is not running."`
-	Stop   DaemonStopCmd   `cmd:"" help:"Stop the daemon; session data is kept."`
-	Status DaemonStatusCmd `cmd:"" help:"Print URL, port and pid."`
+	Serve   DaemonServeCmd   `cmd:"" hidden:"" help:"(internal) run the server in the foreground."`
+	Start   DaemonStartCmd   `cmd:"" help:"Start the daemon if it is not running."`
+	Stop    DaemonStopCmd    `cmd:"" help:"Stop the daemon; session data is kept."`
+	Restart DaemonRestartCmd `cmd:"" help:"Stop it and start it again on the same port."`
+	Status  DaemonStatusCmd  `cmd:"" help:"Print URL, port and pid."`
 }
 
 type DaemonServeCmd struct{}
@@ -37,6 +38,17 @@ type DaemonStopCmd struct{}
 
 func (c *DaemonStopCmd) Run(g *Globals) error {
 	fmt.Println(daemon.Stop())
+	return nil
+}
+
+type DaemonRestartCmd struct{}
+
+func (c *DaemonRestartCmd) Run(g *Globals) error {
+	port, err := daemon.Restart(g.Port)
+	if err != nil {
+		return envErr("%v", err)
+	}
+	fmt.Printf("http://127.0.0.1:%d/\n", port)
 	return nil
 }
 

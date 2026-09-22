@@ -40,6 +40,7 @@ Commands:
   agents deliver     Type a command into the terminal an agent is running in.
   daemon start       Start the daemon if it is not running.
   daemon stop        Stop the daemon; session data is kept.
+  daemon restart     Stop it and start it again on the same port.
   daemon status      Print URL, port and pid.
   skill path         Print the skill path, materialising it if needed.
   skill install      Install the skill for an agent.

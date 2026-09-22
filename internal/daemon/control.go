@@ -67,6 +67,24 @@ func Ensure(wantPort int) (int, error) {
 	return 0, fmt.Errorf("the daemon did not come up; see %s/server.log", session.StateDir())
 }
 
+// Restart brings the daemon back on the port it was already using: replacing
+// the binary does not touch the running process, so this is the other half of
+// every `go install`. Ensure would just find the old one, so wait for it to go.
+func Restart(wantPort int) (int, error) {
+	i := ReadInfo()
+	if wantPort == 0 {
+		wantPort = i.Port
+	}
+	msg := Stop()
+	for range 40 {
+		if !ReadInfo().Alive() {
+			return Ensure(wantPort)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return 0, fmt.Errorf("%s, but it is still listening on port %d", msg, i.Port)
+}
+
 func spawn(wantPort int) error {
 	self, err := os.Executable()
 	if err != nil {
