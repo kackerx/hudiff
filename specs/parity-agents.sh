@@ -107,6 +107,7 @@ fi
 # tmux for real: its own server, an agent-looking process in the fixture repo,
 # and the command has to show up in the pane.
 TSOCK=hudiff-parity
+tmux -L "$TSOCK" kill-server 2>/dev/null || true   # a run that died before its cleanup
 if tmux -L "$TSOCK" new -d -c "$FIX/repo" 'exec -a claude cat' 2>/dev/null; then
     sleep 0.6
     TPID=$(tmux -L "$TSOCK" list-panes -a -F '#{pane_pid}')
