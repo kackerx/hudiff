@@ -28,10 +28,10 @@
 <span class="sendgrp">
 <button class="primary" id="submit">
 </button>
+<button class="drop" id="agents-btn">
+</button>
 <span class="tgt" id="send-tgt">
 <span class="dot off">
-</span>
-<span class="pick">
 </span>
 </span>
 <div class="agpop" id="agentpop">

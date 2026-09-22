@@ -13,12 +13,15 @@ import (
 )
 
 type Agent struct {
-	PID     int    `json:"pid"`
-	Name    string `json:"name"`
-	Kind    string `json:"kind"`
-	CWD     string `json:"cwd"`
-	Branch  string `json:"branch"`
-	Started string `json:"started"`
+	PID      int    `json:"pid"`
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	CWD      string `json:"cwd"`
+	Branch   string `json:"branch"`
+	Started  string `json:"started"`
+	SameRepo bool   `json:"same_repo"`
+	Waiting  bool   `json:"waiting"`
+	Bound    bool   `json:"bound"`
 }
 
 // Kinds are the executables that count as an agent; config.agents.names adds to it.

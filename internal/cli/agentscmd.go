@@ -12,7 +12,7 @@ import (
 )
 
 type AgentsCmd struct {
-	List    AgentsListCmd    `cmd:"" default:"1" help:"List the agents running in this repo."`
+	List    AgentsListCmd    `cmd:"" default:"withargs" help:"List the agents running in this repo."`
 	Deliver AgentsDeliverCmd `cmd:"" help:"Type a command into the terminal an agent is running in."`
 }
 
@@ -42,18 +42,32 @@ func (c *AgentsListCmd) Run(g *Globals) error {
 	if err != nil {
 		return err
 	}
-	list := agents.InRepo(repo, config.Load().Agents.Names)
+	list := agents.List(repo, config.Load().Agents.Names, nil, 0)
 	if c.JSON {
 		b, _ := json.MarshalIndent(list, "", " ")
 		fmt.Println(string(b))
 		return nil
 	}
 	if len(list) == 0 {
-		fmt.Printf("(no agent running under %s)\n", repo)
+		fmt.Println("(no agent running)")
 		return nil
 	}
-	for _, a := range list {
-		fmt.Printf("  %-22s %-9s %-16s pid %-7d %s\n", a.Name, a.Kind, a.Branch, a.PID, a.CWD)
+	// same two groups the page shows: this repo first, everything else after.
+	for _, group := range []struct {
+		head string
+		same bool
+	}{{"this repo", true}, {"other", false}} {
+		printed := false
+		for _, a := range list {
+			if a.SameRepo != group.same {
+				continue
+			}
+			if !printed {
+				fmt.Println(group.head)
+				printed = true
+			}
+			fmt.Printf("  %-22s %-9s %-16s pid %-7d %s\n", a.Name, a.Kind, a.Branch, a.PID, a.CWD)
+		}
 	}
 	return nil
 }

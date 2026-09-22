@@ -154,7 +154,7 @@ function renderHeader(){
         <label class="hint" style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="showres" ${S.showResolved?'checked':''}> show resolved</label>
         <button class="ghost sm" id="theme"></button>
         ${unsent?`<span class="cnt">${unsent} unsent</span>`:''}
-        <span class="sendgrp"><button class="primary" id="submit" ${unsent?'':'disabled'} title="Wake any agent waiting on this session">Send to agent</button><span class="tgt" id="send-tgt"></span><div class="agpop" id="agentpop" hidden></div></span>
+        <span class="sendgrp"><button class="primary" id="submit" ${unsent?'':'disabled'} title="Wake any agent waiting on this session">Send to agent</button><button class="drop" id="agents-btn" title="Choose which agent gets it">▾</button><span class="tgt" id="send-tgt"></span><div class="agpop" id="agentpop"></div></span>
       </div>
     </div>
     <div class="meta">${parts.join('')}</div>
@@ -163,6 +163,7 @@ function renderHeader(){
     ${m.body?`<details class="body"><summary>raw ${s.kind==='pr'?'PR description':'commit message'}</summary><pre>${esc(m.body)}</pre></details>`:''}`;
   $('#showres').onchange = e => { S.showResolved = e.target.checked; renderComments(); renderNotes(); };
   $('#submit').onclick = () => doSubmit(AG.bound && AG.alive ? AG.bound.pid : 0);
+  $('#agents-btn').onclick = e => { e.stopPropagation(); toggleAgentPop(); };
   $('#archive').onclick = async () => { const to=!s.archived; if(to && !(await dlg.confirm('Archive this session?', 'It disappears from the home page; the data and the link stay, and you can unarchive it any time.', {ok:'Archive'}))) return; await fetch('/api/s/'+encodeURIComponent(s.id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({archived:to})}); const d=await api('GET','/api/session'); S.data.session=d.session; renderHeader(); toast(to?'archived':'unarchived'); };
   renderSendTarget();
   $('#theme').onclick = () => applyTheme({auto:'light',light:'dark',dark:'auto'}[S.theme]);
@@ -498,15 +499,21 @@ async function refreshReview(){ const d=await api('GET','/api/session'); S.data.
 // it hands over the command and fires config.hooks.on_review_request.
 async function renderReviewRequest(box, empty){
   const sid=S.data.session.id, cmd=`/hudiff review ${sid}`;
-  await loadAgents();
-  box.innerHTML=`<div class="rvreq"><div class="rvreq-h">${empty?'<h2>No review report yet</h2>':''}<p>Ask a <b>different</b> agent than the one writing the notes to cross-review: it re-reads the change, the notes and the diagrams, then writes an overall verdict, the strengths, and high / medium / low items. This page refreshes when the report lands.</p></div><div class="aglist">${agentRows(false)}</div><div class="rvreq-cmd"><code>${esc(cmd)}</code><button class="sm" id="rvcopy">Copy</button></div></div>`;
-  const ask=async pid=>{
-    const r=await api('POST','/api/review-request', pid?{pid}:{});
+  box.innerHTML=`<div class="rvreq"><div class="rvreq-h">${empty?'<h2>No review report yet</h2>':''}<p>Ask a <b>different</b> agent than the one writing the notes to cross-review: it re-reads the change, the notes and the diagrams, then writes an overall verdict, the strengths, and high / medium / low items. This page refreshes when the report lands.</p></div><div class="aglist"><div class="agempty">Looking for agents…</div></div><div class="rvreq-cmd"><code>${esc(cmd)}</code><button class="sm" id="rvcopy">Copy</button></div></div>`;
+  box.querySelector('#rvcopy').onclick=()=>{ copyText(cmd); };
+  await loadAgents(true);
+  const list=box.querySelector('.aglist');
+  list.innerHTML=agentGroups();
+  bindAgentRows(list, async (pid, name) => {
+    const prev=S.data.review, n=((prev||{}).items||[]).length;
+    const ok=await dlg.confirm(`Ask ${name} to review?`,
+      `It gets «${cmd}» and re-reads the change, the notes, the diagrams and the comments${n?`, plus the ${n} item(s) from the last round and how you resolved them — a new round merges in, it does not overwrite`:''}. Whatever it is doing right now gets interrupted.`,
+      {ok:'Send the review request'});
+    if(!ok) return;
+    const r=await api('POST','/api/review-request',{pid});
     if(r.agent){ AG.bound={pid:r.agent.pid,name:r.agent.name,kind:r.agent.kind}; AG.alive=true; renderSendTarget(); }
-    if(pid) await handOver(pid, cmd); else { copyText(cmd); toast('copied'); }
-  };
-  bindAgentRows(box, ask);
-  box.querySelector('#rvcopy').onclick=()=>ask(0);
+    await handOver(pid, cmd);
+  });
 }
 function jumpToReviewItem(id){
   const it=((S.data.review||{}).items||[]).find(x=>x.id===id); if(!it||!it.file) return;
@@ -595,7 +602,7 @@ function authorColor(a){
   return `hsl(${h} 45% 45%)`;
 }
 
-const AG = {waiting:0, list:[], bound:null, alive:false, open:false, at:0};
+const AG = {waiting:0, list:[], bound:null, alive:false, at:0};
 // One list, two callers. Throttled to the /api/state cadence: no second timer.
 async function loadAgents(force){
   if(!force && Date.now()-AG.at < 5000) return;
@@ -607,33 +614,44 @@ async function refreshWaiting(){
   const st=await api('GET','/api/state'); AG.waiting=st.waiting||0; AG.alive=!!st.bound_alive;
   await loadAgents(); renderSendTarget();
 }
-const shortPath = p => { const r=S.data.session.repo||''; return p===r ? (r.split('/').pop()||r) : (p.startsWith(r+'/') ? p.slice(r.length+1) : p); };
-function agentRows(pick){
-  if(!AG.list.length) return `<div class="aghint">No agent found under ${esc(S.data.session.repo||'this repo')}</div>`;
-  return AG.list.map(a=>`<div class="ag" data-pid="${a.pid}" title="${esc(a.cwd)}"><span class="nm">${esc(a.name)}</span>${AG.bound&&AG.bound.pid===a.pid?'<span class="chip">picked</span>':''}<span class="kd">${esc(a.kind)}</span><span class="br">${esc(a.branch||'')}</span><span class="cw">${esc(shortPath(a.cwd))}</span></div>`).join('')
-    + (pick?`<div class="aghint">${AG.waiting?'an agent is already waiting — Send reaches it without picking':'pick one and hudiff hands you the command to run there'}</div>`:'');
+const shortPath = p => { const r=S.data.session.repo||''; return p===r ? (r.split('/').pop()||r) : (p.startsWith(r+'/') ? p.slice(r.length+1) : (p.length>40?'…'+p.slice(-39):p)); };
+// The list is machine-wide on purpose: the agent you want to review this is
+// usually sitting in another worktree. Two groups, this repo first.
+function agentRow(a){
+  const name = a.name && a.name!==a.kind ? `<span class="k">${esc(a.kind)} ·</span> ${esc(a.name)}` : esc(a.kind);
+  return `<div class="ag ${a.same_repo?'':'dim'}" data-pid="${a.pid}" data-name="${esc(a.name)}">`
+    + `<span class="st ${a.waiting?'waiting':'idle'}"></span>`
+    + `<span class="nm"><span>${name}</span>${a.waiting?'<span class="chip replied">waiting</span>':''}${a.bound?'<span class="chip sent">picked</span>':''}</span>`
+    + `<span class="br">${esc(a.branch||'')}</span>`
+    + `<span class="cw" title="${esc(a.cwd)}">${esc(shortPath(a.cwd))}</span></div>`;
+}
+function agentGroups(){
+  const same=AG.list.filter(a=>a.same_repo), other=AG.list.filter(a=>!a.same_repo);
+  if(!AG.list.length) return '<div class="agempty">No agent running (claude / pi / opencode / codex)</div>';
+  return (same.length?`<div class="agsec">This repo</div>${same.map(agentRow).join('')}`:'')
+       + (other.length?`<div class="agsec">Other</div>${other.map(agentRow).join('')}`:'');
 }
 function bindAgentRows(box, onpick){
-  box.querySelectorAll('.ag').forEach(r=>r.onclick=()=>onpick(+r.dataset.pid));
+  box.querySelectorAll('.ag').forEach(r=>r.onclick=e=>{ e.stopPropagation(); onpick(+r.dataset.pid, r.dataset.name); });
 }
 function renderSendTarget(){
   const el=$('#send-tgt'); if(!el) return;
   const b=AG.bound;
-  const txt = AG.waiting ? `<span class="dot"></span>${AG.waiting} agent waiting on this session`
+  el.innerHTML = AG.waiting ? `<span class="dot"></span>${AG.waiting} agent waiting`
     : b ? `<span class="dot ${AG.alive?'':'off'}"></span>→ ${esc(b.name||b.kind)}${AG.alive?'':' (gone)'}`
     : '<span class="dot off"></span>no agent waiting';
-  el.innerHTML = `${txt} <span class="pick">${AG.open?'▴':'▾'}</span>`;
-  el.onclick = async e => { e.stopPropagation(); AG.open=!AG.open; if(AG.open) await loadAgents(true); renderSendTarget(); renderAgentPop(); };
-  renderAgentPop();
 }
-function renderAgentPop(){
+async function toggleAgentPop(force){
   const pop=$('#agentpop'); if(!pop) return;
-  pop.hidden=!AG.open;
-  if(!AG.open){ pop.innerHTML=''; return; }
-  pop.innerHTML=agentRows(true);
-  bindAgentRows(pop, pid => { AG.open=false; doSubmit(pid); });
+  const on = force===undefined ? !pop.classList.contains('on') : force;
+  if(!on){ pop.classList.remove('on'); return; }
+  pop.innerHTML='<div class="agempty">Looking for agents…</div>';
+  pop.classList.add('on');
+  await loadAgents(true);
+  pop.innerHTML=agentGroups();
+  bindAgentRows(pop, pid => { pop.classList.remove('on'); doSubmit(pid); });
 }
-document.addEventListener('click', () => { if(AG.open){ AG.open=false; renderSendTarget(); } });
+document.addEventListener('click', e => { const pop=$('#agentpop'); if(pop && !e.target.closest('.sendgrp')) pop.classList.remove('on'); });
 async function doSubmit(pid){
   const r=await api('POST','/api/submit', pid?{pid}:{});
   AG.waiting=r.waiting||0; if(r.agent){ AG.bound={pid:r.agent.pid,name:r.agent.name,kind:r.agent.kind}; AG.alive=true; }
@@ -807,7 +825,7 @@ setInterval(async () => {
     if(!S.state) return;
     if(st.diff_v!==S.state.diff_v){ await loadAll(); toast('diff refreshed'); return; }
     if(st.notes_v!==S.state.notes_v){ const d=await api('GET','/api/session'); S.data.notes=d.notes; S.data.diagrams=d.diagrams; S.state=d.state; renderHeader(); renderDiff(); renderComments(); renderMidbar(); renderDiagrams(); markReviewLines(); renderNotes(); toast('notes updated'); return; }
-    if(st.waiting!==AG.waiting || !!st.bound_alive!==AG.alive){ AG.waiting=st.waiting||0; AG.alive=!!st.bound_alive; if(AG.open) await loadAgents(true); renderSendTarget(); }
+    if(st.waiting!==AG.waiting || !!st.bound_alive!==AG.alive){ AG.waiting=st.waiting||0; AG.alive=!!st.bound_alive; renderSendTarget(); if($('#agentpop')&&$('#agentpop').classList.contains('on')) await toggleAgentPop(true); }
     if(st.review_v!==S.state.review_v){ await refreshReview(); toast('review report updated'); return; }
     if(st.comments_v!==S.state.comments_v){ await refreshComments(); }
   }catch(e){ $('#offline').style.display='block'; }

@@ -251,16 +251,30 @@ func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir strin
 // apiAgents is the Send / Request review picker: the agents running in this
 // session's repo, how many are blocked in `wait`, and the one already picked.
 func (s *server) apiAgents(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	var repo string
-	var bound *session.Bound
-	if sess, err := session.LoadSession(dir); err == nil {
-		repo, bound = sess.Repo, sess.Bound
-	}
 	sendJSON(w, 200, map[string]any{
-		"agents":  agents.InRepo(repo, config.Load().Agents.Names),
+		"agents":  s.agentList(sid, dir),
 		"waiting": s.rooms.count(sid),
-		"bound":   bound,
+		"bound":   boundOf(dir),
 	})
+}
+
+func boundOf(dir string) *session.Bound {
+	if sess, err := session.LoadSession(dir); err == nil {
+		return sess.Bound
+	}
+	return nil
+}
+
+func (s *server) agentList(sid, dir string) []agents.Agent {
+	var repo string
+	pid := 0
+	if sess, err := session.LoadSession(dir); err == nil {
+		repo = sess.Repo
+		if sess.Bound != nil {
+			pid = sess.Bound.PID
+		}
+	}
+	return agents.List(repo, config.Load().Agents.Names, s.rooms.pids(sid), pid)
 }
 
 // postDeliver is what the page calls when the user picks an agent: try to type
@@ -270,9 +284,9 @@ func (s *server) postDeliver(w http.ResponseWriter, r *http.Request, sid, dir st
 	b := readBody(r)
 	text, _ := b["text"].(string)
 	pid := asInt(b["pid"])
-	// Only ever type into a pid that is still an agent in this repo: the page
-	// can be holding a stale one, and macOS hands pids out again.
-	ag := bindAgent(dir, pid)
+	// Only ever type into a pid that is still an agent somewhere on this
+	// machine: the page can be holding a stale one, and macOS reuses pids.
+	ag := s.bindAgent(sid, dir, pid)
 	if ag == nil {
 		sendJSON(w, 200, map[string]any{"via": "copy", "detail": "that agent is no longer running", "text": text})
 		return
@@ -283,12 +297,11 @@ func (s *server) postDeliver(w http.ResponseWriter, r *http.Request, sid, dir st
 
 // bindAgent records the agent the page picked; the returned one goes into the
 // hook environment. An unknown pid binds nothing.
-func bindAgent(dir string, pid int) *agents.Agent {
-	sess, err := session.LoadSession(dir)
-	if pid <= 0 || err != nil {
+func (s *server) bindAgent(sid, dir string, pid int) *agents.Agent {
+	if pid <= 0 {
 		return nil
 	}
-	for _, a := range agents.InRepo(sess.Repo, config.Load().Agents.Names) {
+	for _, a := range s.agentList(sid, dir) {
 		if a.PID == pid {
 			_ = session.SetBound(dir, &session.Bound{PID: a.PID, Name: a.Name, Kind: a.Kind})
 			return &a
@@ -327,7 +340,8 @@ func (s *server) apiWait(w http.ResponseWriter, r *http.Request, sid, dir string
 	if err != nil {
 		timeout = 60
 	}
-	seq := s.rooms.wait(r, sid, dir, since, time.Duration(timeout*float64(time.Second)))
+	pid, _ := strconv.Atoi(q.Get("pid"))
+	seq := s.rooms.wait(r, sid, dir, pid, since, time.Duration(timeout*float64(time.Second)))
 	sendJSON(w, 200, waitResult{SubmitSeq: seq, Changed: seq > since})
 }
 
@@ -387,7 +401,7 @@ func (s *server) deleteComment(w http.ResponseWriter, r *http.Request, sid, dir 
 
 // postSubmit is the session's inbox bell: whoever is in /api/wait wakes up.
 func (s *server) postSubmit(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	ag := bindAgent(dir, asInt(readBody(r)["pid"]))
+	ag := s.bindAgent(sid, dir, asInt(readBody(r)["pid"]))
 	n, seq, err := session.Submit(dir)
 	if err != nil {
 		sendJSON(w, 500, map[string]any{"error": err.Error()})
@@ -421,7 +435,7 @@ func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir stri
 // postReviewRequest hands back the command for the user to paste at the agent
 // they picked, and fires the hook. Nothing is delivered for them (spec §5).
 func (s *server) postReviewRequest(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	ag := bindAgent(dir, asInt(readBody(r)["pid"]))
+	ag := s.bindAgent(sid, dir, asInt(readBody(r)["pid"]))
 	runHook(hooks().OnReviewRequest, sid, dir, 0, ag)
 	sendJSON(w, 200, map[string]any{"ok": true, "command": "/hudiff review " + sid, "agent": ag})
 }
@@ -586,24 +600,46 @@ func sendJSON(w http.ResponseWriter, code int, v any) {
 // "an agent is waiting" and submit knows whether anyone will pick it up.
 type rooms struct {
 	mu      sync.Mutex
-	waiting map[string]int
+	waiting map[string]map[int]int // session → waiter pid → how many
 	changed chan struct{}
 }
 
 func newRooms() *rooms {
-	return &rooms{waiting: map[string]int{}, changed: make(chan struct{})}
+	return &rooms{waiting: map[string]map[int]int{}, changed: make(chan struct{})}
 }
 
 func (r *rooms) count(sid string) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.waiting[sid]
+	n := 0
+	for _, c := range r.waiting[sid] {
+		n += c
+	}
+	return n
 }
 
-func (r *rooms) enter(sid string, delta int) {
+// pids are the `hudiff wait` processes; the agent that started one is its
+// ancestor, which is how the list knows who is waiting.
+func (r *rooms) pids(sid string) []int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.waiting[sid] += delta
+	out := make([]int, 0, len(r.waiting[sid]))
+	for pid := range r.waiting[sid] {
+		out = append(out, pid)
+	}
+	return out
+}
+
+func (r *rooms) enter(sid string, pid, delta int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.waiting[sid] == nil {
+		r.waiting[sid] = map[int]int{}
+	}
+	r.waiting[sid][pid] += delta
+	if r.waiting[sid][pid] <= 0 {
+		delete(r.waiting[sid], pid)
+	}
 }
 
 // Notify wakes every /api/wait; called after submit_seq changes.
@@ -620,9 +656,9 @@ func (r *rooms) sub() chan struct{} {
 	return r.changed
 }
 
-func (r *rooms) wait(req *http.Request, sid, dir string, since int, timeout time.Duration) int {
-	r.enter(sid, 1)
-	defer r.enter(sid, -1)
+func (r *rooms) wait(req *http.Request, sid, dir string, pid, since int, timeout time.Duration) int {
+	r.enter(sid, pid, 1)
+	defer r.enter(sid, pid, -1)
 	deadline := time.After(timeout)
 	for {
 		ch := r.sub()

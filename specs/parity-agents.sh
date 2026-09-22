@@ -37,15 +37,21 @@ else
     bad "agent discovery  ($WORK/ag1.err, $(agents_json | head -c 300))"
 fi
 
-# An agent outside the repo is somebody else's business.
-OUT=$(fake "$FIX")
+# The list is machine-wide: an agent somewhere else is still offered, marked
+# as not this repo, because the reviewer usually sits in another worktree.
+# ($FIX itself is the repo's parent, and a parent counts as the same repo.)
+ELSEWHERE=$(mktemp -d)
+remember "$ELSEWHERE"
+OUT=$(fake "$ELSEWHERE")
 sleep 0.4
 if agents_json | python3 -c 'import json,sys
-pids = [a["pid"] for a in json.load(sys.stdin)["agents"]]
-assert int(sys.argv[1]) not in pids, pids' "$OUT" 2>"$WORK/ag2.err"; then
-    ok "an agent outside the repo is not listed"
+by = {a["pid"]: a for a in json.load(sys.stdin)["agents"]}
+here, away = by.get(int(sys.argv[1])), by.get(int(sys.argv[2]))
+assert here and here["same_repo"] is True, here
+assert away and away["same_repo"] is False, away' "$A1" "$OUT" 2>"$WORK/ag2.err"; then
+    ok "an agent elsewhere is listed too, marked same_repo=false"
 else
-    bad "agent outside the repo leaked into the list  ($WORK/ag2.err)"
+    bad "same_repo marking  ($WORK/ag2.err, $(agents_json | head -c 300))"
 fi
 
 # Two in the same directory: numbered by which started first. ps reports whole
@@ -62,6 +68,26 @@ assert by.get(second) == "repo:2", by' "$A1" "$A2" 2>"$WORK/ag3.err"; then
 else
     bad "agent numbering  ($WORK/ag3.err, $(agents_json | head -c 300))"
 fi
+
+# The green dot: `hudiff wait` tells the daemon its pid, and the agent that
+# started it is its ancestor — that is how the list knows who is waiting.
+# the trailing `; true` matters: sh -c execs a lone command in place, and then
+# the process named claude would be replaced by hudiff itself
+( cd "$FIX/repo" && exec -a claude sh -c "XDG_STATE_HOME=$AG_STATE '$GO' -s $AG_SID wait --timeout 8; true" ) >/dev/null 2>&1 &
+WAITER=$!
+sleep 1.8
+if agents_json | python3 -c 'import json,sys
+d = json.load(sys.stdin)
+me = [a for a in d["agents"] if a["pid"] == int(sys.argv[1])]
+assert me and me[0]["waiting"] is True, (me, d["waiting"])
+assert d["waiting"] >= 1, d["waiting"]
+assert d["agents"][0]["waiting"] is True, "a waiting agent sorts first"' "$WAITER" 2>"$WORK/ag8.err"; then
+    ok "the agent blocked in wait is marked, and sorts first"
+else
+    bad "waiting marker  ($WORK/ag8.err, $(agents_json | head -c 300))"
+fi
+# it exits on its own timeout; killing it here only makes the shell
+# print a "Terminated" line into the gate output
 
 # Picking one in the page writes it into session.json and the header goes live.
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d "{\"pid\":$A2}" \
@@ -148,9 +174,13 @@ if curl -s "http://127.0.0.1:$AG_P/s/$AG_SID/api/state" |
 else
     bad "bound_alive should be false after the agent is gone"
 fi
-if [ "$(agents_json | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["agents"]))')" = 0 ]; then
-    ok "the list empties when the agents are gone"
+# machine-wide now, so only the fixtures have to be gone
+if agents_json | python3 -c 'import json,sys
+pids = {a["pid"] for a in json.load(sys.stdin)["agents"]}
+gone = {int(x) for x in sys.argv[1:]}
+assert not (pids & gone), sorted(pids & gone)' "$A1" "$A2" "$OUT" 2>"$WORK/ag7.err"; then
+    ok "agents drop off the list when they exit"
 else
-    bad "dead agents still listed  ($(agents_json | head -c 200))"
+    bad "dead agents still listed  ($WORK/ag7.err)"
 fi
 XDG_STATE_HOME=$AG_STATE "$GO" daemon stop >/dev/null 2>&1 || true

@@ -329,7 +329,7 @@ func pollWait(sid string, since int, secs float64) (changed, ok bool) {
 	if !info.Alive() {
 		return false, false
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/s/%s/api/wait?since=%d&timeout=%.0f&pane=pid:%d",
+	url := fmt.Sprintf("http://127.0.0.1:%d/s/%s/api/wait?since=%d&timeout=%.0f&pid=%d",
 		info.Port, sid, since, secs, os.Getpid())
 	client := &http.Client{Timeout: time.Duration(secs+5) * time.Second}
 	resp, err := client.Get(url)

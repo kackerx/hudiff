@@ -13,21 +13,19 @@ import (
 	"time"
 )
 
-// InRepo lists the agents whose working directory is repo or below it.
-func InRepo(repo string, extra []string) []Agent {
+// List returns every agent on the machine, marked against one session: whose
+// working directory is in its repo, who is blocked in `wait` on it, and which
+// one it is bound to. The reviewer usually sits in a different worktree, which
+// is why the list is not filtered down to the repo.
+func List(repo string, extra []string, waiters []int, boundPID int) []Agent {
 	ps, parent := scan(extra)
 	if len(ps) == 0 {
 		return nil
 	}
 	fillCWD(ps)
-	root := real(repo)
 	keep := make([]*proc, 0, len(ps))
 	for _, p := range ps {
-		c := real(p.cwd)
-		if c == "" || (c != root && !strings.HasPrefix(c, root+string(filepath.Separator))) {
-			continue
-		}
-		if !nested(p, ps, parent) {
+		if p.cwd != "" && !nested(p, ps, parent) {
 			keep = append(keep, p)
 		}
 	}
@@ -37,6 +35,25 @@ func InRepo(repo string, extra []string) []Agent {
 		}
 		return a.pid - b.pid
 	})
+
+	// A waiter is `hudiff wait` run by an agent, so the agent is its ancestor —
+	// the NEAREST one: agents nest (one can run another), and only the one that
+	// actually started the wait is waiting.
+	isAgent := make(map[int]bool, len(keep))
+	for _, p := range keep {
+		isAgent[p.pid] = true
+	}
+	waiting := map[int]bool{}
+	for _, w := range waiters {
+		for pid, n := w, 0; pid > 1 && n < 40; pid, n = parent[pid], n+1 {
+			if isAgent[pid] {
+				waiting[pid] = true
+				break
+			}
+		}
+	}
+
+	root := real(repo)
 	names, branch := label(keep), map[string]string{}
 	out := make([]Agent, 0, len(keep))
 	for _, p := range keep {
@@ -44,9 +61,42 @@ func InRepo(repo string, extra []string) []Agent {
 			branch[p.cwd] = branchOf(p.cwd)
 		}
 		out = append(out, Agent{PID: p.pid, Name: names[p.pid], Kind: p.kind, CWD: p.cwd,
-			Branch: branch[p.cwd], Started: time.Now().Add(-p.age).Format(time.RFC3339)})
+			Branch: branch[p.cwd], Started: time.Now().Add(-p.age).Format(time.RFC3339),
+			SameRepo: sameRepo(real(p.cwd), root), Waiting: waiting[p.pid], Bound: p.pid == boundPID && boundPID != 0})
 	}
+	slices.SortStableFunc(out, byPicking)
 	return out
+}
+
+// sameRepo: either directory contains the other. An agent one level up in the
+// worktree still counts — it can reach these files.
+func sameRepo(cwd, root string) bool {
+	if cwd == "" || root == "" {
+		return false
+	}
+	sep := string(filepath.Separator)
+	return cwd == root || strings.HasPrefix(cwd, root+sep) || strings.HasPrefix(root, cwd+sep)
+}
+
+// byPicking is the order the list is offered in: whoever is already waiting on
+// this session, then the bound one, then this repo, then by kind and name.
+func byPicking(a, b Agent) int {
+	for _, c := range []int{btoi(b.Waiting) - btoi(a.Waiting), btoi(b.Bound) - btoi(a.Bound), btoi(b.SameRepo) - btoi(a.SameRepo)} {
+		if c != 0 {
+			return c
+		}
+	}
+	if c := strings.Compare(a.Kind, b.Kind); c != 0 {
+		return c
+	}
+	return strings.Compare(a.Name, b.Name)
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // nested drops the helper processes an agent spawns of its own kind. Matching on
