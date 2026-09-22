@@ -36,15 +36,17 @@ func FromWorktree(scope Scope, o Opts) (*Source, error) {
 	}
 	args := append([]string{"diff"}, diffFlags...)
 	var refresh []string
+	run := git
 	switch scope {
 	case Staged:
 		args, refresh = append(args, "--cached"), []string{"--staged"}
 	case Unstaged:
 		refresh = []string{"--unstaged"}
 	default:
-		args, refresh = append(args, "HEAD"), []string{}
+		// Only the default scope shows untracked files (spec §3, §11.8).
+		args, refresh, run = append(args, "HEAD"), []string{}, withUntracked
 	}
-	patch, err := git(root, pathspec(args, o.Pathspec)...)
+	patch, err := run(root, pathspec(args, o.Pathspec)...)
 	if err != nil {
 		return nil, err
 	}

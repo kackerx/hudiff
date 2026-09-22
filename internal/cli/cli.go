@@ -23,7 +23,7 @@ type ReviewOpts struct {
 	New     bool     `help:"Do not reuse an existing session with the same source key."`
 	Prompt  string   `short:"p" help:"Review request, passed to the agent verbatim ('-' reads stdin)." placeholder:"<text|->"`
 	Context []string `short:"c" help:"Context file for the agent; repeatable." placeholder:"<file>"`
-	Diagram string   `help:"Diagram engine for this session." enum:"mermaid,d2" default:"mermaid" placeholder:"<engine>"`
+	Diagram string   `help:"Diagram engine for this session." enum:"d2,mermaid" default:"d2" placeholder:"<engine>"`
 }
 
 type CLI struct {

@@ -109,7 +109,8 @@ hudiff version
   "web":     { "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
                "open": true,              // 建会话后自动开浏览器
                "browser": "" },           // 覆盖打开命令, 空 = 系统默认(open / xdg-open / start)
-  "diagram": { "engine": "d2" },          // d2(默认, 内嵌, 布局固定 TALA)| mermaid(浏览器侧)
+  "diagram": { "engine": "d2",            // d2(默认, 内嵌, 布局固定 TALA)| mermaid(浏览器侧)
+               "sketch": false },         // 草图(手绘)风格: d2 的 --sketch / mermaid 的 look: handDrawn
   "data_dir": "",                         // 会话数据目录, 空 = ${XDG_STATE_HOME:-~/.local/state}/hudiff
   "prompts_dir": "",                      // 预设审查要求, 空 = <config dir>/prompts/{default,<repo>}.md
   "hooks": {                              // 替代 tmux 投递: shell 命令, 环境变量 HUDIFF_SESSION / HUDIFF_URL / HUDIFF_REPO / HUDIFF_COUNT
@@ -194,7 +195,8 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 
 - **d2(默认)**: `github.com/d2lang/d2` v0.9.0 作为 Go 库, 只 import `d2lib` / `d2renderers/d2svg` / `d2layouts/d2talalayout` /
   `d2themes` / `lib/textmeasure`; **不 import dagre / ELK**, 布局固定 TALA, 不提供布局配置。`d2lib.Compile` 的
-  `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。按 `hash(src, theme)` 缓存 SVG 到会话目录(沿用 Python 版);
+  `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。`config.diagram.sketch` → `d2svg.RenderOpts.Sketch`(对应 CLI
+  `--sketch` 的手绘风格)。按 `hash(src, theme, sketch)` 缓存 SVG 到会话目录(沿用 Python 版, 键多一项);
   `steps` 多板图用 d2 自带的动画渲染(对应 Python 版 `--animate-interval`)。`notes` 写入时真编译, 编不过报 400 并把 d2 的
   错误原文给 agent。主题: 浅色 `NeutralDefault`(id 0), 深色沿用 Python 版 `D2_THEME` 映射, 与现有 SVG 缓存键兼容。
   许可: d2 是 **MPL-2.0**(文件级 copyleft), hudiff 不修改 d2 源文件, 二进制分发附 NOTICE 列出 d2 与其许可即可;
@@ -203,7 +205,8 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
   回传, daemon 记在内存, `hudiff diagram <id>` 与 `hudiff wait` 输出里带 `render error: …`。daemon 不做 mermaid 语法校验
   (没有 JS 引擎, 也不为此嵌 goja); `notes` 只做结构校验(非空、首行是合法图类型)。
   画风: hudiff 自带主题 `mermaid.initialize({ theme: 'base', themeVariables })`, 颜色 / 字体取页面 CSS 变量, 浅深各一套;
-  `flowchart.curve: 'linear'`; 预定义 `classDef added / removed / changed / external`, SKILL.md 规定 agent 只用这四个 class。
+  `flowchart.curve: 'linear'`; `config.diagram.sketch` → `look: 'handDrawn'`(同一个开关两种引擎都认);
+  预定义 `classDef added / removed / changed / external`, SKILL.md 规定 agent 只用这四个 class。
 - **自动改动地图**按当前引擎方言生成(`diagram/automap_d2.go` / `automap_mermaid.go`), 内容相同: 文件 → 本次改动的符号 →
   改动文件之外的引用方。d2 版布局由 TALA 决定(实测比 dagre 紧凑: 同一张图 dagre 竖排三层, TALA 2×2)。
 - `notes.json.diagrams[].kind` ∈ {d2, mermaid}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
@@ -285,3 +288,4 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
    接受。mermaid 保留为浏览器侧可选。
 8. (2026-09-22) 裸 `hudiff` **含未跟踪文件**(§3 原文不变, M2 先照 oracle 不含是临时取舍, M2-fix 补上; parity 用无未跟踪文件的夹具
    仓库比字节, 另加一条 Go 单侧检查"未跟踪文件出现在 diff.json 里")
+9. (2026-09-22) `diagram.sketch` 开关: d2 `--sketch` 手绘风格 / mermaid `look: handDrawn`, 默认 false, 进 SVG 缓存键

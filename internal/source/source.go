@@ -5,7 +5,9 @@ package source
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -81,9 +83,14 @@ func envErr(f string, a ...any) error {
 	return &Error{2, fmt.Sprintf(f, a...)}
 }
 
-func git(repo string, args ...string) (string, error) {
+func git(repo string, args ...string) (string, error) { return gitEnv(repo, nil, args...) }
+
+func gitEnv(repo string, env []string, args ...string) (string, error) {
 	cmd := exec.Command("git", append([]string{"--no-pager"}, args...)...)
 	cmd.Dir = repo
+	if env != nil {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -91,6 +98,48 @@ func git(repo string, args ...string) (string, error) {
 		return "", envErr("git %s failed:\n%s", strings.Join(args, " "), strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
+}
+
+// diffUntracked runs the diff against a scratch index where the untracked
+// files have been intent-to-added, so git itself produces their new-file
+// hunks. .gitignore is honoured by --exclude-standard.
+func diffUntracked(repo string, args []string) (string, error) {
+	others, err := git(repo, "ls-files", "--others", "--exclude-standard", "-z")
+	if err != nil || others == "" {
+		return git(repo, args...)
+	}
+	idx, err := scratchIndex(repo)
+	if err != nil {
+		return git(repo, args...)
+	}
+	defer os.Remove(idx)
+	env := []string{"GIT_INDEX_FILE=" + idx}
+	add := append([]string{"add", "-N", "--"}, strings.Split(strings.TrimSuffix(others, "\x00"), "\x00")...)
+	if _, err := gitEnv(repo, env, add...); err != nil {
+		return git(repo, args...)
+	}
+	return gitEnv(repo, env, args...)
+}
+
+func scratchIndex(repo string) (string, error) {
+	dir, err := git(repo, "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return "", err
+	}
+	src, err := os.ReadFile(filepath.Join(strings.TrimSpace(dir), "index"))
+	if err != nil {
+		return "", err
+	}
+	f, err := os.CreateTemp("", "hudiff-index")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if _, err := f.Write(src); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
 }
 
 func gitOK(repo string, args ...string) string {
@@ -137,3 +186,5 @@ func refreshWith(base []string, paths []string) []string {
 	}
 	return append(append(base, "--"), paths...)
 }
+
+func withUntracked(repo string, args ...string) (string, error) { return diffUntracked(repo, args) }

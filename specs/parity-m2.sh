@@ -33,8 +33,9 @@ sweep_states() {
 # Allowed to differ, with reasons:
 #   id / created   new session each run
 #   opener         spec §8.1 dropped tmux_pane + ppid, renamed claude_session
-#   diagram_engine spec §7 (2026-09-22) defaults to mermaid; the oracle predates
-#                  the field and writes nothing
+#   diagram_engine spec §7 / §11.7 writes it on every session; the oracle
+#                  predates the field entirely, so it is an extra key, not a
+#                  different value
 strip_session() {
     python3 -c 'import json,sys
 d = json.load(open(sys.argv[1]))
@@ -152,6 +153,27 @@ print("c1 -> hunk", c["hunk"], "line", c["line"], "stale", c["stale"])' "$FGS/co
 else
     bad "refresh reanchor  ($FG/cdiff)"
 fi
+# Untracked files are ours only (spec §11.8): the oracle's `git diff HEAD` never
+# showed them, so this is a Go-side assertion rather than a comparison. The
+# fixture stays free of untracked files until here, so the byte checks above
+# are unaffected.
+printf 'brand new\nsecond line\n' >"$FIX/repo/untracked.txt"
+printf 'ignored/\n' >"$FIX/repo/.gitignore"
+mkdir -p "$FIX/repo/ignored" && printf 'hidden\n' >"$FIX/repo/ignored/x.txt"
+u=$(mktemp -d)
+remember "$u"
+( cd "$FIX/repo" && XDG_STATE_HOME=$u $GO_BIN --no-open --new --json ) >"$u/out" 2>&1 || true
+us=$(ls -d "$u"/hudiff/sessions/* 2>/dev/null | head -1) || true
+if [ -n "${us:-}" ] && python3 -c 'import json,sys
+files = {f["path"]: f["status"] for f in json.load(open(sys.argv[1]))["files"]}
+assert files.get("untracked.txt") == "A", files
+assert ".gitignore" in files, files
+assert "ignored/x.txt" not in files, files' "$us/diff.json" 2>"$u/err"; then
+    ok "untracked file shows as added, .gitignore honoured"
+else
+    bad "untracked  ($u/out $u/err)"
+fi
+
 rm -rf "$FIX"
 
 if [ -n "${PARITY_PR:-}" ]; then
