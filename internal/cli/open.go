@@ -3,9 +3,10 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
-	"github.com/kackerx/hudiff/internal/browser"
 	"github.com/kackerx/hudiff/internal/daemon"
 	"github.com/kackerx/hudiff/internal/session"
 )
@@ -34,7 +35,7 @@ func (c *OpenCmd) Run(g *Globals) error {
 	}
 	fmt.Println(url)
 	if !c.NoOpen {
-		if err := browser.Open(url); err != nil {
+		if err := openBrowser(url); err != nil {
 			fmt.Fprintf(os.Stderr, "hudiff: cannot open a browser: %v\n", err)
 		}
 	}
@@ -77,4 +78,17 @@ func matchPrefix(prefix string) (string, error) {
 		return hits[0], nil
 	}
 	return "", usage("session prefix %s matches several: %s", prefix, strings.Join(hits, ", "))
+}
+
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", "", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	return cmd.Start()
 }

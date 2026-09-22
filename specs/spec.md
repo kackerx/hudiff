@@ -137,8 +137,8 @@ hudiff/
     review/               validate(file:line 在 diff 里)+ merge(并入规则, 见 §8.4)
     diagram/              d2 渲染缓存、auto-map 生成(两种方言各一个 emitter)
     daemon/               net/http server, 长轮询 waiters, server.json, 拉起/停止
-    viewer/               interface Viewer { Open(sess) }; web/ 实现 = 确保 daemon 在 + 开浏览器; tui/ 占位
-    browser/              跨平台 open URL
+    (没有 viewer/ 包)     只有 web 一种查看器时不抽 interface, 建会话后直接开浏览器; TUI 真做的时候再抽
+  (web 资源的读取在 daemon/assets.go, 只有 daemon 用)
   web/                    index.html + index.css + index.js / session.html + app.css + app.js
                           / dlg.html(自绘弹窗, markup+style+script 一体, 注入到 body 末尾) / favicon.svg
                           全部 embed; 根级路由 /app.css /app.js /index.css /index.js

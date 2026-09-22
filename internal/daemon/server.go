@@ -8,17 +8,16 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kackerx/hudiff/internal/diagram"
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/session"
-	"github.com/kackerx/hudiff/internal/web"
 )
 
 var sidRe = regexp.MustCompile(`^[0-9a-f-]+$`)
@@ -75,7 +74,7 @@ func listen(want int) (net.Listener, error) {
 func (s *server) mux() *http.ServeMux {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		sendHTML(w, 200, web.Page("index.html"))
+		sendHTML(w, 200, page("index.html"))
 	})
 	m.HandleFunc("GET /api/sessions", func(w http.ResponseWriter, r *http.Request) {
 		sendJSON(w, 200, map[string]any{"sessions": s.listSessions(), "port": s.port})
@@ -97,7 +96,7 @@ func (s *server) mux() *http.ServeMux {
 }
 
 func (s *server) favicon(w http.ResponseWriter, r *http.Request) {
-	send(w, 200, web.Read("favicon.svg"), "image/svg+xml")
+	send(w, 200, asset("favicon.svg"), "image/svg+xml")
 }
 
 // staticAssets are served at the root so both / and /s/{sid}/ can link them.
@@ -110,7 +109,7 @@ var staticAssets = map[string]string{
 
 func serveAsset(name, ctype string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		body := web.Read(name)
+		body := asset(name)
 		if body == nil {
 			sendJSON(w, 404, map[string]any{"error": "not found"})
 			return
@@ -119,14 +118,14 @@ func serveAsset(name, ctype string) http.HandlerFunc {
 	}
 }
 
-// notImplemented keeps the M1 surface honest: every write route answers 501
-// instead of silently doing nothing (M3/M4 fill them in).
+// notImplemented keeps the surface honest: write routes answer 501 instead of
+// silently doing nothing (M3 fills in comments/submit/notes, M4 review).
 func notImplemented(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		sendJSON(w, 404, map[string]any{"error": "not found"})
 		return
 	}
-	sendJSON(w, 501, map[string]any{"error": "not implemented in M1", "route": r.Method + " " + r.URL.Path})
+	sendJSON(w, 501, map[string]any{"error": "not implemented yet", "route": r.Method + " " + r.URL.Path})
 }
 
 type sessionHandler func(w http.ResponseWriter, r *http.Request, sid, dir string)
@@ -146,7 +145,7 @@ func (s *server) withSession(h sessionHandler) http.HandlerFunc {
 }
 
 func (s *server) page(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	sendHTML(w, 200, web.Page("session.html"))
+	sendHTML(w, 200, page("session.html"))
 }
 
 type sessionPayload struct {
@@ -254,10 +253,6 @@ type sessionRow struct {
 }
 
 func (s *server) listSessions() []sessionRow {
-	return ListSessions(func(sid string) bool { return s.rooms.count(sid) > 0 })
-}
-
-func ListSessions(waiting func(string) bool) []sessionRow {
 	ents, err := os.ReadDir(session.SessionsDir())
 	if err != nil {
 		return []sessionRow{}
@@ -276,6 +271,7 @@ func ListSessions(waiting func(string) bool) []sessionRow {
 		}
 		d := diff.Load(dir)
 		notes := diff.LoadNotes(dir)
+		cs := session.Comments(dir)
 		files, add, del, _ := d.Totals()
 		title := notes.Title
 		if title == "" {
@@ -288,33 +284,19 @@ func ListSessions(waiting func(string) bool) []sessionRow {
 		out = append(out, sessionRow{
 			ID: sess.ID, Kind: sess.Kind, Title: title, Repo: sess.Repo, Created: sess.Created,
 			Meta: meta, Archived: sess.IsArchived(), Files: files, Add: add, Del: del,
-			Comments: countComments(dir), Counts: commentCounts(dir),
-			Noted: len(notes.Files) > 0, Waiting: waiting(id),
+			Comments: len(cs), Counts: commentCounts(cs),
+			Noted: len(notes.Files) > 0, Waiting: s.rooms.count(id) > 0,
 		})
 	}
 	return out
 }
 
-type commentRow struct {
-	Status string `json:"status"`
-}
-
-func readComments(dir string) []commentRow {
-	var cs []commentRow
-	b, err := os.ReadFile(filepath.Join(dir, "comments.json"))
-	if err != nil {
-		return nil
-	}
-	_ = json.Unmarshal(b, &cs)
-	return cs
-}
-
-func countComments(dir string) int { return len(readComments(dir)) }
-
-func commentCounts(dir string) map[string]int {
+func commentCounts(cs []map[string]any) map[string]int {
 	c := map[string]int{}
-	for _, x := range readComments(dir) {
-		c[x.Status]++
+	for _, x := range cs {
+		if st, ok := x["status"].(string); ok {
+			c[st]++
+		}
 	}
 	return c
 }
@@ -346,4 +328,69 @@ func sendJSON(w http.ResponseWriter, code int, v any) {
 
 func nowISO() string {
 	return time.Now().Format("2006-01-02T15:04:05-07:00")
+}
+
+// rooms tracks who is long-polling each session, so the page can show
+// "an agent is waiting" and submit knows whether anyone will pick it up.
+type rooms struct {
+	mu      sync.Mutex
+	byPane  map[string]map[string]int
+	changed chan struct{}
+}
+
+func newRooms() *rooms {
+	return &rooms{byPane: map[string]map[string]int{}, changed: make(chan struct{})}
+}
+
+func (r *rooms) count(sid string) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := 0
+	for _, v := range r.byPane[sid] {
+		n += v
+	}
+	return n
+}
+
+func (r *rooms) enter(sid, pane string, delta int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.byPane[sid] == nil {
+		r.byPane[sid] = map[string]int{}
+	}
+	r.byPane[sid][pane] += delta
+}
+
+// Notify wakes every /api/wait; called after submit_seq changes.
+func (r *rooms) Notify() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	close(r.changed)
+	r.changed = make(chan struct{})
+}
+
+func (r *rooms) sub() chan struct{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.changed
+}
+
+func (r *rooms) wait(req *http.Request, sid, dir, pane string, since int, timeout time.Duration) int {
+	r.enter(sid, pane, 1)
+	defer r.enter(sid, pane, -1)
+	deadline := time.After(timeout)
+	for {
+		ch := r.sub()
+		if seq := session.ReadState(dir).SubmitSeq; seq > since {
+			return seq
+		}
+		select {
+		case <-ch:
+		case <-deadline:
+			return session.ReadState(dir).SubmitSeq
+		case <-req.Context().Done():
+			return session.ReadState(dir).SubmitSeq
+		case <-time.After(5 * time.Second):
+		}
+	}
 }

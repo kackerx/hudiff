@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/kackerx/hudiff/internal/cli"
-	"github.com/kackerx/hudiff/internal/web"
+	"github.com/kackerx/hudiff/internal/daemon"
 )
 
 //go:embed web skills
@@ -18,7 +18,7 @@ var assets embed.FS
 var version = "dev"
 
 func main() {
-	web.Init(assets)
+	daemon.SetAssets(assets)
 	ctx, c := cli.Parse(version)
 	err := ctx.Run(&c.Globals, cli.Version(version))
 	if err == nil {

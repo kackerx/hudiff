@@ -71,7 +71,7 @@ func envErr(format string, a ...any) error {
 }
 
 func todo(what string) error {
-	return &ExitError{Code: 1, Msg: what + ": not implemented in M1"}
+	return &ExitError{Code: 1, Msg: what + ": not implemented yet"}
 }
 
 func Parse(version string) (*kong.Context, *CLI) {

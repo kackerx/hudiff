@@ -1,6 +1,6 @@
-// Package web serves the page assets. HUDIFF_DEV=1 reads them from disk so a
-// running daemon never holds a stale page (see specs/handoff, 15:21 incident).
-package web
+// Assets are the embedded web/ files. HUDIFF_DEV=1 reads them from disk so a
+// running daemon never serves a stale page (see specs/handoff, 15:21 incident).
+package daemon
 
 import (
 	"io/fs"
@@ -16,7 +16,7 @@ var (
 	once     sync.Once
 )
 
-func Init(f fs.FS) { embedded = f }
+func SetAssets(f fs.FS) { embedded = f }
 
 func dev() string {
 	once.Do(func() {
@@ -32,7 +32,7 @@ func dev() string {
 	return devDir
 }
 
-func Read(name string) []byte {
+func asset(name string) []byte {
 	if d := dev(); d != "" {
 		if b, err := os.ReadFile(filepath.Join(d, name)); err == nil {
 			return b
@@ -46,7 +46,7 @@ func Read(name string) []byte {
 }
 
 // Page inlines dlg.html the way the oracle's page() did.
-func Page(name string) []byte {
-	html := string(Read(name))
-	return []byte(strings.ReplaceAll(html, "<!--DLG-->", string(Read("dlg.html"))))
+func page(name string) []byte {
+	html := string(asset(name))
+	return []byte(strings.ReplaceAll(html, "<!--DLG-->", string(asset("dlg.html"))))
 }

@@ -4,8 +4,10 @@
 package repoctx
 
 import (
+	"maps"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/kackerx/hudiff/internal/diff"
@@ -179,7 +181,7 @@ func resolveRefs(repo, path string, e entry) Sym {
 		fn, _, _ := strings.Cut(l, ":")
 		seen[fn] = true
 	}
-	s.RefFiles = sortedKeys(seen)
+	s.RefFiles = slices.Sorted(maps.Keys(seen))
 	return s
 }
 

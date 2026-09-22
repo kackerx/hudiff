@@ -62,7 +62,7 @@ func sessionRowLine(sess *session.Session, cur string) string {
 	if sess.ID == cur {
 		mark = "*"
 	}
-	cs := loadComments(session.Dir(sess.ID))
+	cs := session.Comments(session.Dir(sess.ID))
 	sent := 0
 	for _, c := range cs {
 		if c["status"] == "sent" {
@@ -87,16 +87,6 @@ func padRunes(s string, n int) string {
 		r = r[:n]
 	}
 	return string(r) + strings.Repeat(" ", n-len(r))
-}
-
-func loadComments(dir string) []map[string]any {
-	var cs []map[string]any
-	b, err := os.ReadFile(filepath.Join(dir, "comments.json"))
-	if err != nil {
-		return nil
-	}
-	_ = json.Unmarshal(b, &cs)
-	return cs
 }
 
 func sessionIDs() ([]string, error) {
@@ -190,7 +180,7 @@ func buildInfo(g *Globals) (*infoOut, error) {
 		files = append(files, infoFile{f.Path, f.Status, f.Add, f.Del, len(f.Hunks)})
 		total += len(f.Hunks)
 	}
-	cs := loadComments(dir)
+	cs := session.Comments(dir)
 	pending := 0
 	for _, c := range cs {
 		if c["status"] == "sent" {

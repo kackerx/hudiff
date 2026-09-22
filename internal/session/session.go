@@ -48,8 +48,8 @@ func ReadJSON(path string, out any) error {
 	return json.Unmarshal(b, out)
 }
 
-// WriteJSON matches the oracle's `json.dump(..., ensure_ascii=False, indent=1)`
-// plus a temp+rename swap.
+// WriteJSON is the oracle's json.dump(ensure_ascii=False, indent=1) plus a
+// temp+rename swap.
 func WriteJSON(path string, v any) error {
 	buf, err := marshalIndent1(v)
 	if err != nil {
@@ -71,6 +71,18 @@ func marshalIndent1(v any) ([]byte, error) {
 		return nil, err
 	}
 	return []byte(strings.TrimSuffix(sb.String(), "\n")), nil
+}
+
+// Comments reads comments.json loosely: callers only need a couple of fields
+// and the daemon is the only writer.
+func Comments(dir string) []map[string]any {
+	var cs []map[string]any
+	b, err := os.ReadFile(filepath.Join(dir, "comments.json"))
+	if err != nil {
+		return nil
+	}
+	_ = json.Unmarshal(b, &cs)
+	return cs
 }
 
 type Meta map[string]any
