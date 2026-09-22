@@ -12,7 +12,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 ## 1. 目标与非目标
 
 目标
-- 单二进制, 零运行时依赖(可选外部工具: `git` 必需, `gh` 看 PR 时, `d2` 选 d2 引擎时)
+- 单二进制, 零运行时依赖, **离线可用**(mermaid.js / highlight.js 都 embed, 不引 CDN; 可选外部工具: `git` 必需, `gh` 看 PR 时, `d2` 选 d2 引擎时)
 - 页面 HTML/CSS/JS 是真文件(`web/`), embed 进二进制; 开发时可从磁盘热读
 - CLI 表面现代、统一(参考 `hunk`), `hudiff -h` 就是 agent 的说明书
 - 不绑定任何终端复用器(tmux / ccmux 全部去掉), 用户级"通知"走可配置的 shell hook
@@ -26,6 +26,8 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 - WebSocket / SSE(5 秒轮询 + `/api/wait` 长轮询够用)
 - sqlite(磁盘 JSON 是 agent 可直接读的契约)
 - 非 git 的 VCS
+- 把 d2 当 Go 库嵌入(`oss.terrastruct.com/d2` 可 import, 但布局引擎 dagre/ELK 是 JS 靠 goja 跑: d2 二进制 51MB, 嵌入 = hudiff 12MB → ~50MB、go.mod +30 依赖)
+- plantuml(Java + graphviz, 依赖最重; 真有人要时它和 d2 同形状 —— 外部二进制 → SVG —— 几十行加得上)
 
 ## 2. 技术选型(已定)
 
@@ -36,9 +38,9 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 | CLI | **kong** v1.16(唯一第三方依赖) | 18 子命令 / 47 参数 / 两层子命令 / 可重复 flag / flag 可在位置参数后 —— 标准库 `flag` 全要手写, 且 `-h` 质量差 |
 | HTTP | 标准库 `net/http`, Go 1.22 mux 模式(`GET /s/{sid}/api/session`) | 十几条路由, 框架无收益 |
 | 前端 | 保留现有原生 JS + JSON API, 拆成文件 | **否掉 htmx**: 页面是重客户端状态(5k 行表 + content-visibility + IntersectionObserver 判 hunk + 拖栏 + localStorage + 客户端 hljs); htmx 要重写我们想原样保留的 60% 代码, 且 agent 走的就是同一套 JSON API |
-| 资源 | `//go:embed web skills` | `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
-| 图解 | d2(server 侧二进制)/ mermaid(浏览器侧 mermaid.js) | 见 §7 |
-| 高亮 | 浏览器侧 highlight.js(CDN) | 不引 chroma; 页面离线时退化为纯文本 |
+| 资源 | `//go:embed web skills`, 含 `web/vendor/{mermaid.min.js(3.4MB), highlight.min.js(120KB)}` | 页面零 CDN, 内网/离线可用; 二进制 ~12MB → ~16MB; `HUDIFF_DEV=1` 时改为每次请求读磁盘 |
+| 图解 | **默认 mermaid**(浏览器侧, embed, 零安装)/ 可选 d2(daemon 侧, 需用户装二进制) | 用户偏好 d2 的画风, 但"给别人用尽量少装东西"优先; mermaid 靠 hudiff 自带主题把画风拉齐, 见 §7 |
+| 高亮 | 浏览器侧 highlight.js(embed) | 不引 chroma |
 | 分发 | goreleaser → GitHub Releases(darwin/linux/windows × arm64/amd64)+ homebrew tap; `go install` | 版本号 `-ldflags -X main.version` |
 
 ## 3. CLI 表面(v1)
@@ -106,7 +108,7 @@ hudiff version
   "web":     { "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
                "open": true,              // 建会话后自动开浏览器
                "browser": "" },           // 覆盖打开命令, 空 = 系统默认(open / xdg-open / start)
-  "diagram": { "engine": "d2",            // d2 | mermaid
+  "diagram": { "engine": "mermaid",       // mermaid(默认, 零安装)| d2(需要 d2 二进制)
                "d2_bin": "d2" },
   "data_dir": "",                         // 会话数据目录, 空 = ${XDG_STATE_HOME:-~/.local/state}/hudiff
   "prompts_dir": "",                      // 预设审查要求, 空 = <config dir>/prompts/{default,<repo>}.md
@@ -186,13 +188,28 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 
 ## 7. 图解引擎
 
-- `d2`: daemon 侧调 `d2_bin`, 按 `hash(src, theme)` 缓存 SVG(沿用); `notes` 写入时用 d2 真编译校验。
-- `mermaid`: 浏览器侧 mermaid.js(ESM, jsdelivr)渲染, daemon 不需要 node; `notes` 写入时只做结构校验
-  (非空、首行是合法图类型), 渲染错误页面显示在图卡片里。
-- **自动改动地图**按当前引擎方言生成(`diagram/automap_d2.go` / `automap_mermaid.go`)。
-- `notes.json.diagrams[].kind` ∈ {d2, mermaid}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
-  `hudiff session info` 暴露出来, SKILL.md 规定 agent 先看它再画。
-- 引擎在会话内固定; `--diagram` 只在建会话时生效。
+默认 **mermaid**, 可选 **d2**。选型依据(2026-09-22 拍板): 给别人用要零安装; mermaid 在浏览器里渲染, daemon 不依赖
+任何东西, 3.4MB 的 `mermaid.min.js` embed 进二进制后连 CDN 都不要; d2 要用户 `brew install d2`, 作为 Go 库嵌入又太重
+(见 §1 非目标)。agent 写 mermaid 的出错率也比 d2 低(训练语料最多)。
+
+- **mermaid**: 页面 `<script src="/vendor/mermaid.min.js">`(embed)。渲染错误由页面 `POST /s/{sid}/api/diagram/{id}/error`
+  回传, daemon 记在内存, `hudiff diagram <id>` 与 `hudiff wait` 输出里带 `render error: …`, agent 下一轮能看到。
+  daemon **不做** mermaid 语法校验(没有 JS 引擎, 也不为此嵌 goja); `notes` 只做结构校验(非空、首行是合法图类型)。
+- **画风约定**(解决"mermaid 默认主题难看"): hudiff 自带主题, `mermaid.initialize({ theme: 'base', themeVariables })`,
+  颜色 / 字体取页面 CSS 变量(`--bg2 / --line / --fg / --add-bg / --del-bg`), 浅深各一套, 跟随页面主题切换;
+  `flowchart.curve: 'linear'`。预定义 `classDef added / removed / changed / external`, **SKILL.md 规定 agent 只用这四个
+  class, 不自己调色**。
+- **d2**: daemon 调 `config.diagram.d2_bin`, 按 `hash(src, theme)` 缓存 SVG(沿用 Python 版); `notes` 写入时用 d2 真编译
+  校验; 二进制找不到 → `hudiff notes` 报错并提示 `brew install d2` / 改 `diagram.engine`。
+- **自动改动地图**按当前引擎方言生成(`diagram/automap_mermaid.go` / `automap_d2.go`), 内容相同: 文件 → 本次改动的
+  符号 → 改动文件之外的引用方。
+- `notes.json.diagrams[].kind` ∈ {mermaid, d2}(字段已有), 会话建立时记 `session.meta.diagram_engine`,
+  `hudiff session info` 暴露出来, SKILL.md 规定 agent 先看它再画; `--diagram` 只在建会话时生效, 会话内固定。
+
+**图 ↔ 代码的引用跳转与引擎无关, 是 hudiff 自己的功能**: `diagrams[].hunks[]`(如 `internal/cli/config.go#0`)由页面
+渲染成图卡片顶部的 chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片反向列出引用它的图。SVG 内部目前
+只有"点击放大"(lightbox)。v1 之后可选: 节点级跳转 —— mermaid `click <node> hudiffJump "<file#hunk>"` 回调 /
+d2 `link: "#<file#hunk>"`, 两边都能做, 不进 v1。
 
 ## 8. 数据契约(冻结, 与 Python 版兼容; 现有会话零迁移可打开)
 

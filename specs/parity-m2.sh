@@ -10,6 +10,27 @@ set -eu
 PY_ORACLE="python3 $ROOT/legacy/hudiff.py"
 GO_BIN="$ROOT/bin/hudiff"
 
+# Both implementations start a daemon just to put a URL in --json output, so
+# every throwaway state dir leaves one behind. Stop it before dropping the dir.
+STATES=$(mktemp)
+trap 'sweep_states' EXIT
+
+remember() { printf '%s\n' "$@" >>"$STATES"; }
+
+stop_state() {
+    XDG_STATE_HOME=$1 $PY_ORACLE stop >/dev/null 2>&1 || true
+    XDG_STATE_HOME=$1 $GO_BIN daemon stop >/dev/null 2>&1 || true
+}
+
+sweep_states() {
+    [ -f "$STATES" ] || return 0
+    while read -r d; do
+        [ -n "$d" ] && stop_state "$d"
+        [ "${FAILED:-0}" = 0 ] && rm -rf "$d"
+    done <"$STATES"
+    rm -f "$STATES"
+}
+
 strip_session() {
     python3 -c 'import json,sys
 d = json.load(open(sys.argv[1]))
@@ -32,6 +53,7 @@ create() {
         if [ "$side" = py ]; then pyargs="$pyargs $a"; else goargs="$goargs $a"; fi
     done
     p=$(mktemp -d) g=$(mktemp -d)
+    remember "$p" "$g"
     ( cd "$repo" && XDG_STATE_HOME=$p $PY_ORACLE open --no-browser --json $pyargs ) >"$p/out" 2>&1 || true
     ( cd "$repo" && XDG_STATE_HOME=$g $GO_BIN $goargs --no-open --json ) >"$g/out" 2>&1 || true
     ps=$(ls -d "$p"/hudiff/sessions/* 2>/dev/null | head -1) || true
@@ -69,6 +91,7 @@ for fx in "$HOME"/.local/state/hudiff/sessions/*/diff.patch; do
     [ -f "$fx" ] || continue
     name=$(basename "$(dirname "$fx")")
     g=$(mktemp -d)
+    remember "$g"
     XDG_STATE_HOME=$g $GO_BIN patch "$fx" --no-open --json >"$g/out" 2>&1 || true
     gs=$(ls -d "$g"/hudiff/sessions/* 2>/dev/null | head -1) || true
     if [ -n "${gs:-}" ] && cmp -s "$gs/diff.json" "$(dirname "$fx")/diff.json"; then
@@ -76,7 +99,6 @@ for fx in "$HOME"/.local/state/hudiff/sessions/*/diff.patch; do
     else
         bad "reparse $name  ($g)"
     fi
-    rm -rf "$g"
 done
 
 # Refresh: same starting session on both sides, same comment, same edit — the
