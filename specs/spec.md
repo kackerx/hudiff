@@ -145,8 +145,7 @@ hudiff/
                           / dlg.html(自绘弹窗, markup+style+script 一体, 注入到 body 末尾) / favicon.svg
                           全部 embed; 根级路由 /app.css /app.js /index.css /index.js
   skills/hudiff/SKILL.md  (embed; `skill path` 会把它落到 $XDG_DATA_HOME/hudiff/skill/ 再打印路径)
-  legacy/hudiff.py        Python 版 oracle, M6 删(删前 parity 先去 oracle 化)
-  hudiff                  M1–M5 是跑 legacy 的 /bin/sh shim(会解析软链), M6 直接删, 二进制走 go install
+  specs/golden/           parity 的黄金文件(M6 起的行为基准, 由脚本自建夹具生成, 不含真实会话数据)
   bin/hudiff              go build 输出, .gitignore(M6 之前根目录被 shim 占着)
   specs/                  本文 + handoff
 ```
@@ -221,7 +220,7 @@ chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片�
 3. `notes.json`: `title, summary, diagrams[]{id, title, kind, caption, hunks[], src}, files{path: {summary,
    hunks{"<n>": {title, body, lines, tags[]} | null}}}`。
 4. `comments.json`: `[]{id, target(line|hunk|overall), file, hunk, line, side, snippet, stale, body, status
-   (open|sent|replied|resolved), created, replies[]{author, body, created}, **author**}`。
+   (open|sent|replied|resolved), created, replies[]{who, body, ts}, **author**}`。
    新增 `author`(默认 `"user"`; agent 回复 `"agent"`; reviewer 行内评论 = 它的 `--author`), 老数据缺省视为 user。
 5. `review.json`: `author, updated, summary, strengths[], rounds[]{round, author, at}, items[]{id, round,
    priority, title, file, line, side, hunk, snippet, body, suggestion, status(open|done|wontfix), resolution,
@@ -262,8 +261,8 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 
 - **M0** 本文定稿(§11 拍板)
 - **M1** ✅ 2026-09-21 骨架: `go.mod` / kong / config / embed / daemon / `session list|info|url` / `read` / `open`,
-  Python 写好的会话在 Go daemon 下页面完整可用 → 契约正确的证明。`git mv hudiff legacy/hudiff.py`,
-  根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
+  Python 写好的会话在 Go daemon 下页面完整可用 → 契约正确的证明。(M1–M5 期间 Python 版在 `legacy/hudiff.py`,
+  根目录 `hudiff` 是 shim; M6 两者都已删, 二进制走 `go install`)
 - **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
 - **M3** ✅ 2026-09-22 写路径: `notes / comments / submit / wait / reply / resolve`
 - **M4** ✅ 2026-09-22 `review`(并入)/ `diagram`(d2 内嵌)/ `context`
