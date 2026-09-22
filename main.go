@@ -1,5 +1,5 @@
 // hudiff — diffs for humans. See specs/spec.md for the CLI surface and the
-// on-disk contract shared with legacy/hudiff.py.
+// on-disk contract.
 package main
 
 import (
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/kackerx/hudiff/internal/cli"
 	"github.com/kackerx/hudiff/internal/daemon"
@@ -15,13 +16,41 @@ import (
 //go:embed web skills
 var assets embed.FS
 
+// Set with -ldflags -X main.version by a release build; otherwise taken from
+// the build info, so `go install .` and `go install …@v1.2.3` both say something.
 var version = "dev"
+
+func buildVersion() string {
+	bi, ok := debug.ReadBuildInfo()
+	if version != "dev" || !ok {
+		return version
+	}
+	rev, dirty := "", ""
+	for _, s := range bi.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			rev = s.Value
+		case "vcs.modified":
+			if s.Value == "true" {
+				dirty = "-dirty"
+			}
+		}
+	}
+	if rev != "" { // built from the checkout: the commit is more useful than v0.0.0-…
+		return rev[:min(7, len(rev))] + dirty
+	}
+	if v := bi.Main.Version; v != "" && v != "(devel)" {
+		return v // `go install …@v1.2.3` has no vcs stamp, just the tag
+	}
+	return version
+}
 
 func main() {
 	daemon.SetAssets(assets)
 	cli.SetSkills(assets)
-	ctx, c := cli.Parse(version)
-	err := ctx.Run(&c.Globals, cli.Version(version))
+	v := buildVersion()
+	ctx, c := cli.Parse(v)
+	err := ctx.Run(&c.Globals, cli.Version(v))
 	if err == nil {
 		return
 	}
