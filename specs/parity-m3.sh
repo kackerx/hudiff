@@ -1,83 +1,54 @@
 #!/bin/sh
-# M3 half of the parity gate: the write path. Both implementations run the same
-# round trip on their own copy of the fixture session — the page posts a line
-# comment and an overall one, hits Send, the agent waits, replies and resolves —
-# and must end up with the same comments.
+# M3 section: the write path. The page posts a line comment and an overall one
+# and hits Send; the agent waits, replies and resolves. comments.json and the
+# three CLI renderings of it are frozen.
 #
-# Sourced by parity.sh after parity-m2.sh, which leaves the two sessions in
-# $FPS / $FGS and their state dirs in $FP / $FG.
+# Sourced by parity.sh, which leaves the fixture session in $SESS / $SID, its
+# state dir in $STATE and its daemon on $P.
 set -eu
 
-port_of() {
-    python3 -c 'import json,sys; print(json.load(open(sys.argv[1] + "/hudiff/server.json"))["port"])' "$1"
-}
-
-# first_added picks a real "+" line out of hunk 0 so the comment anchors.
-first_added() {
-    python3 -c 'import json,sys
+# a real "+" line out of hunk 0, so the comment anchors to content
+line=$(python3 -c 'import json,sys
 h = json.load(open(sys.argv[1] + "/diff.json"))["files"][0]["hunks"][0]
-ln = next(l for l in h["lines"] if l["t"] == "+")
-print(ln["n"])' "$1"
-}
+print(next(l for l in h["lines"] if l["t"] == "+")["n"])' "$SESS")
 
-post() {   # post <port> <session> <path> <json>
+post() {   # post <path> <json>
     curl -s -o /dev/null -X POST -H 'Content-Type: application/json' \
-        -d "$4" "http://127.0.0.1:$1/s/$2$3"
+        -d "$2" "http://127.0.0.1:$P/s/$SID$1"
 }
 
-# round_trip <state dir> <session dir> <runner...>
-round_trip() {
-    state=$1 sdir=$2
-    shift 2
-    sid=$(basename "$sdir")
-    p=$(port_of "$state")
-    line=$(first_added "$sdir")
-    post "$p" "$sid" /api/comments \
-        "{\"target\":\"line\",\"file\":\"a.go\",\"hunk\":0,\"side\":\"new\",\"line\":$line,\"body\":\"why this value?\"}"
-    post "$p" "$sid" /api/comments '{"target":"general","body":"overall this reads fine"}'
-    post "$p" "$sid" /api/submit '{}'
-    XDG_STATE_HOME=$state "$@" -s "$sid" wait --timeout 5 >"$state/wait.out" 2>&1 || true
-    XDG_STATE_HOME=$state "$@" -s "$sid" reply c2 "anchored to the new value" >/dev/null 2>&1 || true
-    XDG_STATE_HOME=$state "$@" -s "$sid" resolve c2 >/dev/null 2>&1 || true
-    XDG_STATE_HOME=$state "$@" -s "$sid" comments --new >"$state/new.out" 2>&1 || true
-    XDG_STATE_HOME=$state "$@" -s "$sid" comments --all >"$state/all.out" 2>&1 || true
-}
+post /api/comments \
+    "{\"target\":\"line\",\"file\":\"a.go\",\"hunk\":0,\"side\":\"new\",\"line\":$line,\"body\":\"why this value?\"}"
+post /api/comments '{"target":"general","body":"overall this reads fine"}'
+post /api/submit '{}'
 
-round_trip "$FP" "$FPS" $PY_ORACLE
-round_trip "$FG" "$FGS" $GO_BIN
+hud "$STATE" -s "$SID" wait --timeout 5 >"$WORK/wait.out" 2>&1 || true
+hud "$STATE" -s "$SID" reply c2 "anchored to the new value" >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" resolve c2 >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" comments --new >"$WORK/comments-new.out" 2>&1 || true
+hud "$STATE" -s "$SID" comments --all >"$WORK/comments-all.out" 2>&1 || true
 
-# created / ts are wall clock, and author is ours (spec §8.4); everything else
-# about the round trip has to match.
-strip_comments() {
-    python3 -c 'import json,sys
-cs = json.load(open(sys.argv[1]))
-for c in cs:
-    c.pop("created", None)
-    c.pop("author", None)
-    for r in c.get("replies", []):
-        r.pop("ts", None)
-print(json.dumps(cs, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
-}
-strip_comments "$FPS/comments.json" >"$FP/comments.norm"
-strip_comments "$FGS/comments.json" >"$FG/comments.norm"
-same "write comments.json" "$FP/comments.norm" "$FG/comments.norm"
-same_norm "wait output"     comments "$FP/wait.out" "$FG/wait.out"
-same_norm "comments --new"  comments "$FP/new.out"  "$FG/new.out"
-same_norm "comments --all"  comments "$FP/all.out"  "$FG/all.out"
+gold write-comments.json json "$SESS/comments.json"
+gold wait-output   mask "$WORK/wait.out"
+gold comments-new  mask "$WORK/comments-new.out"
+gold comments-all  mask "$WORK/comments-all.out"
 
-# author is ours: spec §8.4 adds it, the oracle has no such field.
+# author is ours (spec §8.4): the page writes "user", `reply` writes "agent".
 if python3 -c 'import json,sys
 cs = json.load(open(sys.argv[1]))
-assert all(c.get("author") == "user" for c in cs if c["id"] != "c1"), cs' "$FGS/comments.json" 2>/dev/null; then
-    ok "comments[].author defaults to user"
+assert all(c.get("author") == "user" for c in cs if c["id"] != "c1"), cs
+# a reply is stored as {who, body, ts}: the shape on disk, frozen by spec 8
+assert any(r.get("who") == "agent" for c in cs for r in c.get("replies", [])), cs' \
+   "$SESS/comments.json" 2>"$WORK/author.err"; then
+    ok "comments[].author: the page writes user, reply writes agent"
 else
-    bad "comments[].author  ($FGS/comments.json)"
+    bad "comments[].author  ($SESS/comments.json $WORK/author.err)"
 fi
 
 # 124 on timeout, with nothing pending left.
-XDG_STATE_HOME=$FG $GO_BIN -s "$(basename "$FGS")" resolve c1 c3 --by user >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" resolve c1 c3 --by user >/dev/null 2>&1 || true
 rc=0
-XDG_STATE_HOME=$FG $GO_BIN -s "$(basename "$FGS")" wait --timeout 2 >/dev/null 2>&1 || rc=$?
+hud "$STATE" -s "$SID" wait --timeout 2 >/dev/null 2>&1 || rc=$?
 if [ "$rc" = 124 ]; then
     ok "wait exits 124 on timeout"
 else

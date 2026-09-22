@@ -1,20 +1,19 @@
 #!/bin/sh
-# M5 half of the parity gate: config, keymap, hooks, skill install, --ascii.
-# These are ours alone — the oracle has no config file, no keymap and no hooks —
-# so they are assertions about the Go build rather than comparisons.
+# M5 section: config, keymap, hooks, skill install, --ascii, archive / rm.
 #
-# Sourced by parity.sh; uses ok/bad/$WORK/$ROOT/$GO/$FGS.
+# Sourced by parity.sh; uses ok/bad/gold/remember and $WORK/$ROOT/$GO/$SESS.
 set -eu
 
 CFG=$(mktemp -d)
 remember "$CFG/state"   # the daemon writes its server.json under XDG_STATE_HOME
 
-hud() { XDG_CONFIG_HOME=$CFG XDG_STATE_HOME=$CFG/state "$GO" "$@"; }
+# its own config dir, so the defaults are not the user's
+cfg_hud() { XDG_CONFIG_HOME=$CFG XDG_STATE_HOME=$CFG/state "$GO" "$@"; }
 
 # ── config: no file means defaults, and `config init` writes those defaults ──
-hud config show >"$CFG/default.json" 2>&1 || true
-hud config init >/dev/null 2>&1 || true
-hud config show >"$CFG/after-init.json" 2>&1 || true
+cfg_hud config show >"$CFG/default.json" 2>&1 || true
+cfg_hud config init >/dev/null 2>&1 || true
+cfg_hud config show >"$CFG/after-init.json" 2>&1 || true
 if python3 -c 'import json,sys
 a, b = (json.load(open(p)) for p in sys.argv[1:3])
 assert a == b, "config init changed the effective config"
@@ -32,8 +31,8 @@ c = json.load(open(p))
 c["keymap"] = {"send": "S", "nonsense": "z"}
 json.dump(c, open(p, "w"), indent=2)' "$CFG/hudiff/config.json"
 mkdir -p "$CFG/state/hudiff/sessions"
-cp -R "$FGS" "$CFG/state/hudiff/sessions/"
-hud daemon start >/dev/null 2>&1 || true
+cp -R "$SESS" "$CFG/state/hudiff/sessions/"
+cfg_hud daemon start >/dev/null 2>&1 || true
 KP=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$CFG/state/hudiff/server.json")
 curl -s "http://127.0.0.1:$KP/api/config" >"$CFG/api-config.json"
 if python3 -c 'import json,sys
@@ -48,16 +47,16 @@ else
 fi
 
 # ── hooks: on_submit runs with the documented environment ──
-hud daemon stop >/dev/null 2>&1 || true
+cfg_hud daemon stop >/dev/null 2>&1 || true
 python3 -c 'import json,sys
 p, out = sys.argv[1], sys.argv[2]
 c = json.load(open(p))
 c["hooks"] = {"on_submit": "printf %s\\\\n \"$HUDIFF_SESSION|$HUDIFF_URL|$HUDIFF_REPO|$HUDIFF_COUNT\" > " + out,
               "on_review_request": ""}
 json.dump(c, open(p, "w"), indent=2)' "$CFG/hudiff/config.json" "$CFG/hook.out"
-hud daemon start >/dev/null 2>&1 || true
+cfg_hud daemon start >/dev/null 2>&1 || true
 KP=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$CFG/state/hudiff/server.json")
-MSID=$(basename "$FGS")   # not SID: that is parity.sh's fixture, used by restore()
+MSID=$(basename "$SESS")   # not SID: a sourced section must not touch parity.sh's globals
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' \
     -d '{"target":"general","body":"hook probe"}' "http://127.0.0.1:$KP/s/$MSID/api/comments"
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$KP/s/$MSID/api/submit"
@@ -67,7 +66,7 @@ if [ -s "$CFG/hook.out" ] && grep -q "^$MSID|http://127.0.0.1:$KP/s/$MSID/|.*|[0
 else
     bad "hooks.on_submit  (got: $(cat "$CFG/hook.out" 2>/dev/null || echo nothing))"
 fi
-hud daemon stop >/dev/null 2>&1 || true
+cfg_hud daemon stop >/dev/null 2>&1 || true
 
 # ── skill install: a symlink into the agent's skills dir, inside a temp HOME ──
 HOME_T=$(mktemp -d)
@@ -81,13 +80,14 @@ fi
 rm -rf "$HOME_T"
 
 # ── diagram --ascii: readable in a terminal, and it keeps the node labels ──
-hud -s "$MSID" diagram auto-map --ascii >"$CFG/auto.txt" 2>"$CFG/ascii.err" || true
-hud -s "$MSID" diagram auto-map --src >"$CFG/auto.d2" 2>/dev/null || true
+cfg_hud -s "$MSID" diagram auto-map --ascii >"$CFG/auto.txt" 2>"$CFG/ascii.err" || true
+cfg_hud -s "$MSID" diagram auto-map --src >"$CFG/auto.d2" 2>/dev/null || true
 if [ -s "$CFG/auto.txt" ] && python3 "$ROOT/specs/parity-labels.py" "$CFG/auto.txt" "$CFG/auto.d2" 2>>"$CFG/ascii.err"; then
     ok "diagram --ascii keeps every node label ($(wc -l <"$CFG/auto.txt" | tr -d ' ') lines)"
 else
     bad "diagram --ascii  ($CFG/auto.txt $CFG/ascii.err)"
 fi
+gold diagram-ascii mask "$CFG/auto.txt"
 
 # ── the UI is English: no CJK left in anything we ship ──
 # Chinese left in anything a user sees. internal/review/review.go's priority
@@ -104,7 +104,7 @@ fi
 M5_AR=$(mktemp -d)
 remember "$M5_AR/state"
 mkdir -p "$M5_AR/state/hudiff/sessions"
-cp -R "$FGS" "$M5_AR/state/hudiff/sessions/"
+cp -R "$SESS" "$M5_AR/state/hudiff/sessions/"
 arh() { XDG_STATE_HOME=$M5_AR/state "$GO" "$@"; }
 
 arh session archive "$MSID" >/dev/null 2>&1 || true
@@ -146,7 +146,7 @@ fi
 arh daemon stop >/dev/null 2>&1 || true
 
 # and the CLI path, on a second copy
-cp -R "$FGS" "$M5_AR/state/hudiff/sessions/" 2>/dev/null || true
+cp -R "$SESS" "$M5_AR/state/hudiff/sessions/" 2>/dev/null || true
 arh session rm "$MSID" >/dev/null 2>&1 || true
 if [ ! -d "$M5_AR/state/hudiff/sessions/$MSID" ]; then
     ok "session rm removes the session directory"

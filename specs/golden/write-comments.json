@@ -1,0 +1,53 @@
+[
+ {
+  "body": "why 11?",
+  "created": "<TS>",
+  "file": "a.go",
+  "hunk": 0,
+  "id": "c1",
+  "line": 5,
+  "replies": [],
+  "side": "new",
+  "snippet": "\treturn 11",
+  "stale": false,
+  "status": "sent",
+  "target": "line"
+ },
+ {
+  "agent_done": true,
+  "author": "user",
+  "body": "why this value?",
+  "created": "<TS>",
+  "file": "a.go",
+  "hunk": 0,
+  "id": "c2",
+  "line": 1,
+  "replies": [
+   {
+    "body": "anchored to the new value",
+    "ts": "<TS>",
+    "who": "agent"
+   }
+  ],
+  "side": "new",
+  "snippet": "// a new line pushes every hunk down",
+  "stale": false,
+  "status": "replied",
+  "target": "line"
+ },
+ {
+  "author": "user",
+  "body": "overall this reads fine",
+  "created": "<TS>",
+  "file": null,
+  "hunk": null,
+  "id": "c3",
+  "line": null,
+  "replies": [],
+  "side": null,
+  "snippet": null,
+  "stale": false,
+  "status": "sent",
+  "target": "general"
+ }
+]

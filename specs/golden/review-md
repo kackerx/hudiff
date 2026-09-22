@@ -1,0 +1,39 @@
+## Overall
+
+second pass
+
+## Strengths
+
+- clear naming
+- tests added
+
+## Items
+
+### [High]
+
+- [x] **magic number**  `a.go` L1  `r1`
+  ```
+  // a new line pushes every hunk down
+  ```
+  still magic
+  **Suggested fix**: name it properly
+  ✔ resolution (user): renamed the constant
+
+### [Medium]
+
+- [ ] **no test**  `a.go`  `r2`
+  add one
+  - ✓ re-review (reviewer-A, round 2): checked, the test landed
+
+- [ ] **brand new finding**  `a.go`  `r4`
+  round two
+
+### [Low]
+
+- [~] **comment wording**  `a.go` L1  `r3`
+  ```
+  // a new line pushes every hunk down
+  ```
+  same spot, renumbered
+  ✔ resolution (user): style only
+

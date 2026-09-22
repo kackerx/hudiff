@@ -1,0 +1,13 @@
+# session <SID>: Uncommitted changes  3 total, showing 3
+
+[c1] pending  a.go  new L5  (hunk 0)
+    > +	return 11
+    why 11?
+
+[c2] replied  a.go  new L1  (hunk 0)  ✔ handled by the agent, awaiting the user
+    > +// a new line pushes every hunk down
+    why this value?
+    agent: anchored to the new value
+
+[c3] pending  overall
+    overall this reads fine

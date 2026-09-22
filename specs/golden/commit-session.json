@@ -1,0 +1,26 @@
+{
+ "brief": null,
+ "created": "<TS>",
+ "id": "<SID>",
+ "key": "commit:<TMP>/repo:<SHA>",
+ "kind": "commit",
+ "meta": {
+  "author": "p",
+  "base": "<SHA>",
+  "body": "",
+  "date": "2026-09-22",
+  "full": "<SHA>",
+  "merge": false,
+  "rev": "<SHA>"
+ },
+ "opener": {
+  "agent_session": "<SHA>-b0dd-4130-be29-<SHA>",
+  "cwd": "<TMP>/repo"
+ },
+ "refresh": [
+  "HEAD"
+ ],
+ "repo": "<TMP>/repo",
+ "submit_seq": 0,
+ "title": "second"
+}

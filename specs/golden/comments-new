@@ -1,0 +1,8 @@
+# session <SID>: Uncommitted changes  3 total, showing 2
+
+[c1] pending  a.go  new L5  (hunk 0)
+    > +	return 11
+    why 11?
+
+[c3] pending  overall
+    overall this reads fine

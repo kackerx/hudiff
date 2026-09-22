@@ -1,0 +1,26 @@
+{
+ "brief": {
+  "context": [
+   "<TMP>/repo/a.go"
+  ],
+  "presets": [],
+  "prompt": "check-errors"
+ },
+ "created": "<TS>",
+ "id": "<SID>",
+ "key": "worktree:<TMP>/repo:worktree",
+ "kind": "worktree",
+ "meta": {
+  "base": "<SHA>",
+  "branch": "main",
+  "scope": "worktree"
+ },
+ "opener": {
+  "agent_session": "<SHA>-b0dd-4130-be29-<SHA>",
+  "cwd": "<TMP>/repo"
+ },
+ "refresh": [],
+ "repo": "<TMP>/repo",
+ "submit_seq": 0,
+ "title": "Uncommitted changes"
+}

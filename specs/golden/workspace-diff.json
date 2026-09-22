@@ -1,0 +1,286 @@
+{
+ "files": [
+  {
+   "add": 3,
+   "binary": false,
+   "del": 3,
+   "hunks": [
+    {
+     "header": "@@ -1,7 +1,7 @@",
+     "lines": [
+      {
+       "n": 1,
+       "o": 1,
+       "s": "package main",
+       "t": " "
+      },
+      {
+       "n": 2,
+       "o": 2,
+       "s": "",
+       "t": " "
+      },
+      {
+       "n": 3,
+       "o": 3,
+       "s": "func alpha() int {",
+       "t": " "
+      },
+      {
+       "n": null,
+       "o": 4,
+       "s": "\treturn 1",
+       "t": "-"
+      },
+      {
+       "n": 4,
+       "o": null,
+       "s": "\treturn 11",
+       "t": "+"
+      },
+      {
+       "n": 5,
+       "o": 5,
+       "s": "}",
+       "t": " "
+      },
+      {
+       "n": 6,
+       "o": 6,
+       "s": "",
+       "t": " "
+      },
+      {
+       "n": 7,
+       "o": 7,
+       "s": "// the spacer keeps alpha and beta in separate hunks, so `read` has a hunk that",
+       "t": " "
+      }
+     ],
+     "new_count": 7,
+     "new_start": 1,
+     "old_count": 7,
+     "old_start": 1,
+     "section": ""
+    },
+    {
+     "header": "@@ -12,6 +12,6 @@ func alpha() int {",
+     "lines": [
+      {
+       "n": 12,
+       "o": 12,
+       "s": "// 6",
+       "t": " "
+      },
+      {
+       "n": 13,
+       "o": 13,
+       "s": "// 7",
+       "t": " "
+      },
+      {
+       "n": 14,
+       "o": 14,
+       "s": "",
+       "t": " "
+      },
+      {
+       "n": null,
+       "o": 15,
+       "s": "func beta() int {",
+       "t": "-"
+      },
+      {
+       "n": null,
+       "o": 16,
+       "s": "\treturn 2",
+       "t": "-"
+      },
+      {
+       "n": 15,
+       "o": null,
+       "s": "func beta(n int) int {",
+       "t": "+"
+      },
+      {
+       "n": 16,
+       "o": null,
+       "s": "\treturn 22",
+       "t": "+"
+      },
+      {
+       "n": 17,
+       "o": 17,
+       "s": "}",
+       "t": " "
+      }
+     ],
+     "new_count": 6,
+     "new_start": 12,
+     "old_count": 6,
+     "old_start": 12,
+     "section": "func alpha() int {"
+    }
+   ],
+   "old_path": "a.go",
+   "path": "a.go",
+   "status": "M"
+  },
+  {
+   "add": 5,
+   "binary": false,
+   "del": 0,
+   "hunks": [
+    {
+     "header": "@@ -0,0 +1,5 @@",
+     "lines": [
+      {
+       "n": 1,
+       "o": null,
+       "s": "package main",
+       "t": "+"
+      },
+      {
+       "n": 2,
+       "o": null,
+       "s": "",
+       "t": "+"
+      },
+      {
+       "n": 3,
+       "o": null,
+       "s": "func fresh() bool {",
+       "t": "+"
+      },
+      {
+       "n": 4,
+       "o": null,
+       "s": "\treturn true",
+       "t": "+"
+      },
+      {
+       "n": 5,
+       "o": null,
+       "s": "}",
+       "t": "+"
+      }
+     ],
+     "new_count": 5,
+     "new_start": 1,
+     "old_count": 0,
+     "old_start": 0,
+     "section": ""
+    }
+   ],
+   "old_path": "added.go",
+   "path": "added.go",
+   "status": "A"
+  },
+  {
+   "add": 0,
+   "binary": false,
+   "del": 5,
+   "hunks": [
+    {
+     "header": "@@ -1,5 +0,0 @@",
+     "lines": [
+      {
+       "n": null,
+       "o": 1,
+       "s": "package main",
+       "t": "-"
+      },
+      {
+       "n": null,
+       "o": 2,
+       "s": "",
+       "t": "-"
+      },
+      {
+       "n": null,
+       "o": 3,
+       "s": "func gone() string {",
+       "t": "-"
+      },
+      {
+       "n": null,
+       "o": 4,
+       "s": "\treturn \"removed\"",
+       "t": "-"
+      },
+      {
+       "n": null,
+       "o": 5,
+       "s": "}",
+       "t": "-"
+      }
+     ],
+     "new_count": 0,
+     "new_start": 0,
+     "old_count": 5,
+     "old_start": 1,
+     "section": ""
+    }
+   ],
+   "old_path": "gone.go",
+   "path": "gone.go",
+   "status": "D"
+  },
+  {
+   "add": 1,
+   "binary": false,
+   "del": 1,
+   "hunks": [
+    {
+     "header": "@@ -1,5 +1,5 @@",
+     "lines": [
+      {
+       "n": 1,
+       "o": 1,
+       "s": "package main",
+       "t": " "
+      },
+      {
+       "n": 2,
+       "o": 2,
+       "s": "",
+       "t": " "
+      },
+      {
+       "n": 3,
+       "o": 3,
+       "s": "func moved() int {",
+       "t": " "
+      },
+      {
+       "n": null,
+       "o": 4,
+       "s": "\treturn 7",
+       "t": "-"
+      },
+      {
+       "n": 4,
+       "o": null,
+       "s": "\treturn 8",
+       "t": "+"
+      },
+      {
+       "n": 5,
+       "o": 5,
+       "s": "}",
+       "t": " "
+      }
+     ],
+     "new_count": 5,
+     "new_start": 1,
+     "old_count": 5,
+     "old_start": 1,
+     "section": ""
+    }
+   ],
+   "old_path": "old_name.go",
+   "path": "new_name.go",
+   "status": "R"
+  }
+ ]
+}

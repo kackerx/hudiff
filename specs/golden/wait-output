@@ -1,0 +1,12 @@
+# 3 comments were already pending (the user hit Send earlier)
+
+[c1] pending  a.go  new L5  (hunk 0)
+    > +	return 11
+    why 11?
+
+[c2] pending  a.go  new L1  (hunk 0)
+    > +// a new line pushes every hunk down
+    why this value?
+
+[c3] pending  overall
+    overall this reads fine

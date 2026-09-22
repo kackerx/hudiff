@@ -1,0 +1,32 @@
+direction: right
+classes: {
+  file: { style: { fill: "#f6f8fa"; stroke: "#8b949e"; border-radius: 8; font-size: 14 } }
+  added: { style: { fill: "#dafbe1"; stroke: "#1a7f37"; font-size: 13; border-radius: 4 } }
+  removed: { style: { fill: "#ffebe9"; stroke: "#cf222e"; font-size: 13; border-radius: 4; stroke-dash: 3 } }
+  changed: { style: { fill: "#fff8c5"; stroke: "#9a6700"; font-size: 13; border-radius: 4 } }
+  ext: { style: { fill: "#ffffff"; stroke: "#d0d7de"; font-size: 12; border-radius: 6; stroke-dash: 2 } }
+  danger: { style: { stroke: "#cf222e"; stroke-width: 2; font-color: "#cf222e" } }
+  ref: { style: { stroke: "#8b949e"; font-size: 11 } }
+}
+"a.go": {
+  label: "a.go\nmodified  +4 -3"
+  class: file
+  tooltip: "a.go"
+  "beta": { label: "~ beta"; class: changed }
+}
+"added.go": {
+  label: "added.go\nadded  +5 -0"
+  class: file
+  tooltip: "added.go"
+  "fresh": { label: "+ fresh"; class: added }
+}
+"gone.go": {
+  label: "gone.go\ndeleted  +0 -5"
+  class: file
+  tooltip: "gone.go"
+  "gone": { label: "- gone"; class: removed }
+}
+"user.go": { label: "user.go"; class: ext; tooltip: "user.go" }
+"new_name.go": { label: "new_name.go\nrenamed  +1 -1"; class: file; tooltip: "new_name.go" }
+"a.go"."beta" -> "user.go" { class: ref }
+"gone.go"."gone" -> "user.go": "still referenced!" { class: danger }

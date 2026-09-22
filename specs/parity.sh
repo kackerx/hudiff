@@ -1,55 +1,75 @@
 #!/bin/sh
-# Parity gate for the Go rewrite: the Python oracle (legacy/hudiff.py) and the
-# Go build must agree on `read`, `session info --json`, the session HTTP API
-# and the rendered page. Any difference is a bug in the Go side.
+# The gate. Every surface the Go build exposes — `read`, `session list|info`,
+# the HTTP API, the write path, review, diagrams and the rendered page — is
+# captured from a fixture this script builds from scratch and diffed against a
+# frozen golden file under specs/golden/. Anything that drifts fails: wording,
+# field names, element order, counts.
 #
-#   specs/parity.sh [-s <session-id>] [--no-page] [--keep-go]
+#   specs/parity.sh [--no-page] [--bless] [--self-check]
 #
-# The Go CLI is English and the oracle is Chinese, so the ORACLE's fixed phrases
-# are translated by specs/parity-normalize.py and then diffed strictly against
-# the Go output. The Go side is never loosened: wording that drifts from the
-# table fails the gate.
+#     --bless       rewrite the golden files from this run instead of comparing.
+#                   Read the diff before committing it — a blessed regression is
+#                   a regression with a green light.
+#     --self-check  break the Go build on purpose and assert the matching checks
+#                   go red, so a golden that stopped meaning anything is caught.
+#     --no-page     skip the headless-Chrome part.
 #
-# The two daemons share server.json, so they take turns: the script captures
-# the Python side, swaps in the Go daemon, captures again, and puts the Python
-# daemon back before it exits (--keep-go leaves the Go one running).
-# --no-page skips the headless-Chrome part.
+# Until M6 this compared everything against legacy/hudiff.py. The oracle is gone;
+# the goldens were frozen from the last run where the two still agreed. Nothing
+# here may read legacy/ again — `gate is oracle-free` asserts that.
+#
+# The user's own sessions are never used as a fixture (they hold private code and
+# would not reproduce on another machine); the gate runs entirely inside mktemp
+# state dirs and never touches the daemon on the user's port.
 set -eu
 
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-PY="python3 $ROOT/legacy/hudiff.py"
 GO="$ROOT/bin/hudiff"
-SID=${HUDIFF_PARITY_SESSION:-20260920-155017-4d71}
+GOLD="$ROOT/specs/golden"
 PAGE=1
-KEEP_GO=0
+BLESS=0
+SELF=0
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 while [ $# -gt 0 ]; do
     case $1 in
-        -s) SID=$2; shift 2 ;;
         --no-page) PAGE=0; shift ;;
-        --keep-go) KEEP_GO=1; shift ;;
-        *) echo "usage: $0 [-s <session-id>] [--no-page] [--keep-go]" >&2; exit 1 ;;
+        --bless) BLESS=1; shift ;;
+        --self-check) SELF=1; shift ;;
+        *) echo "usage: $0 [--no-page] [--bless] [--self-check]" >&2; exit 1 ;;
     esac
 done
 
 WORK=$(mktemp -d)
+FIX=$(mktemp -d)
+STATES=$(mktemp)
 FAILED=0
 
-restore() {
-    command -v sweep_states >/dev/null 2>&1 && sweep_states
-    [ "$KEEP_GO" = 1 ] && return 0
-    "$GO" daemon stop >/dev/null 2>&1 || true
-    $PY -s "$SID" url >/dev/null 2>&1 || true
+ok()  { printf '  \033[32mok\033[0m    %s\n' "$1"; }
+bad() { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILED=$((FAILED + 1)); }
+
+# Every session the gate builds gets its own XDG_STATE_HOME, and every one of
+# them leaves a daemon behind (`--json` needs a URL). Stop them before the dirs go.
+remember() { printf '%s\n' "$@" >>"$STATES"; }
+new_state() { d=$(mktemp -d); remember "$d"; printf '%s' "$d"; }
+
+sweep_states() {
+    [ -f "$STATES" ] || return 0
+    while read -r d; do
+        [ -n "$d" ] && XDG_STATE_HOME=$d "$GO" daemon stop >/dev/null 2>&1
+        [ "$FAILED" = 0 ] && rm -rf "$d"
+    done <"$STATES"
+    rm -f "$STATES"
 }
-trap restore EXIT
+cleanup() { sweep_states; [ "$FAILED" = 0 ] && rm -rf "$FIX"; return 0; }
+trap cleanup EXIT
 
-ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
-bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILED=$((FAILED + 1)); }
+hud()     { st=$1; shift; XDG_STATE_HOME=$st "$GO" "$@"; }
+port_of() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1] + "/hudiff/server.json"))["port"])' "$1"; }
+sess_of() { ls -d "$1"/hudiff/sessions/* 2>/dev/null | head -1; }
 
-
-same() {   # same <label> <a> <b>
+same() {   # same <label> <expected> <actual>
     if diff -u "$2" "$3" >"$WORK/$1.diff" 2>&1; then
         ok "$1"
     else
@@ -57,176 +77,236 @@ same() {   # same <label> <a> <b>
     fi
 }
 
-# same_norm <label> <mode> <a> <b> — compare after collapsing the wordings that
-# are allowed to differ (see specs/parity-normalize.py; nothing else is let through).
-same_norm() {
-    python3 "$ROOT/specs/parity-normalize.py" "$2" "$3" --oracle >"$3.norm"
-    python3 "$ROOT/specs/parity-normalize.py" "$2" "$4" >"$4.norm"
-    same "$1" "$3.norm" "$4.norm"
+# golden <label> <file> — compare against specs/golden/<label>, or write it.
+golden() {
+    g="$GOLD/$1"
+    if [ "$BLESS" = 1 ]; then
+        mkdir -p "$(dirname "$g")"
+        cp "$2" "$g"
+        ok "blessed $1 ($(wc -l <"$g" | tr -d ' ') lines)"
+        return 0
+    fi
+    if [ ! -s "$g" ]; then
+        bad "$1  (no golden at $g — run --bless)"
+        return 0
+    fi
+    if [ ! -s "$2" ]; then
+        bad "$1  (captured nothing)"
+        return 0
+    fi
+    same "$1" "$g" "$2"
 }
 
-# Values the two sides generate in different languages on purpose (spec §9).
-# `authors` is dropped too: spec §8.4 adds it and the oracle has no such field.
-TRANSLATED='{"文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。": "<AUTOMAP-CAPTION>", "File → the symbols this change adds (green) / removes (red) / edits (amber) → who references them outside the changed files. A red edge means the symbol is gone but something still calls it. Generated from `hudiff context`, not drawn by an agent.": "<AUTOMAP-CAPTION>", "改动地图(自动)": "<AUTOMAP-TITLE>", "Change map (automatic)": "<AUTOMAP-TITLE>"}'
+# gold <label> <mask|json|structure> <file> — normalise, then compare.
+gold() {
+    if ! python3 "$ROOT/specs/parity-normalize.py" "$2" "$3" >"$WORK/$1.n" 2>"$WORK/$1.err"; then
+        bad "$1  (normalise failed: $(head -c 200 "$WORK/$1.err"))"
+        return 0
+    fi
+    golden "$1" "$WORK/$1.n"
+}
 
-same_json() {
-    for f in "$2" "$3"; do
-        if ! python3 -c 'import json,sys
-tr = json.loads(sys.argv[2])
-def walk(v):
-    if isinstance(v, dict):
-        return {k: walk(x) for k, x in v.items() if k != "authors"}
-    if isinstance(v, list):
-        return [walk(x) for x in v]
-    return tr.get(v, v) if isinstance(v, str) else v
-print(json.dumps(walk(json.load(open(sys.argv[1]))), sort_keys=True, indent=1, ensure_ascii=False))' \
-                "$f" "$TRANSLATED" >"$f.norm" 2>"$f.err"; then
-            bad "$1  (not JSON: $f)"
-            return 0
-        fi
+# ── --self-check: a golden nobody can break is not a check ───────────────────
+# Each mutation is a plausible regression on a different surface; the labels
+# after the pipe are the checks that must go red because of it.
+MUTATIONS='internal/cli/read.go|# Mark after the number:|# Mark:|read read-W read-U3 read-file read-brief
+internal/cli/session.go|"hunks_total"|"hunks_count"|info
+web/session.html|<section id="mid">|<section data-probe="1" id="mid">|page-code page-diagrams page-review
+internal/diagram/automap.go|"M": "modified"|"M": "edited"|auto-map-src diagram-ascii'
+
+if [ "$SELF" = 1 ]; then
+    echo "self-check: breaking the Go build on purpose…"
+    restore_src() {
+        [ -d "$WORK/orig" ] || return 0
+        (cd "$WORK/orig" && find . -type f) | while read -r f; do
+            cp "$WORK/orig/$f" "$ROOT/$f"
+        done
+        rm -rf "$WORK/orig"
+        go build -o "$GO" . >/dev/null 2>&1 || true
+    }
+    trap 'restore_src; cleanup' EXIT
+    printf '%s\n' "$MUTATIONS" | while IFS='|' read -r f from to labels; do
+        mkdir -p "$WORK/orig/$(dirname "$f")"
+        cp "$ROOT/$f" "$WORK/orig/$f"
+        python3 - "$ROOT/$f" "$from" "$to" <<'PY'
+import sys
+p, a, b = sys.argv[1:4]
+s = open(p).read()
+assert a in s, f"self-check: {a!r} not found in {p}"
+open(p, "w").write(s.replace(a, b, 1))
+PY
     done
-    same "$1" "$2.norm" "$3.norm"
+    go build -o "$GO" . || { echo "self-check: the mutated tree does not build" >&2; exit 1; }
+    sh "$ROOT/specs/parity.sh" >"$WORK/self.out" 2>&1 || true
+    restore_src
+    trap cleanup EXIT
+    echo "self-check: which checks noticed"
+    printf '%s\n' "$MUTATIONS" | while IFS='|' read -r f from to labels; do
+        for lb in $labels; do
+            if grep -q "FAIL.*  $lb  " "$WORK/self.out" || grep -q "FAIL.*  $lb\$" "$WORK/self.out"; then
+                printf '  \033[32mok\033[0m    %s catches %s\n' "$lb" "$f"
+            else
+                printf '  \033[31mFAIL\033[0m  %s stayed green after %s was broken\n' "$lb" "$f"
+                echo fail >>"$WORK/self.failed"
+            fi
+        done
+    done
+    [ -s "$WORK/self.failed" ] && { echo "self-check failed; full run in $WORK/self.out" >&2; exit 1; }
+    echo "self-check ok (full run: $WORK/self.out)"
+    exit 0
+fi
+
+# ── build ────────────────────────────────────────────────────────────────────
+echo "building Go binary…"
+mkdir -p "$ROOT/bin"
+go build -o "$GO" .
+
+# ── the fixture repo ─────────────────────────────────────────────────────────
+# One commit of history plus a staged change set that covers every file status
+# `read` prints differently: modified, added, deleted (so -W has to say it cannot
+# read the new file) and renamed.
+git init -q "$FIX/repo"
+cd "$FIX/repo"
+git config user.email p@p && git config user.name p
+cat >a.go <<'EOF'
+package main
+
+func alpha() int {
+	return 1
 }
 
-# The page is compared as rendered DOM, not pixels: the DOM is identical and
-# reproducible on both sides, while screenshots differ by a sub-pixel now and
-# then. It also covers the diagrams tab, whose d2 `steps` animation made pixels
-# useless. --virtual-time-budget is still needed; the page fetches its data.
+// the spacer keeps alpha and beta in separate hunks, so `read` has a hunk that
+// is explicitly marked "needs no note" next to one that carries a note
+// 3
+// 4
+// 5
+// 6
+// 7
+
+func beta() int {
+	return 2
+}
+EOF
+printf 'package main\n\nfunc gone() string {\n\treturn "removed"\n}\n' >gone.go
+printf 'package main\n\nfunc moved() int {\n\treturn 7\n}\n' >old_name.go
+printf '# fixture\n' >README.md
+# untouched by the change set, so the auto map and `context` have somewhere to
+# point: a caller outside the diff, and a red edge for the symbol that is gone.
+cat >user.go <<'EOF'
+package main
+
+func useAll() int {
+	return alpha() + beta() + moved() + len(gone())
+}
+EOF
+git add -A && git commit -qm base
+printf '# fixture\n\nsecond commit, so commit and range sessions have something to show.\n' >README.md
+git commit -qam second
+sed -e 's/return 1$/return 11/' -e 's/return 2$/return 22/' \
+    -e 's/^func beta() int {$/func beta(n int) int {/' a.go >a.tmp && mv a.tmp a.go
+git rm -q gone.go
+git mv old_name.go new_name.go
+printf 'package main\n\nfunc moved() int {\n\treturn 8\n}\n' >new_name.go
+printf 'package main\n\nfunc fresh() bool {\n\treturn true\n}\n' >added.go
+git add -A
+cd "$ROOT"
+
+# ── the session every later section works on ─────────────────────────────────
+STATE=$(new_state)
+( cd "$FIX/repo" && XDG_STATE_HOME=$STATE "$GO" --no-open --json ) >"$WORK/create.out" 2>&1 || true
+SESS=$(sess_of "$STATE")
+if [ -z "${SESS:-}" ]; then
+    echo "could not create the fixture session; see $WORK/create.out" >&2
+    cat "$WORK/create.out" >&2
+    exit 1
+fi
+SID=$(basename "$SESS")
+
+# Seed notes so the hunk marks and the counts are not all empty.
+python3 - "$SESS" <<'PY'
+import json, sys
+json.dump({"title": "fixture", "summary": "one file of every status",
+           "files": {"a.go": {"summary": "two constants bumped",
+                              "hunks": {"0": {"title": "alpha", "body": "why 11"}, "1": None}}}},
+          open(sys.argv[1] + "/notes.json", "w"), ensure_ascii=False, indent=1)
+PY
+
+P=$(port_of "$STATE")
+echo "fixture session $SID  (repo $FIX/repo, port $P)"
+
+# ── CLI and API surfaces ─────────────────────────────────────────────────────
+hud "$STATE" -s "$SID" read              >"$WORK/read"    2>&1 || true
+hud "$STATE" -s "$SID" read -W           >"$WORK/read-W"  2>&1 || true
+hud "$STATE" -s "$SID" read -U 3         >"$WORK/read-U3" 2>&1 || true
+hud "$STATE" -s "$SID" read --file a.go  >"$WORK/read-file" 2>&1 || true
+hud "$STATE" session list                >"$WORK/list"    2>&1 || true
+hud "$STATE" -s "$SID" session info --json >"$WORK/info"  2>&1 || true
+curl -s "http://127.0.0.1:$P/s/$SID/api/session" >"$WORK/api-session"
+curl -s "http://127.0.0.1:$P/api/sessions"       >"$WORK/api-sessions"
+COLUMNS=80 "$GO" --help                  >"$WORK/help"    2>&1 || true
+
+gold read         mask "$WORK/read"
+gold read-W       mask "$WORK/read-W"
+gold read-U3      mask "$WORK/read-U3"
+gold read-file    mask "$WORK/read-file"
+gold session-list mask "$WORK/list"
+gold info         json "$WORK/info"
+gold api-session  json "$WORK/api-session"
+gold api-sessions json "$WORK/api-sessions"
+# `hudiff -h` is the agent's manual (spec §3): freezing it catches a flag that
+# quietly changed name, moved group or lost its help text.
+gold help         mask "$WORK/help"
+
+# ── exit codes (spec §3) ─────────────────────────────────────────────────────
+rc=0; hud "$STATE" -s "$SID" read -U nonsense >/dev/null 2>&1 || rc=$?
+[ "$rc" = 1 ] && ok "a usage error exits 1" || bad "usage error exit code: $rc (want 1)"
+rc=0; ( cd "$FIX" && XDG_STATE_HOME=$STATE "$GO" --no-open --json ) >/dev/null 2>&1 || rc=$?
+[ "$rc" = 2 ] && ok "outside a git repo exits 2" || bad "non-repo exit code: $rc (want 2)"
+
+echo "M2: session creation"
+. "$ROOT/specs/parity-m2.sh"
+
+echo "M3: the write path"
+. "$ROOT/specs/parity-m3.sh"
+
+echo "M4: review / context / diagram"
+. "$ROOT/specs/parity-m4.sh"
+
+echo "M5: config / keymap / hooks / skill"
+. "$ROOT/specs/parity-m5.sh"
+
+# ── the page ─────────────────────────────────────────────────────────────────
+# Compared as rendered DOM rather than pixels: the DOM is reproducible, while
+# screenshots differ by a sub-pixel, and the diagrams tab animates.
+# --virtual-time-budget is needed because the page fetches its own data.
 dump() {   # dump <url> <out>
     "$CHROME" --headless --disable-gpu --window-size=1600,1000 \
         --virtual-time-budget=8000 --dump-dom "$1" >"$2" 2>/dev/null
 }
 
-port() { python3 -c 'import json,os; print(json.load(open(os.path.expanduser("~/.local/state/hudiff/server.json")))["port"])'; }
-
-# Every diagram of the session, so the d2 pipeline (auto-map source included)
-# is compared as bytes rather than through the animated page.
-diagram_ids() {
-    python3 -c 'import json,sys; print(" ".join(d["id"] for d in json.load(open(sys.argv[1]))["diagrams"]))' "$1"
-}
-
-grab() {   # grab <side> <port>
-    for v in code diagrams review; do
-        [ "$PAGE" = 1 ] || continue
-        dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.html"
-        [ "$1" = go ] && dump "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/go2.$v.html"
-    done
-    for id in $(diagram_ids "$WORK/$1.api-session"); do
-        for th in light dark; do
-            curl -s "http://127.0.0.1:$2/s/$SID/api/diagram?i=$id&theme=$th" >"$WORK/$1.dg-$id-$th.svg"
-        done
-    done
-}
-
-echo "building Go binary…"
-mkdir -p "$ROOT/bin"
-go build -o "$GO" .
-
-# ── Python side ──────────────────────────────────────────────────────────────
-echo "capturing the oracle…"
-$PY -s "$SID" url >/dev/null
-P=$(port)
-$PY -s "$SID" show            >"$WORK/py.read"
-$PY -s "$SID" show -W         >"$WORK/py.read-W"
-$PY -s "$SID" show -U 3       >"$WORK/py.read-U3"
-$PY -s "$SID" info            >"$WORK/py.info"
-$PY ls                        >"$WORK/py.ls"
-curl -s "http://127.0.0.1:$P/s/$SID/api/session"  >"$WORK/py.api-session"
-curl -s "http://127.0.0.1:$P/api/sessions"        >"$WORK/py.api-sessions"
-grab py "$P"
-$PY stop >/dev/null
-
-# ── Go side ──────────────────────────────────────────────────────────────────
-echo "capturing the Go build…"
-"$GO" daemon start >/dev/null
-P=$(port)
-"$GO" -s "$SID" read          >"$WORK/go.read"
-"$GO" -s "$SID" read -W       >"$WORK/go.read-W"
-"$GO" -s "$SID" read -U 3     >"$WORK/go.read-U3"
-"$GO" -s "$SID" session info --json >"$WORK/go.info"
-"$GO" session list            >"$WORK/go.ls"
-curl -s "http://127.0.0.1:$P/s/$SID/api/session"  >"$WORK/go.api-session"
-curl -s "http://127.0.0.1:$P/api/sessions"        >"$WORK/go.api-sessions"
-grab go "$P"
-
-# ── Compare ──────────────────────────────────────────────────────────────────
-echo "session $SID"
-same_norm read         read "$WORK/py.read"          "$WORK/go.read"
-same_norm read-W       read "$WORK/py.read-W"        "$WORK/go.read-W"
-same_norm read-U3      read "$WORK/py.read-U3"       "$WORK/go.read-U3"
-same_norm session-list list "$WORK/py.ls"            "$WORK/go.ls"
-same_json info            "$WORK/py.info"          "$WORK/go.info"
-same_json api-session     "$WORK/py.api-session"   "$WORK/go.api-session"
-same_json api-sessions    "$WORK/py.api-sessions"  "$WORK/go.api-sessions"
-
-# The oracle shells out to d2 with dagre; we compile d2 in with TALA (spec §7),
-# so the SVG bytes cannot match. What must hold: both sides render, ours carries
-# every node label from its own source, and a second render comes from cache.
-for id in $(diagram_ids "$WORK/py.api-session"); do
-    for th in light dark; do
-        for side in py go; do
-            f="$WORK/$side.dg-$id-$th.svg"
-            if [ "$(wc -c <"$f" | tr -d ' ')" -gt 500 ] && head -c 200 "$f" | grep -q "<svg"; then
-                ok "diagram-$id-$th renders ($side, $(wc -c <"$f" | tr -d ' ') bytes)"
-            else
-                bad "diagram-$id-$th ($side: $f)"
-            fi
-        done
-    done
-    "$GO" -s "$SID" diagram "$id" --src >"$WORK/go.dg-$id.src" 2>/dev/null || true
-    if python3 "$ROOT/specs/parity-labels.py" "$WORK/go.dg-$id-light.svg" "$WORK/go.dg-$id.src" 2>"$WORK/label-$id.err"; then
-        ok "diagram-$id SVG carries every node label"
-    else
-        bad "diagram-$id labels ($WORK/label-$id.err)"
-    fi
-done
-
-before=$(ls "$HOME/.local/state/hudiff/sessions/$SID/diagrams" 2>/dev/null | wc -l | tr -d ' ')
-"$GO" -s "$SID" diagram auto-map >/dev/null 2>&1 || true
-after=$(ls "$HOME/.local/state/hudiff/sessions/$SID/diagrams" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$before" = "$after" ]; then
-    ok "diagram cache hit on the second render ($before files)"
-else
-    bad "diagram cache: $before → $after files"
-fi
-
-# M5 redesigned the page (spec §9: the agent selector is gone, the text is
-# English), so its structure can no longer equal the oracle's — that page is
-# frozen at the pre-M5 design. What still has to hold: our page renders the same
-# way twice, it carries the M5 shape, and it is not a truncated render.
 if [ "$PAGE" = 1 ]; then
     for v in code diagrams review; do
-        if [ ! -s "$WORK/go.$v.html" ]; then
+        dump "http://127.0.0.1:$P/s/$SID/?view=$v" "$WORK/page.$v.html"
+        dump "http://127.0.0.1:$P/s/$SID/?view=$v" "$WORK/page2.$v.html"
+        if [ ! -s "$WORK/page.$v.html" ]; then
             bad "page-$v  (no DOM capture; is Chrome at $CHROME?)"
             continue
         fi
-        for side in py go go2; do
-            [ -s "$WORK/$side.$v.html" ] &&
-                python3 "$ROOT/specs/parity-normalize.py" structure "$WORK/$side.$v.html" >"$WORK/$side.$v.skel"
-        done
-        pn=$(wc -l <"$WORK/py.$v.skel" | tr -d ' ')
-        gn=$(wc -l <"$WORK/go.$v.skel" | tr -d ' ')
-        if [ "$gn" -lt $((pn * 9 / 10)) ]; then
-            bad "page-$v  rendered $gn elements vs the oracle's $pn — looks truncated"
-        elif ! cmp -s "$WORK/go.$v.skel" "$WORK/go2.$v.skel" 2>/dev/null && [ -s "$WORK/go2.$v.html" ]; then
-            bad "page-$v  two captures of our own page differ"
+        gold "page-$v" structure "$WORK/page.$v.html"
+        python3 "$ROOT/specs/parity-normalize.py" structure "$WORK/page2.$v.html" >"$WORK/page2.$v.skel"
+        if cmp -s "$WORK/page-$v.n" "$WORK/page2.$v.skel"; then
+            ok "page-$v renders the same way twice"
         else
-            ok "page-$v renders ($gn elements, oracle $pn)"
+            bad "page-$v  two captures of the same page differ"
         fi
     done
-    # The home page is its own render path; a JS error there showed up as an
+    # The home page is its own render path; a JS error there once showed up as an
     # empty list while every session-page check stayed green.
-    dump "http://127.0.0.1:$P/" "$WORK/go.index.html"
-    if grep -qc 'class="card' "$WORK/go.index.html" >/dev/null 2>&1 && grep -q 'class="card' "$WORK/go.index.html"; then
+    dump "http://127.0.0.1:$P/" "$WORK/index.html"
+    if grep -q 'class="card' "$WORK/index.html"; then
         ok "home page lists sessions"
     else
-        bad "home page rendered no session cards  ($WORK/go.index.html)"
-    fi
-    if grep -q 'id="send-tgt"' "$WORK/go.code.html" &&
-       ! grep -q 'id="agentpop"\|id="agents-btn"' "$WORK/go.code.html"; then
-        ok "page carries the M5 shape (no agent selector, send target present)"
-    else
-        bad "page shape  ($WORK/go.code.html)"
+        bad "home page rendered no session cards  ($WORK/index.html)"
     fi
 fi
 
@@ -234,38 +314,22 @@ fi
 for a in app.css app.js index.css index.js vendor/highlight.min.js \
          vendor/hljs-github.min.css vendor/hljs-github-dark.min.css vendor/hljs-lang-lua.min.js; do
     code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$P/$a")
-    if [ "$code" = 200 ]; then
-        ok "asset /$a"
-    else
-        bad "asset /$a  (HTTP $code)"
-    fi
+    [ "$code" = 200 ] && ok "asset /$a" || bad "asset /$a  (HTTP $code)"
 done
 
-# A sourced section that assigns one of these by accident breaks the sections
-# after it — and once broke restore(), leaving the user with no daemon.
-guard() { printf '%s|%s|%s|%s|%s' "$SID" "$WORK" "$ROOT" "$GO" "$PY"; }
-GUARD=$(guard)
-check_guard() {
-    [ "$(guard)" = "$GUARD" ] || bad "$1 clobbered a parity.sh global: $(guard) != $GUARD"
-}
-
-echo "M2: session creation"
-. "$ROOT/specs/parity-m2.sh"
-check_guard parity-m2.sh
-
-echo "M3: the write path"
-. "$ROOT/specs/parity-m3.sh"
-check_guard parity-m3.sh
-echo "M4: review / context / diagram"
-. "$ROOT/specs/parity-m4.sh"
-check_guard parity-m4.sh
-echo "M5: config / keymap / hooks / skill"
-. "$ROOT/specs/parity-m5.sh"
-check_guard parity-m5.sh
-rm -rf "$FIX"
+# ── the gate stands on its own ───────────────────────────────────────────────
+# The pattern is a regex, so this line does not match itself; comments do not
+# count, only a line that would run it.
+grep -rn 'hudiff\.py' "$ROOT/specs" --include='*.sh' --include='*.py' 2>/dev/null |
+    grep -v ':[0-9]*:[[:space:]]*#' >"$WORK/oracle.refs" || true
+if [ -s "$WORK/oracle.refs" ]; then
+    bad "the gate still runs the Python oracle: $(tr '\n' ' ' <"$WORK/oracle.refs")"
+else
+    ok "gate stands on its own (no specs/ script runs the Python oracle)"
+fi
 
 if [ "$FAILED" = 0 ]; then
-    echo "parity ok"
+    [ "$BLESS" = 1 ] && echo "goldens written to specs/golden/" || echo "parity ok"
     rm -rf "$WORK"
 else
     echo "$FAILED check(s) failed; artifacts in $WORK" >&2

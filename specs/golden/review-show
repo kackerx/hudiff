@@ -1,0 +1,27 @@
+# review by reviewer-A  updated <TS>
+second pass
+
+strengths:
+  - clear naming
+  - tests added
+
+open 2 (high 0 / medium 2 / low 0)  done 1  wontfix 1
+
+[r1] done  high  magic number
+    a.go L1  (hunk 0)
+    body: still magic
+    suggestion: name it properly
+    resolution: renamed the constant
+
+[r2] open  medium  no test
+    a.go  (hunk <nil>)
+    body: add one
+
+[r3] wontfix  low  comment wording
+    a.go L1  (hunk 0)
+    body: same spot, renumbered
+    resolution: style only
+
+[r4] open  medium  brand new finding
+    a.go  (hunk <nil>)
+    body: round two

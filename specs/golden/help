@@ -1,0 +1,55 @@
+Usage: hudiff <command> [flags]
+
+diffs for humans — an agent explains a diff, you comment on it line by line in
+the browser, the comments flow back.
+
+Commands:
+  workspace          Working tree vs HEAD, staged included (the default,
+                     no verb).
+  commit             A single commit against its first parent.
+  range              A range: <a>..<b>, <a>...<b>, or just <a> vs the working
+                     tree.
+  pr                 A GitHub pull request.
+  patch              A patch file or stdin.
+  open               Reopen an existing session in the viewer.
+  session list       List sessions.
+  session info       Print session info.
+  session url        Print the session URL, starting the daemon if needed.
+  session refresh    Re-read the diff and re-anchor comments.
+  session archive    Archive a session; the data and link stay.
+  session rm         Delete sessions, comments included.
+  read               Print the diff with [file#hunk] tags and both line-number
+                     columns.
+  context            Repo-level context: recent history, changed symbols,
+                     callers, tests.
+  notes              Write the agent's per-hunk explanation.
+  diagram            List, dump or render diagrams.
+  review show        Show the report.
+  review set         Write a report; merges into the existing one by default.
+  review done        Mark an item handled.
+  review wontfix     Mark an item wontfix.
+  review reopen      Reopen an item.
+  review note        Append a re-review note to an item.
+  review md          Export the report as markdown.
+  comments           List comments.
+  wait               Block until the user hits Send, then print the new
+                     comments.
+  reply              Reply to a comment.
+  resolve            Mark a comment handled, awaiting the user's confirmation.
+  daemon start       Start the daemon if it is not running.
+  daemon stop        Stop the daemon; session data is kept.
+  daemon status      Print URL, port and pid.
+  skill path         Print the skill path, materialising it if needed.
+  skill install      Install the skill for an agent.
+  config path        Print the config file path.
+  config show        Print the effective config.
+  config init        Write a config file with the defaults.
+  version            Print the version.
+
+Flags:
+  -h, --help            Show context-sensitive help.
+  -s, --session=<id>    Session id; default = most recent in this repo.
+      --port=<n>        Daemon port; only used when the daemon has to be
+                        started.
+
+Run "hudiff <command> --help" for more information on a command.

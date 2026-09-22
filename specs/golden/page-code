@@ -1,0 +1,1229 @@
+<body>
+<header id="hdr">
+<div class="row">
+<a class="hint">
+</a>
+<h1>
+<a class="brand">
+<svg class="mark">
+<path>
+</path>
+<path>
+</path>
+<path>
+</path>
+</svg>
+</a>
+<span class="kind worktree">
+</span>
+</h1>
+<div class="toolbar">
+<button class="ghost sm" id="archive">
+</button>
+<label class="hint">
+<input id="showres">
+</label>
+<button class="ghost sm" id="theme">
+</button>
+<span class="sendgrp">
+<button class="primary" id="submit">
+</button>
+<span class="tgt" id="send-tgt">
+<span class="dot off">
+</span>
+</span>
+</span>
+</div>
+</div>
+<div class="meta">
+<span>
+</span>
+<span>
+<b class="add">
+</b>
+<b class="del">
+</b>
+</span>
+<span>
+<code>
+</code>
+</span>
+<span>
+<code>
+</code>
+</span>
+<span class="hint">
+</span>
+<span class="hint">
+<code>
+</code>
+</span>
+</div>
+<div class="summary collapsed" id="summary">
+<div class="md">
+<p>
+</p>
+</div>
+<span class="tog">
+</span>
+</div>
+</header>
+<main id="main">
+<nav id="tree">
+<div class="tbar">
+<div class="q">
+<span class="nf" id="q-ic">
+</span>
+<input id="q">
+<button class="ghost sm" id="q-x">
+</button>
+</div>
+<details id="extf">
+<summary class="sm">
+</summary>
+<div class="pop" id="extf-list">
+<label class="all">
+<input id="ext-all">
+<span class="n">
+</span>
+</label>
+<label>
+<input data-ext=".go">
+<span class="n">
+</span>
+</label>
+</div>
+</details>
+<button class="ghost sm" id="fold-all">
+</button>
+<button class="ghost sm" id="hide-nav">
+</button>
+</div>
+<div id="tree-list">
+<div class="file active" data-fi="0">
+<span class="ic nf">
+</span>
+<span class="name">
+</span>
+<span class="cm nf live">
+</span>
+<span class="pm">
+<span class="a">
+</span>
+<span class="d">
+</span>
+</span>
+<span class="gs nf M">
+</span>
+</div>
+<div class="file " data-fi="1">
+<span class="ic nf">
+</span>
+<span class="name">
+</span>
+<span class="pm">
+<span class="a">
+</span>
+<span class="d">
+</span>
+</span>
+<span class="gs nf A">
+</span>
+</div>
+<div class="file " data-fi="2">
+<span class="ic nf">
+</span>
+<span class="name">
+</span>
+<span class="pm">
+<span class="a">
+</span>
+<span class="d">
+</span>
+</span>
+<span class="gs nf D">
+</span>
+</div>
+<div class="file " data-fi="3">
+<span class="ic nf">
+</span>
+<span class="name">
+</span>
+<span class="pm">
+<span class="a">
+</span>
+<span class="d">
+</span>
+</span>
+<span class="gs nf R">
+</span>
+</div>
+</div>
+</nav>
+<div class="sash l" id="sash-l">
+<button id="tog-l">
+</button>
+</div>
+<section id="mid">
+<div class="midbar" id="midbar">
+<button class="tab on" data-mid="code">
+<span class="n">
+<span>
+</span>
+</span>
+</button>
+<button class="tab " data-mid="diagrams">
+<span class="n">
+</span>
+</button>
+<button class="tab " data-mid="review">
+<span class="n">
+<span>
+</span>
+</span>
+</button>
+<span class="sp">
+</span>
+</div>
+<div class="diff" id="diff">
+<div class="file-block" id="f-0" data-fi="0">
+<div class="file-head" data-fi="0">
+<span class="tri">
+</span>
+<span class="st M">
+</span>
+<span class="path">
+<span class="dir">
+</span>
+</span>
+<span class="fsum">
+</span>
+<span class="pm">
+<b>
+</b>
+<b>
+</b>
+</span>
+</div>
+<table class="hunk" id="h-0-0" data-fi="0" data-hi="0">
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr class="hh" data-fi="0" data-hi="0">
+<td>
+<span class="hno noted">
+</span>
+<button class="sm hbtn" data-act="hunkc" data-fi="0" data-hi="0">
+</button>
+</td>
+</tr>
+<tr class="line add noted has-c rv-high rv-low" data-fi="0" data-hi="0" data-side="new" data-line="1" data-rv="r3">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-comment">
+</span>
+</td>
+</tr>
+<tr class="crow">
+<td>
+<div class="thread" data-id="c2">
+<div class="meta">
+<span class="av">
+</span>
+<span class="who">
+</span>
+<span class="chip replied">
+</span>
+<span class="chip">
+</span>
+<span>
+</span>
+<span class="hint">
+</span>
+</div>
+<div class="msg">
+</div>
+<div class="reply">
+<div class="meta">
+<span class="av agent">
+</span>
+<span class="who agent">
+</span>
+<span>
+</span>
+</div>
+<div class="msg">
+<p>
+</p>
+</div>
+</div>
+<div class="acts">
+<button class="sm" data-act="reply">
+</button>
+<button class="sm primary" data-act="resolve">
+</button>
+<button class="sm ghost" data-act="del">
+</button>
+</div>
+</div>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="2">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="3">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line del noted" data-fi="0" data-hi="0" data-side="old" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line add noted" data-fi="0" data-hi="0" data-side="new" data-line="5">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="6">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="7">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="0" data-side="new" data-line="8">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-comment">
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="hunk" id="h-0-1" data-fi="0" data-hi="1">
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr class="hh" data-fi="0" data-hi="1">
+<td>
+<span class="hno ">
+</span>
+<button class="sm hbtn" data-act="hunkc" data-fi="0" data-hi="1">
+</button>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="1" data-side="new" data-line="13">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-comment">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="1" data-side="new" data-line="14">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-comment">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="1" data-side="new" data-line="15">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="0" data-hi="1" data-side="old" data-line="15">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="0" data-hi="1" data-side="old" data-line="16">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="0" data-hi="1" data-side="new" data-line="16">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+<span class="hljs-type">
+</span>
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="0" data-hi="1" data-side="new" data-line="17">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="0" data-hi="1" data-side="new" data-line="18">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="file-block" id="f-1" data-fi="1">
+<div class="file-head" data-fi="1">
+<span class="tri">
+</span>
+<span class="st A">
+</span>
+<span class="path">
+<span class="dir">
+</span>
+</span>
+<span class="fsum">
+</span>
+<span class="pm">
+<b>
+</b>
+<b>
+</b>
+</span>
+</div>
+<table class="hunk" id="h-1-0" data-fi="1" data-hi="0">
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr class="hh" data-fi="1" data-hi="0">
+<td>
+<span class="hno ">
+</span>
+<button class="sm hbtn" data-act="hunkc" data-fi="1" data-hi="0">
+</button>
+</td>
+</tr>
+<tr class="line add" data-fi="1" data-hi="0" data-side="new" data-line="1">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="1" data-hi="0" data-side="new" data-line="2">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="1" data-hi="0" data-side="new" data-line="3">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="1" data-hi="0" data-side="new" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-literal">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="1" data-hi="0" data-side="new" data-line="5">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="file-block" id="f-2" data-fi="2">
+<div class="file-head" data-fi="2">
+<span class="tri">
+</span>
+<span class="st D">
+</span>
+<span class="path">
+<span class="dir">
+</span>
+</span>
+<span class="fsum">
+</span>
+<span class="pm">
+<b>
+</b>
+<b>
+</b>
+</span>
+</div>
+<table class="hunk" id="h-2-0" data-fi="2" data-hi="0">
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr class="hh" data-fi="2" data-hi="0">
+<td>
+<span class="hno ">
+</span>
+<button class="sm hbtn" data-act="hunkc" data-fi="2" data-hi="0">
+</button>
+</td>
+</tr>
+<tr class="line del" data-fi="2" data-hi="0" data-side="old" data-line="1">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="2" data-hi="0" data-side="old" data-line="2">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="2" data-hi="0" data-side="old" data-line="3">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="2" data-hi="0" data-side="old" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-string">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="2" data-hi="0" data-side="old" data-line="5">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="file-block" id="f-3" data-fi="3">
+<div class="file-head" data-fi="3">
+<span class="tri">
+</span>
+<span class="st R">
+</span>
+<span class="path">
+<span class="dir">
+</span>
+<span class="hint">
+</span>
+</span>
+<span class="fsum">
+</span>
+<span class="pm">
+<b>
+</b>
+<b>
+</b>
+</span>
+</div>
+<table class="hunk" id="h-3-0" data-fi="3" data-hi="0">
+<colgroup>
+<col>
+<col>
+<col>
+<col>
+</colgroup>
+<tbody>
+<tr class="hh" data-fi="3" data-hi="0">
+<td>
+<span class="hno ">
+</span>
+<button class="sm hbtn" data-act="hunkc" data-fi="3" data-hi="0">
+</button>
+</td>
+</tr>
+<tr class="line ctx" data-fi="3" data-hi="0" data-side="new" data-line="1">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="3" data-hi="0" data-side="new" data-line="2">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="3" data-hi="0" data-side="new" data-line="3">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-function">
+<span class="hljs-keyword">
+</span>
+<span class="hljs-title">
+</span>
+<span class="hljs-params">
+</span>
+</span>
+<span class="hljs-type">
+</span>
+</td>
+</tr>
+<tr class="line del" data-fi="3" data-hi="0" data-side="old" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line add" data-fi="3" data-hi="0" data-side="new" data-line="4">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+<span class="hljs-keyword">
+</span>
+<span class="hljs-number">
+</span>
+</td>
+</tr>
+<tr class="line ctx" data-fi="3" data-hi="0" data-side="new" data-line="5">
+<td class="num">
+</td>
+<td class="num">
+</td>
+<td class="gut">
+</td>
+<td class="code">
+<span class="m">
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="diagrams" id="diagrams">
+<figure class="dg" id="dg-auto-map" data-id="auto-map">
+<div class="dgh">
+<span class="t">
+</span>
+<span class="kind">
+</span>
+<button class="sm ghost" data-act="full">
+</button>
+</div>
+<div class="svgwrap">
+<img>
+</div>
+<figcaption>
+<p>
+<code>
+</code>
+</p>
+</figcaption>
+</figure>
+<figure class="dg" id="dg-flow" data-id="flow">
+<div class="dgh">
+<span class="t">
+</span>
+<span class="kind">
+</span>
+<span class="chip hk" data-ref="a.go#0">
+</span>
+<button class="sm ghost" data-act="src">
+</button>
+<button class="sm ghost" data-act="full">
+</button>
+</div>
+<div class="svgwrap">
+<img>
+</div>
+<figcaption>
+<p>
+</p>
+</figcaption>
+<pre class="src">
+</pre>
+</figure>
+<figure class="dg" id="dg-steps" data-id="steps">
+<div class="dgh">
+<span class="t">
+</span>
+<span class="kind">
+</span>
+<button class="sm ghost" data-act="src">
+</button>
+<button class="sm ghost" data-act="full">
+</button>
+</div>
+<div class="svgwrap">
+<img>
+</div>
+<figcaption>
+<p>
+</p>
+</figcaption>
+<pre class="src">
+</pre>
+</figure>
+</div>
+<div class="review" id="review">
+<div class="rv-head">
+<h2>
+</h2>
+<span class="chip">
+</span>
+<span class="hint">
+</span>
+<button class="sm" id="rv-again">
+</button>
+</div>
+<div id="rv-req">
+</div>
+<div class="rv-sum">
+<p>
+</p>
+</div>
+<h3>
+</h3>
+<ul class="rv-good">
+<li>
+</li>
+</ul>
+<div class="rv-sec">
+<span class="pr high">
+</span>
+<h3>
+</h3>
+<span class="cnt">
+</span>
+</div>
+<div class="rvi high open" id="rv-r1" data-id="r1">
+<div class="cb">
+</div>
+<div class="t">
+<span class="id">
+</span>
+</div>
+<span class="loc" data-id="r1">
+<span class="d">
+</span>
+<b>
+</b>
+<span class="d">
+</span>
+</span>
+<div class="snip">
+</div>
+<div class="body">
+<p>
+</p>
+</div>
+<div class="sug">
+<span class="k">
+</span>
+<p>
+</p>
+</div>
+<div class="acts">
+<button class="sm" data-act="done">
+</button>
+<button class="sm reject" data-act="wontfix">
+</button>
+<button class="sm ghost" data-act="note">
+</button>
+</div>
+</div>
+<div class="rv-sec">
+<span class="pr medium">
+</span>
+<h3>
+</h3>
+<span class="cnt">
+</span>
+</div>
+<div class="rvi medium open" id="rv-r2" data-id="r2">
+<div class="cb">
+</div>
+<div class="t">
+<span class="id">
+</span>
+</div>
+<span class="loc" data-id="r2">
+<span class="d">
+</span>
+</span>
+<div class="body">
+<p>
+</p>
+</div>
+<div class="acts">
+<button class="sm" data-act="done">
+</button>
+<button class="sm reject" data-act="wontfix">
+</button>
+<button class="sm ghost" data-act="note">
+</button>
+</div>
+</div>
+<div class="rv-sec">
+<span class="pr low">
+</span>
+<h3>
+</h3>
+<span class="cnt">
+</span>
+</div>
+<div class="rvi low open" id="rv-r3" data-id="r3">
+<div class="cb">
+</div>
+<div class="t">
+<span class="id">
+</span>
+</div>
+<span class="loc" data-id="r3">
+<span class="d">
+</span>
+<b>
+</b>
+<span class="d">
+</span>
+</span>
+<div class="snip">
+</div>
+<div class="body">
+<p>
+</p>
+</div>
+<div class="acts">
+<button class="sm" data-act="done">
+</button>
+<button class="sm reject" data-act="wontfix">
+</button>
+<button class="sm ghost" data-act="note">
+</button>
+</div>
+</div>
+</div>
+</section>
+<div class="sash r" id="sash-r">
+<button id="tog-r">
+</button>
+</div>
+<aside id="notes">
+<div class="tabs">
+<button class="tab on" data-tab="notes">
+</button>
+<button class="tab " data-tab="comments">
+<span class="n">
+</span>
+</button>
+<span class="sp">
+</span>
+<button class="ghost sm" id="hide-aside">
+</button>
+</div>
+<div class="gen">
+<h3>
+</h3>
+<button class="sm" id="gen-add">
+</button>
+</div>
+<h3>
+<span class="fname">
+</span>
+</h3>
+<div class="fsum-box">
+</div>
+<div class="card active" data-hi="0" data-lines="">
+<div class="head">
+<span class="hno">
+</span>
+<span class="t">
+</span>
+</div>
+<div class="chips">
+<span class="chip rng">
+</span>
+<span class="chip dgl" data-dg="flow">
+</span>
+</div>
+<div class="body">
+<p>
+</p>
+</div>
+<div class="acts">
+<button class="sm ghost" data-act="hunkc">
+</button>
+</div>
+</div>
+<div class="hint">
+<kbd>
+</kbd>
+<b>
+</b>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+</div>
+</aside>
+</main>
+<div class="toast" id="toast">
+</div>
+<div id="lb">
+<div class="lbbar">
+<span id="lb-title">
+</span>
+<span class="hint">
+<kbd>
+</kbd>
+<kbd>
+</kbd>
+</span>
+<button class="sm" id="lb-x">
+</button>
+</div>
+<div class="lbbody" id="lb-body">
+<img id="lb-img">
+</div>
+</div>
+<div id="dlg">
+<div class="box">
+<h3 class="t">
+</h3>
+<div class="m">
+</div>
+<textarea>
+</textarea>
+<div class="acts">
+<button class="cancel">
+</button>
+<button class="ok">
+</button>
+</div>
+</div>
+</div>
+<div id="offline">
+<code>
+</code>
+</div>
+</body>
+</html>

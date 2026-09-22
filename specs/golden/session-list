@@ -1,0 +1,3 @@
+daemon: ● http://127.0.0.1:<PORT>/
+* <SID>  [worktree] Uncommitted changes                       0 comments  repo
+      http://127.0.0.1:<PORT>/s/<SID>/

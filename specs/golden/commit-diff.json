@@ -1,0 +1,42 @@
+{
+ "files": [
+  {
+   "add": 2,
+   "binary": false,
+   "del": 0,
+   "hunks": [
+    {
+     "header": "@@ -1 +1,3 @@",
+     "lines": [
+      {
+       "n": 1,
+       "o": 1,
+       "s": "# fixture",
+       "t": " "
+      },
+      {
+       "n": 2,
+       "o": null,
+       "s": "",
+       "t": "+"
+      },
+      {
+       "n": 3,
+       "o": null,
+       "s": "second commit, so commit and range sessions have something to show.",
+       "t": "+"
+      }
+     ],
+     "new_count": 3,
+     "new_start": 1,
+     "old_count": 1,
+     "old_start": 1,
+     "section": ""
+    }
+   ],
+   "old_path": "README.md",
+   "path": "README.md",
+   "status": "M"
+  }
+ ]
+}

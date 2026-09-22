@@ -1,22 +1,14 @@
 #!/bin/sh
-# M4 half of the parity gate: review, context, diagram, and the two budgets
-# (binary size, dependency count).
+# M4 section: review (two rounds with the user ticking things off in between),
+# context, the embedded d2 engine, and the two budgets (binary size, deps).
 #
-# Sourced by parity.sh m4_after parity-m3.sh, which leaves both fixture sessions
-# in $FPS / $FGS and their state dirs in $FP / $FG.
+# Sourced by parity.sh, which leaves the fixture session in $SESS / $SID and its
+# state dir in $STATE.
 set -eu
 
-# ── review: two rounds, with the user ticking things off in between ──────────
-review_round() {   # review_round <state> <session dir> <json file> <runner...>
-    state=$1 sdir=$2 file=$3
-    shift 3
-    XDG_STATE_HOME=$state "$@" -s "$(basename "$sdir")" review set "$file" --author reviewer-A \
-        >"$state/review.$(basename "$file").out" 2>&1 || true
-}
-
 line=$(python3 -c 'import json,sys
-h = json.load(open(sys.argv[1]))["files"][0]["hunks"][0]
-print(next(l["n"] for l in h["lines"] if l["t"] == "+"))' "$FPS/diff.json")
+h = json.load(open(sys.argv[1] + "/diff.json"))["files"][0]["hunks"][0]
+print(next(l for l in h["lines"] if l["t"] == "+")["n"])' "$SESS")
 
 cat >"$WORK/r1.json" <<JSON
 {"summary":"first pass","strengths":["clear naming"],
@@ -34,93 +26,115 @@ cat >"$WORK/r2.json" <<JSON
           {"id":"r4","priority":"medium","title":"brand new finding","file":"a.go","body":"round two"}]}
 JSON
 
-review_flow() {   # review_flow <state> <session dir> <runner...>
-    state=$1 sdir=$2
-    shift 2
-    sid=$(basename "$sdir")
-    review_round "$state" "$sdir" "$WORK/r1.json" "$@"
-    XDG_STATE_HOME=$state "$@" -s "$sid" review done r1 "renamed the constant" --by user >/dev/null 2>&1 || true
-    XDG_STATE_HOME=$state "$@" -s "$sid" review wontfix r3 "style only" --by user >/dev/null 2>&1 || true
-    review_round "$state" "$sdir" "$WORK/r2.json" "$@"
-    XDG_STATE_HOME=$state "$@" -s "$sid" review md >"$state/review.md" 2>&1 || true
-}
+hud "$STATE" -s "$SID" review set "$WORK/r1.json" --author reviewer-A >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" review done r1 "renamed the constant" --by user >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" review wontfix r3 "style only" --by user >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" review set "$WORK/r2.json" --author reviewer-A >/dev/null 2>&1 || true
+hud "$STATE" -s "$SID" review md   >"$WORK/review.md"   2>&1 || true
+hud "$STATE" -s "$SID" review show >"$WORK/review.show" 2>&1 || true
 
-review_flow "$FP" "$FPS" $PY_ORACLE
-review_flow "$FG" "$FGS" $GO_BIN
-
-strip_review() {
-    python3 -c 'import json,sys
-rv = json.load(open(sys.argv[1]))
-rv.pop("updated", None)
-rv.pop("_merge", None)
-for r in rv.get("rounds", []):
-    r.pop("at", None)
-for it in rv.get("items", []):
-    it.pop("resolved_at", None)
-    for n in it.get("notes", []):
-        n.pop("ts", None)
-print(json.dumps(rv, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
-}
-strip_review "$FPS/review.json" >"$FP/review.norm"
-strip_review "$FGS/review.json" >"$FG/review.norm"
-same "review.json m4_after two rounds" "$FP/review.norm" "$FG/review.norm"
-same_norm "review md" md "$FP/review.md" "$FG/review.md"
+gold review.json  json "$SESS/review.json"
+gold review-md    mask "$WORK/review.md"
+gold review-show  mask "$WORK/review.show"
 
 # --replace throws the old report away, including the user's ticks.
-XDG_STATE_HOME=$FP $PY_ORACLE -s "$(basename "$FPS")" review set "$WORK/r1.json" --replace --author reviewer-A >/dev/null 2>&1 || true
-XDG_STATE_HOME=$FG $GO_BIN    -s "$(basename "$FGS")" review set "$WORK/r1.json" --replace --author reviewer-A >/dev/null 2>&1 || true
-strip_review "$FPS/review.json" >"$FP/replace.norm"
-strip_review "$FGS/review.json" >"$FG/replace.norm"
-same "review --replace" "$FP/replace.norm" "$FG/replace.norm"
+hud "$STATE" -s "$SID" review set "$WORK/r1.json" --replace --author reviewer-A >/dev/null 2>&1 || true
+gold review-replace.json json "$SESS/review.json"
 
 # ── context ─────────────────────────────────────────────────────────────────
-XDG_STATE_HOME=$FP $PY_ORACLE -s "$(basename "$FPS")" ctx     >"$FP/ctx.out" 2>&1 || true
-XDG_STATE_HOME=$FG $GO_BIN    -s "$(basename "$FGS")" context >"$FG/ctx.out" 2>&1 || true
-same_norm "context" context "$FP/ctx.out" "$FG/ctx.out"
+hud "$STATE" -s "$SID" context >"$WORK/context.out" 2>&1 || true
+gold context mask "$WORK/context.out"
 
-# ── diagram ─────────────────────────────────────────────────────────────────
-# The oracle lays out with dagre and we lay out with TALA, so the SVGs cannot
-# match byte for byte. Both must compile, and ours must carry every node label.
-XDG_STATE_HOME=$FP $PY_ORACLE -s "$(basename "$FPS")" diagram auto-map >"$FP/auto.svg" 2>"$FP/auto.err" || true
-XDG_STATE_HOME=$FG $GO_BIN    -s "$(basename "$FGS")" diagram auto-map >"$FG/auto.svg" 2>"$FG/auto.err" || true
-XDG_STATE_HOME=$FG $GO_BIN    -s "$(basename "$FGS")" diagram auto-map --src >"$FG/auto.d2" 2>/dev/null || true
-for side in "$FP" "$FG"; do
-    if head -c 5 "$side/auto.svg" | grep -q "<" && [ "$(wc -c <"$side/auto.svg")" -gt 500 ]; then
-        ok "auto-map renders ($(basename "$side"), $(wc -c <"$side/auto.svg" | tr -d ' ') bytes)"
+# ── diagrams ────────────────────────────────────────────────────────────────
+# The auto map is generated from repoctx, so its d2 source is the real output of
+# that pipeline: freezing the source catches a change no SVG byte count would.
+hud "$STATE" -s "$SID" diagram auto-map --src >"$WORK/auto.d2" 2>/dev/null || true
+gold auto-map-src mask "$WORK/auto.d2"
+
+for th in light dark; do
+    hud "$STATE" -s "$SID" diagram auto-map --theme "$th" >"$WORK/auto-$th.svg" 2>"$WORK/auto-$th.err" || true
+    if [ "$(wc -c <"$WORK/auto-$th.svg" | tr -d ' ')" -gt 500 ] && head -c 200 "$WORK/auto-$th.svg" | grep -q "<svg"; then
+        ok "auto-map renders ($th, $(wc -c <"$WORK/auto-$th.svg" | tr -d ' ') bytes)"
     else
-        bad "auto-map render ($side/auto.svg, $side/auto.err)"
+        bad "auto-map render $th  ($WORK/auto-$th.svg $WORK/auto-$th.err)"
     fi
 done
-if python3 "$ROOT/specs/parity-labels.py" "$FG/auto.svg" "$FG/auto.d2" 2>"$FG/label.err"; then
+if python3 "$ROOT/specs/parity-labels.py" "$WORK/auto-light.svg" "$WORK/auto.d2" 2>"$WORK/label.err"; then
     ok "auto-map SVG carries every node label"
 else
-    bad "auto-map labels  ($FG/label.err)"
+    bad "auto-map labels  ($WORK/label.err)"
 fi
 
 # Second render must come from the cache, not the compiler.
-m4_before=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
-XDG_STATE_HOME=$FG $GO_BIN -s "$(basename "$FGS")" diagram auto-map >/dev/null 2>&1 || true
-m4_after=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
-if [ "$m4_before" = "$m4_after" ] && [ "$m4_before" -gt 0 ]; then
-    ok "diagram cache hit on the second render ($m4_before file(s))"
+before=$(ls "$SESS/diagrams" 2>/dev/null | wc -l | tr -d ' ')
+hud "$STATE" -s "$SID" diagram auto-map >/dev/null 2>&1 || true
+after=$(ls "$SESS/diagrams" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$before" = "$after" ] && [ "$before" -gt 0 ]; then
+    ok "diagram cache hit on the second render ($before file(s))"
 else
-    bad "diagram cache: $m4_before → $m4_after files"
+    bad "diagram cache: $before → $after files"
 fi
 
-# ── notes rejects a d2 source that does not compile ─────────────────────────
+# ── notes: the agent's own diagrams, one of them multi-board ────────────────
+cat >"$WORK/notes.json" <<'JSON'
+{"title":"fixture","summary":"one file of every status",
+ "diagrams":[
+   {"id":"flow","title":"call flow","kind":"d2","caption":"who calls what","hunks":["a.go#0"],
+    "src":"alpha: {label: \"alpha() = 11\"}\nbeta: {label: \"beta() = 222\"}\nalpha -> beta: after\n"},
+   {"id":"steps","title":"request path","kind":"d2","caption":"two boards","hunks":[],
+    "src":"steps: {\n  1: {\n    client -> server: request\n  }\n  2: {\n    server -> db: query\n  }\n}\n"}],
+ "files":{"a.go":{"summary":"two constants bumped","hunks":{"0":{"title":"alpha","body":"why 11"}}}}}
+JSON
+if hud "$STATE" -s "$SID" notes "$WORK/notes.json" >"$WORK/notes.out" 2>&1; then
+    ok "notes accepts the agent's diagrams and compiles them"
+else
+    bad "notes rejected a valid file  ($WORK/notes.out)"
+fi
+hud "$STATE" -s "$SID" diagram list >"$WORK/diagram-list" 2>&1 || true
+gold diagram-list mask "$WORK/diagram-list"
+
+for id in flow steps; do
+    for th in light dark; do
+        hud "$STATE" -s "$SID" diagram "$id" --theme "$th" >"$WORK/dg-$id-$th.svg" 2>"$WORK/dg-$id-$th.err" || true
+        if [ "$(wc -c <"$WORK/dg-$id-$th.svg" | tr -d ' ')" -gt 500 ] && head -c 200 "$WORK/dg-$id-$th.svg" | grep -q "<svg"; then
+            ok "diagram $id renders ($th, $(wc -c <"$WORK/dg-$id-$th.svg" | tr -d ' ') bytes)"
+        else
+            bad "diagram $id $th  ($WORK/dg-$id-$th.svg $WORK/dg-$id-$th.err)"
+        fi
+    done
+done
+if grep -q 'alpha() = 11' "$WORK/dg-flow-light.svg" && grep -q 'beta() = 222' "$WORK/dg-flow-light.svg"; then
+    ok "the agent's labels reach the SVG"
+else
+    bad "labels missing from $WORK/dg-flow-light.svg"
+fi
+# A steps diagram is several boards stitched into one animated SVG (spec §7).
+if [ "$(grep -c '<svg' "$WORK/dg-steps-light.svg")" -gt 1 ] || grep -q 'animate\|@keyframes' "$WORK/dg-steps-light.svg"; then
+    ok "a steps diagram renders as an animated multi-board SVG"
+else
+    bad "steps rendered as a single static board  ($WORK/dg-steps-light.svg)"
+fi
+
+# ── notes is a trust boundary: bad input is rejected, with the reason ────────
 printf '{"diagrams":[{"id":"bad","title":"broken","kind":"d2","src":"a -> : {{{"}]}' >"$WORK/bad.json"
-if ! XDG_STATE_HOME=$FG $GO_BIN -s "$(basename "$FGS")" notes "$WORK/bad.json" >"$FG/notes.out" 2>"$FG/notes.err"; then
-    if grep -q "d2 failed to compile" "$FG/notes.err" && [ "$(wc -c <"$FG/notes.err")" -gt 40 ]; then
+if ! hud "$STATE" -s "$SID" notes "$WORK/bad.json" >"$WORK/notes-bad.out" 2>"$WORK/notes-bad.err"; then
+    if grep -q "d2 failed to compile" "$WORK/notes-bad.err" && [ "$(wc -c <"$WORK/notes-bad.err")" -gt 40 ]; then
         ok "notes rejects a broken d2 source with the compiler's message"
     else
-        bad "notes d2 rejection message  ($FG/notes.err)"
+        bad "notes d2 rejection message  ($WORK/notes-bad.err)"
     fi
 else
     bad "notes accepted a broken d2 source"
 fi
+printf '{"files":{"a.go":{"hunks":{"99":{"title":"nowhere"}}}}}' >"$WORK/schema.json"
+if ! hud "$STATE" -s "$SID" notes "$WORK/schema.json" >"$WORK/notes-schema.out" 2>"$WORK/notes-schema.err"; then
+    ok "notes rejects a hunk number the diff does not have"
+else
+    bad "notes accepted a note on a hunk that does not exist"
+fi
 
 # ── budgets ─────────────────────────────────────────────────────────────────
-go build -ldflags "-s -w" -o "$WORK/stripped" "$ROOT"
+go build -trimpath -ldflags "-s -w" -o "$WORK/stripped" "$ROOT"
 bytes=$(wc -c <"$WORK/stripped" | tr -d ' ')
 mods=$(grep -c ' v[0-9]' "$ROOT/go.mod" || true)
 if [ "$bytes" -le 33554432 ]; then

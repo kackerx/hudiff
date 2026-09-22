@@ -1,0 +1,16 @@
+[
+ {
+  "body": "why 11?",
+  "created": "<TS>",
+  "file": "a.go",
+  "hunk": 0,
+  "id": "c1",
+  "line": 5,
+  "replies": [],
+  "side": "new",
+  "snippet": "\treturn 11",
+  "stale": false,
+  "status": "open",
+  "target": "line"
+ }
+]

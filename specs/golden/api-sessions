@@ -1,0 +1,26 @@
+{
+ "port": <N>,
+ "sessions": [
+  {
+   "add": 9,
+   "archived": false,
+   "authors": {},
+   "comments": 0,
+   "counts": {},
+   "created": "<TS>",
+   "del_": 9,
+   "files": 4,
+   "id": "<SID>",
+   "kind": "worktree",
+   "meta": {
+    "base": "<SHA>",
+    "branch": "main",
+    "scope": "worktree"
+   },
+   "noted": true,
+   "repo": "<TMP>/repo",
+   "title": "fixture",
+   "waiting": false
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "author": "reviewer-A",
+ "items": [
+  {
+   "body": "why 11",
+   "file": "a.go",
+   "hunk": 0,
+   "id": "r1",
+   "line": 1,
+   "priority": "high",
+   "round": 1,
+   "side": "new",
+   "snippet": "// a new line pushes every hunk down",
+   "status": "open",
+   "suggestion": "name it",
+   "title": "magic number"
+  },
+  {
+   "body": "add one",
+   "file": "a.go",
+   "id": "r2",
+   "priority": "medium",
+   "round": 1,
+   "status": "open",
+   "suggestion": "",
+   "title": "no test"
+  },
+  {
+   "body": "nit",
+   "file": "a.go",
+   "hunk": 0,
+   "id": "r3",
+   "line": 1,
+   "priority": "low",
+   "round": 1,
+   "side": "new",
+   "snippet": "// a new line pushes every hunk down",
+   "status": "open",
+   "suggestion": "",
+   "title": "comment wording"
+  }
+ ],
+ "rounds": [
+  {
+   "added": 3,
+   "at": "<TS>",
+   "author": "reviewer-A",
+   "round": 1,
+   "strengths": [
+    "clear naming"
+   ],
+   "summary": "first pass"
+  }
+ ],
+ "strengths": [
+  "clear naming"
+ ],
+ "summary": "first pass",
+ "updated": "<TS>"
+}

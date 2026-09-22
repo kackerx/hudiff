@@ -1,0 +1,28 @@
+# hudiff session <SID>: repo-level context  (<TMP>/repo)
+# Read this before writing notes: callers tell you the blast radius, recent history is often the reason for the change, tests tell you whether it is covered.
+
+=== a.go  [M]  +4 -3
+recent history:
+  <SHA> 2026-09-22 p  base
+symbols: ~beta(#1)
+references (outside the changed files):
+  beta: 1 hits
+      user.go:4  return alpha() + beta() + moved() + len(gone())
+related tests: none found  ⚠ this change has no test coverage (or the tests are named unusually)
+
+=== added.go  [A]  +5 -0
+symbols: +fresh(#0)
+references (outside the changed files):
+  fresh: 0  (new symbol, no callers yet)
+related tests: none found  ⚠ this change has no test coverage (or the tests are named unusually)
+
+=== gone.go  [D]  +0 -5
+recent history:
+  <SHA> 2026-09-22 p  base
+symbols: -gone(#0)
+references (outside the changed files):
+  gone: 1 hits  (⚠ the symbol was removed but is still referenced)
+      user.go:4  return alpha() + beta() + moved() + len(gone())
+
+=== new_name.go  [R]  +1 -1
+related tests: none found  ⚠ this change has no test coverage (or the tests are named unusually)

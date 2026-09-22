@@ -1,0 +1,105 @@
+{
+ "_merge": {
+  "added": 1,
+  "kept": 3,
+  "noted": 1,
+  "round": 2,
+  "updated": 2
+ },
+ "author": "reviewer-A",
+ "items": [
+  {
+   "body": "still magic",
+   "file": "a.go",
+   "hunk": 0,
+   "id": "r1",
+   "line": 1,
+   "priority": "high",
+   "resolution": "renamed the constant",
+   "resolved_at": "<TS>",
+   "resolved_by": "user",
+   "round": 1,
+   "side": "new",
+   "snippet": "// a new line pushes every hunk down",
+   "status": "done",
+   "suggestion": "name it properly",
+   "title": "magic number"
+  },
+  {
+   "body": "add one",
+   "file": "a.go",
+   "id": "r2",
+   "notes": [
+    {
+     "body": "checked, the test landed",
+     "round": 2,
+     "ts": "<TS>",
+     "verdict": "ok",
+     "who": "reviewer-A"
+    }
+   ],
+   "priority": "medium",
+   "round": 1,
+   "status": "open",
+   "suggestion": "",
+   "title": "no test"
+  },
+  {
+   "body": "same spot, renumbered",
+   "file": "a.go",
+   "hunk": 0,
+   "id": "r3",
+   "line": 1,
+   "priority": "low",
+   "resolution": "style only",
+   "resolved_at": "<TS>",
+   "resolved_by": "user",
+   "round": 1,
+   "side": "new",
+   "snippet": "// a new line pushes every hunk down",
+   "status": "wontfix",
+   "suggestion": "",
+   "title": "comment wording"
+  },
+  {
+   "body": "round two",
+   "file": "a.go",
+   "id": "r4",
+   "priority": "medium",
+   "round": 2,
+   "status": "open",
+   "suggestion": "",
+   "title": "brand new finding"
+  }
+ ],
+ "rounds": [
+  {
+   "added": 3,
+   "at": "<TS>",
+   "author": "reviewer-A",
+   "round": 1,
+   "strengths": [
+    "clear naming"
+   ],
+   "summary": "first pass"
+  },
+  {
+   "added": 1,
+   "at": "<TS>",
+   "author": "reviewer-A",
+   "round": 2,
+   "strengths": [
+    "clear naming",
+    "tests added"
+   ],
+   "summary": "second pass",
+   "updated": 2
+  }
+ ],
+ "strengths": [
+  "clear naming",
+  "tests added"
+ ],
+ "summary": "second pass",
+ "updated": "<TS>"
+}

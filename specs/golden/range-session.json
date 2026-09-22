@@ -1,0 +1,22 @@
+{
+ "brief": null,
+ "created": "<TS>",
+ "id": "<SID>",
+ "key": "range:<TMP>/repo:HEAD~1..HEAD",
+ "kind": "range",
+ "meta": {
+  "base": "HEAD~1",
+  "branch": "main",
+  "head": "HEAD"
+ },
+ "opener": {
+  "agent_session": "<SHA>-b0dd-4130-be29-<SHA>",
+  "cwd": "<TMP>/repo"
+ },
+ "refresh": [
+  "HEAD~1..HEAD"
+ ],
+ "repo": "<TMP>/repo",
+ "submit_seq": 0,
+ "title": "HEAD~1..HEAD"
+}

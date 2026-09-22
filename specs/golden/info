@@ -1,0 +1,52 @@
+{
+ "archived": false,
+ "brief": null,
+ "comments": 0,
+ "comments_pending": 0,
+ "diagrams": 0,
+ "dir": "<TMP>/hudiff/sessions/<SID>",
+ "files": [
+  {
+   "add": 3,
+   "del": 3,
+   "hunks": 2,
+   "path": "a.go",
+   "status": "M"
+  },
+  {
+   "add": 5,
+   "del": 0,
+   "hunks": 1,
+   "path": "added.go",
+   "status": "A"
+  },
+  {
+   "add": 0,
+   "del": 5,
+   "hunks": 1,
+   "path": "gone.go",
+   "status": "D"
+  },
+  {
+   "add": 1,
+   "del": 1,
+   "hunks": 1,
+   "path": "new_name.go",
+   "status": "R"
+  }
+ ],
+ "hunks_noted": 2,
+ "hunks_total": 5,
+ "kind": "worktree",
+ "meta": {
+  "base": "<SHA>",
+  "branch": "main",
+  "scope": "worktree"
+ },
+ "repo": "<TMP>/repo",
+ "review_items": 0,
+ "review_open": 0,
+ "session": "<SID>",
+ "title": "fixture",
+ "url": "http://127.0.0.1:<PORT>/s/<SID>/"
+}

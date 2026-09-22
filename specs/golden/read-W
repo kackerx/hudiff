@@ -1,0 +1,65 @@
+# hudiff session <SID>: Uncommitted changes  [worktree]
+# Every hunk is tagged [path#n]; use n as the key in notes.json. The two number columns are old | new.
+# Mark after the number: ✓ noted  · explicitly needs no note (null)  blank = not written yet
+# Lines starting with ~ are extra context from the new file, not part of the diff; they only show the enclosing block.
+
+=== a.go  [M]  +3 -3
+--- [a.go#0] ✓ @@ -1,7 +1,7 @@
+  1   1  package main
+  2   2  
+  3   3  func alpha() int {
+  4     -	return 1
+      4 +	return 11
+  5   5  }
+  6   6  
+  7   7  // the spacer keeps alpha and beta in separate hunks, so `read` has a hunk that
+      8 ~// is explicitly marked "needs no note" next to one that carries a note
+      9 ~// 3
+     10 ~// 4
+     11 ~// 5
+     12 ~// 6
+     13 ~// 7
+--- [a.go#1] · @@ -12,6 +12,6 @@ func alpha() int {
+      3 ~func alpha() int {
+      4 ~	return 11
+      5 ~}
+      6 ~
+      7 ~// the spacer keeps alpha and beta in separate hunks, so `read` has a hunk that
+      8 ~// is explicitly marked "needs no note" next to one that carries a note
+      9 ~// 3
+     10 ~// 4
+     11 ~// 5
+ 12  12  // 6
+ 13  13  // 7
+ 14  14  
+ 15     -func beta() int {
+ 16     -	return 2
+     15 +func beta(n int) int {
+     16 +	return 22
+ 17  17  }
+
+=== added.go  [A]  +5 -0
+--- [added.go#0]   @@ -0,0 +1,5 @@
+      1 +package main
+      2 +
+      3 +func fresh() bool {
+      4 +	return true
+      5 +}
+
+=== gone.go  [D]  +0 -5
+    (cannot read the new file; only the diff's own context is shown)
+--- [gone.go#0]   @@ -1,5 +0,0 @@
+  1     -package main
+  2     -
+  3     -func gone() string {
+  4     -	return "removed"
+  5     -}
+
+=== new_name.go (was old_name.go)  [R]  +1 -1
+--- [new_name.go#0]   @@ -1,5 +1,5 @@
+  1   1  package main
+  2   2  
+  3   3  func moved() int {
+  4     -	return 7
+      4 +	return 8
+  5   5  }
