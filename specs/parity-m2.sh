@@ -30,11 +30,17 @@ sweep_states() {
     rm -f "$STATES"
 }
 
+# Allowed to differ, with reasons:
+#   id / created   new session each run
+#   opener         spec §8.1 dropped tmux_pane + ppid, renamed claude_session
+#   diagram_engine spec §7 (2026-09-22) defaults to mermaid; the oracle predates
+#                  the field and writes nothing
 strip_session() {
     python3 -c 'import json,sys
 d = json.load(open(sys.argv[1]))
 for k in ("id", "created", "opener"):
     d.pop(k, None)
+d.get("meta", {}).pop("diagram_engine", None)
 print(json.dumps(d, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
 }
 
