@@ -56,6 +56,7 @@ try{ S.theme = localStorage.getItem('hudiff.theme') || 'auto'; }catch(e){}
 S.tab = LS.get('tab', 'notes');
 S.mid = LS.get('mid', 'code'); { const v=new URLSearchParams(location.search).get('view'); if(v==='code'||v==='diagrams'||v==='review') S.mid=v; } { const t=new URLSearchParams(location.search).get('tab'); if(t==='notes'||t==='comments') S.tab=t; }   // ?tab=comments preselects
 S.sumOpen = LS.get('sum.'+location.pathname.split('/')[2], false);
+S.rvSumOpen = LS.get('rvsum.'+location.pathname.split('/')[2], true);
 
 // ── Side panes: drag to resize, fold, remembered in localStorage ──
 function setupSash(){
@@ -463,8 +464,9 @@ function renderReview(){
   const c=rvCounts(); const items=rv.items||[];
   const rounds=rv.rounds||[];
   let html=`<div class="rv-head"><h2>Review report</h2><span class="chip">${esc(rv.author||'reviewer')}</span>${rounds.length>1?`<span class="chip">${rounds.length} rounds</span>`:''}<span class="hint">${esc((rv.updated||'').slice(0,16).replace('T',' '))} · ${c.open} open · ${c.done} handled · ${c.wontfix} wontfix</span><button class="sm" id="rv-again">↻ Review again</button></div><div id="rv-req" style="display:none"></div>`;
-  if(rounds.length>1){ html+=`<div class="rv-sum">${rounds.map(r=>`<div class="rnd"><span class="chip">round ${r.round}</span> <span class="hint">${esc(r.author||'')} ${esc(String(r.at||'').slice(5,16).replace('T',' '))} · added ${r.added||0} items</span><div>${md(r.summary||'')}</div></div>`).join('')}</div>`; }
-  else if(rv.summary) html+=`<div class="rv-sum">${md(rv.summary)}</div>`;
+  const sumTog=`<span class="tog">${S.rvSumOpen?'collapse ▴':'expand ▾'}</span>`;
+  if(rounds.length>1){ html+=`<div class="rv-sum ${S.rvSumOpen?'':'collapsed'}" id="rv-sum"><div class="body">${rounds.map(r=>`<div class="rnd"><span class="chip">round ${r.round}</span> <span class="hint">${esc(r.author||'')} ${esc(String(r.at||'').slice(5,16).replace('T',' '))} · added ${r.added||0} items</span><div>${md(r.summary||'')}</div></div>`).join('')}</div>${sumTog}</div>`; }
+  else if(rv.summary) html+=`<div class="rv-sum ${S.rvSumOpen?'':'collapsed'}" id="rv-sum"><div class="body">${md(rv.summary)}</div>${sumTog}</div>`;
   if((rv.strengths||[]).length) html+=`<h3 style="font-size:12px;color:var(--fg2);margin:0 0 4px">Strengths</h3><ul class="rv-good">${rv.strengths.map(x=>`<li>${inline(x)}</li>`).join('')}</ul>`;
   ['high','medium','low'].forEach(pr=>{
     const its=items.filter(it=>it.priority===pr); if(!its.length) return;
@@ -486,6 +488,11 @@ function renderReview(){
   });
   $('#review').innerHTML=html;
   $('#rv-again').onclick=()=>{ const box=$('#rv-req'); if(box.style.display==='none'){ box.style.display=''; renderReviewRequest(box, false); } else box.style.display='none'; };
+  const sum=$('#rv-sum');
+  if(sum) sum.onclick = e => { if(e.target.closest('a')) return;
+    S.rvSumOpen=!S.rvSumOpen; LS.set('rvsum.'+S.data.session.id, S.rvSumOpen);
+    sum.classList.toggle('collapsed', !S.rvSumOpen);
+    sum.querySelector('.tog').textContent = S.rvSumOpen?'collapse ▴':'expand ▾'; };
   const act=async(id,st)=>{ let text=''; if(st!=='open'){ text=await dlg.prompt(st==='done'?'Mark handled':'Mark this wontfix', st==='done'?'One line on what you did (optional):':'One line on why not (optional):', {ok:st==='done'?'handled':'wontfix', danger:st==='wontfix', placeholder:'optional'}); if(text===null) return; } await api('PATCH','/api/review/'+id,{status:st,resolution:text,by:'user'}); await refreshReview(); };
   $('#review').querySelectorAll('.rvi').forEach(el=>{
     const id=el.dataset.id; const it=items.find(x=>x.id===id);
