@@ -188,7 +188,7 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
 ## 7. 图解引擎
 
 **只有 d2, 以 Go 库内嵌**(2026-09-22 拍板, 用户定)。不装任何二进制, daemon 进程内渲染。
-只 import `d2lib` / `d2renderers/d2svg` / `d2renderers/d2animate` / `d2layouts/d2talalayout` /
+只 import `d2lib` / `d2renderers/d2svg` / `d2layouts/d2talalayout` /
 `d2themes/d2themescatalog` / `lib/textmeasure` / `lib/log`(加 `d2graph`、`d2target` 两个类型包);
 **不嵌 dagre / ELK**, `LayoutResolver` 恒返回 `d2talalayout.DefaultLayout`。d2 只允许出现在
 `internal/diagram` 一个包里, `specs/parity-m4.sh` 有 `go list -deps` 断言守着。
@@ -198,8 +198,13 @@ daemon 把合并后的 keymap 放进 `/api/config`, 页面启动时取; 焦点�
   agent 图写 `class: added` 会被 d2 静默忽略)。glob 作用到所有层级和所有 board(含 steps), agent 自己写的 `style.*` 会覆盖它。
   序言算进 SVG 缓存键。SKILL 规定 agent 只用这四个 class 上色。
 - **缓存**: `hash(theme, sketch, 序言, src)` → `<session>/diagrams/<key>.svg`。
-- **多板**(steps / layers / scenarios): 看编译后的 `diagram.Steps/Layers/Scenarios`, 走
-  `d2svg.RenderMultiboard` + `d2animate.Wrap(1400ms)`, 对应 Python 版的 `--animate-interval`。
+- **多板**(steps / layers / scenarios): 看编译后的 `diagram.Steps/Layers/Scenarios`, **每板一张静态 SVG**, 页面同一卡片里纵向堆叠,
+  板上方一行小标题(Step 1 / Step 2 或 layer 的 key)。**不再用 d2animate 做板间动画**(2026-09-22 用户: 两板内容几乎一样却来回跳,
+  "动画只要线流动就好")—— 唯一允许的动画是边的 `style.animated: true`。缓存键带板名。
+- **尺寸**: 页面按 SVG 固有尺寸显示, `max-width:100%` 只缩不放, `max-height` ≈ 60vh, 要看大用 Zoom。daemon 渲染后把 viewBox 宽高
+  写到外层 `<svg>` 的 width/height 上(d2 输出的外层只有 viewBox, 浏览器当 `<img>` 时拿不到固有尺寸会撑满容器 —— 8d50 会话里
+  202×419 的 auto-map 被拉成整卡宽就是这个原因)。
+- **auto-map 排版**: 没有边的孤立文件容器放进 `grid-columns: 3` 的隐形容器里排成网格, 不让 TALA 竖着堆成一列。
 - **sketch**: `config.diagram.sketch`(bool, 默认 false)→ `d2svg.RenderOpts.Sketch`。
 - **主题**: light → theme 0(NeutralDefault), dark → theme 200(DarkMauve), 沿用 Python 版的映射。
 - **`notes` 写入时真编译**, 编不过 400 并把 d2 的错误原文给 agent。
@@ -310,3 +315,5 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
     投递仍不做(可选适配器待定)
 14. (2026-09-22) 投递适配器链 tmux → kitty → cmux → 复制, 零配置自动检测, 结果必须可见一致; 不做 Stop hook, 不做 Ghostty 原生(无公开 API)
 15. (2026-09-22) picker 交互回到 Python 第一版: split 按钮(主按钮 + ▾), 列表全机器分 "This repo / Other" 两组, review 面板同列表点行即请求
+16. (2026-09-22) 图解效果: 不放大(外层 svg 补 width/height)、steps 改静态分板不做板间动画、auto-map 孤立节点走网格;
+    SKILL 约束: 优先一张 board, 改前/改后用同图两个容器不用 steps, 节点标签 ≤ 3 行、一图 ≤ 12 节点
