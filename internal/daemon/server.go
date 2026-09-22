@@ -137,6 +137,7 @@ func (s *server) withSession(h sessionHandler) http.HandlerFunc {
 		dir := session.Dir(sid)
 		st, err := os.Stat(dir)
 		if !sidRe.MatchString(sid) || err != nil || !st.IsDir() {
+			// Page text stays Chinese until M5 rewrites the whole UI.
 			sendHTML(w, 404, []byte(fmt.Sprintf("<h3>会话 %s 不存在</h3><a href='/'>← 全部会话</a>", sid)))
 			return
 		}

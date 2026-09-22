@@ -5,6 +5,11 @@
 #
 #   specs/parity.sh [-s <session-id>] [--no-shots] [--keep-go]
 #
+# The Go CLI is English and the oracle is Chinese, so `read` and `session list`
+# go through specs/parity-normalize.py first. It collapses exactly the header
+# lines and label words to shared tokens — the diff body, hunk tags, line
+# numbers, counts, ids and repos are still compared byte for byte.
+#
 # The two daemons share server.json, so they take turns: the script captures
 # the Python side, swaps in the Go daemon, captures again, and puts the Python
 # daemon back before it exits (--keep-go leaves the Go one running).
@@ -47,6 +52,14 @@ same() {   # same <label> <a> <b>
     else
         bad "$1  ($WORK/$1.diff, $(wc -l <"$WORK/$1.diff" | tr -d ' ') lines)"
     fi
+}
+
+# same_norm <label> <mode> <a> <b> — compare after collapsing the wordings that
+# are allowed to differ (see specs/parity-normalize.py; nothing else is let through).
+same_norm() {
+    python3 "$ROOT/specs/parity-normalize.py" "$2" "$3" >"$3.norm"
+    python3 "$ROOT/specs/parity-normalize.py" "$2" "$4" >"$4.norm"
+    same "$1" "$3.norm" "$4.norm"
 }
 
 same_json() {
@@ -117,10 +130,10 @@ grab go "$P"
 
 # ── Compare ──────────────────────────────────────────────────────────────────
 echo "session $SID"
-same      read            "$WORK/py.read"          "$WORK/go.read"
-same      read-W          "$WORK/py.read-W"        "$WORK/go.read-W"
-same      read-U3         "$WORK/py.read-U3"       "$WORK/go.read-U3"
-same      session-list    "$WORK/py.ls"            "$WORK/go.ls"
+same_norm read         read "$WORK/py.read"          "$WORK/go.read"
+same_norm read-W       read "$WORK/py.read-W"        "$WORK/go.read-W"
+same_norm read-U3      read "$WORK/py.read-U3"       "$WORK/go.read-U3"
+same_norm session-list list "$WORK/py.ls"            "$WORK/go.ls"
 same_json info            "$WORK/py.info"          "$WORK/go.info"
 same_json api-session     "$WORK/py.api-session"   "$WORK/go.api-session"
 same_json api-sessions    "$WORK/py.api-sessions"  "$WORK/go.api-sessions"

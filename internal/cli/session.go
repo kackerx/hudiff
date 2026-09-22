@@ -32,7 +32,7 @@ func (c *SessionListCmd) Run(g *Globals) error {
 	fmt.Println(daemon.StatusLine())
 	ids, err := sessionIDs()
 	if err != nil || len(ids) == 0 {
-		fmt.Println("(没有会话)")
+		fmt.Println("(no sessions)")
 		return nil
 	}
 	cur := currentID()
@@ -52,7 +52,7 @@ func (c *SessionListCmd) Run(g *Globals) error {
 		}
 	}
 	if hidden > 0 {
-		fmt.Printf("(另有 %d 个已归档, --all 查看)\n", hidden)
+		fmt.Printf("(%d more archived; --all to see them)\n", hidden)
 	}
 	return nil
 }
@@ -71,12 +71,12 @@ func sessionRowLine(sess *session.Session, cur string) string {
 	}
 	tail := ""
 	if sent > 0 {
-		tail = fmt.Sprintf("  %d 条待处理", sent)
+		tail = fmt.Sprintf("  %d pending", sent)
 	}
 	if sess.IsArchived() {
-		tail += "  [已归档]"
+		tail += "  [archived]"
 	}
-	return fmt.Sprintf("%s %s  [%s] %s  %d 条评论%s  %s",
+	return fmt.Sprintf("%s %s  [%s] %s  %d comments%s  %s",
 		mark, sess.ID, sess.Kind, padRunes(sess.Title, 40), len(cs), tail, filepath.Base(sess.Repo))
 }
 
@@ -158,7 +158,7 @@ func (c *SessionInfoCmd) Run(g *Globals) error {
 		return err
 	}
 	if !c.JSON {
-		fmt.Printf("%s  %s  [%s]\n  %s\n  %s\n  %d 个文件  %d/%d hunk 有说明  %d 条评论(%d 待处理)\n",
+		fmt.Printf("%s  %s  [%s]\n  %s\n  %s\n  %d files  %d/%d hunks noted  %d comments (%d pending)\n",
 			out.Session, out.Title, out.Kind, out.URL, out.Dir,
 			len(out.Files), out.HunksNoted, out.HunksTotal, out.Comments, out.CommentsPending)
 		return nil

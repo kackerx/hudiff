@@ -42,25 +42,25 @@ func (c *ReadCmd) Run(g *Globals) error {
 }
 
 func (c *ReadCmd) header(out *strings.Builder, sid string, sess *session.Session) {
-	fmt.Fprintf(out, "# hudiff 会话 %s: %s  [%s]\n", sid, sess.Title, sess.Kind)
-	out.WriteString("# 每个 hunk 标着 [路径#序号], 写 notes.json 时用这个序号做 key。行号两列 = 旧版 | 新版。\n")
-	out.WriteString("# 序号后的标记: ✓ 已有说明  · 已标记为无需说明(null)  空 = 还没写\n")
+	fmt.Fprintf(out, "# hudiff session %s: %s  [%s]\n", sid, sess.Title, sess.Kind)
+	out.WriteString("# Every hunk is tagged [path#n]; use n as the key in notes.json. The two number columns are old | new.\n")
+	out.WriteString("# Mark after the number: ✓ noted  · explicitly needs no note (null)  blank = not written yet\n")
 	if c.padding() {
-		out.WriteString("# 行首 ~ 的是补充上下文(新版文件里的原文, 不属于 diff), 只为看清所在函数/块。\n")
+		out.WriteString("# Lines starting with ~ are extra context from the new file, not part of the diff; they only show the enclosing block.\n")
 	}
 	b := sess.Brief
 	if b == nil || (len(b.Presets) == 0 && b.Prompt == "" && len(b.Context) == 0) {
 		return
 	}
-	out.WriteString("\n## 审查要求(用户给的, 写说明时照这个来)\n")
+	out.WriteString("\n## Review request (from the user; write the notes to match)\n")
 	for _, p := range b.Presets {
-		fmt.Fprintf(out, "### 预设 %s\n%s\n", p.Path, p.Text)
+		fmt.Fprintf(out, "### Preset %s\n%s\n", p.Path, p.Text)
 	}
 	if b.Prompt != "" {
-		fmt.Fprintf(out, "### 本次\n%s\n", b.Prompt)
+		fmt.Fprintf(out, "### This time\n%s\n", b.Prompt)
 	}
 	if len(b.Context) > 0 {
-		out.WriteString("### 上下文文件(先读)\n")
+		out.WriteString("### Context files (read these first)\n")
 		for i, p := range b.Context {
 			if i > 0 {
 				out.WriteString("\n")
@@ -76,7 +76,7 @@ func (c *ReadCmd) padding() bool { return c.Func || c.Unified != 0 }
 func (c *ReadCmd) file(out *strings.Builder, sess *session.Session, notes diff.Notes, f diff.File) {
 	ren := ""
 	if f.Status == "R" {
-		ren = " (原 " + f.OldPath + ")"
+		ren = " (was " + f.OldPath + ")"
 	}
 	bin := ""
 	if f.Binary {
@@ -88,7 +88,7 @@ func (c *ReadCmd) file(out *strings.Builder, sess *session.Session, notes diff.N
 	if c.padding() {
 		_, newLines = fileVersions(sess, f.Path, f.OldPath)
 		if newLines == nil {
-			out.WriteString("    (取不到新版全文, 只能看 diff 自带的上下文)\n")
+			out.WriteString("    (cannot read the new file; only the diff's own context is shown)\n")
 		}
 	}
 	w := numWidth(f, newLines)

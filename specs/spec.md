@@ -219,6 +219,9 @@ HTTP API 前缀 `/s/{sid}/api/`: `session(GET)`, `state`, `wait`, `submit(POST)`
 **删掉** `/api/agents`、`/api/notify`、`/api/review-request` 的投递部分(改为返回要粘贴的命令 + 触发 hook)。
 
 `hudiff read` 的文本格式逐字保留(`=== path [M] +a -b` / `--- [path#n] ✓ @@…` / 双列行号), 只把中文注释行换成英文。
+CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标签、错误信息)**M1-fix 起已全英文**;
+页面 UI、`/api/session` 里的图解标题与说明、d2 节点标签仍是中文, 跟着 M5 的英文化一起改 —— 它们被
+像素 parity 和 SVG 字节 parity 保护着, 单独改会破契约。
 
 ## 9. 前端改动清单(在拆文件之外)
 

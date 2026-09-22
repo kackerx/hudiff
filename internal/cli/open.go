@@ -35,7 +35,7 @@ func (c *OpenCmd) Run(g *Globals) error {
 	fmt.Println(url)
 	if !c.NoOpen {
 		if err := browser.Open(url); err != nil {
-			fmt.Fprintf(os.Stderr, "hudiff: 打不开浏览器: %v\n", err)
+			fmt.Fprintf(os.Stderr, "hudiff: cannot open a browser: %v\n", err)
 		}
 	}
 	return nil
@@ -62,7 +62,7 @@ func (c *OpenCmd) resolve(g *Globals) (string, error) {
 func matchPrefix(prefix string) (string, error) {
 	ids, err := sessionIDs()
 	if err != nil {
-		return "", usage("会话不存在: %s", prefix)
+		return "", usage("no such session: %s", prefix)
 	}
 	var hits []string
 	for _, id := range ids {
@@ -72,9 +72,9 @@ func matchPrefix(prefix string) (string, error) {
 	}
 	switch len(hits) {
 	case 0:
-		return "", usage("会话不存在: %s", prefix)
+		return "", usage("no such session: %s", prefix)
 	case 1:
 		return hits[0], nil
 	}
-	return "", usage("会话前缀 %s 匹配到多个: %s", prefix, strings.Join(hits, ", "))
+	return "", usage("session prefix %s matches several: %s", prefix, strings.Join(hits, ", "))
 }

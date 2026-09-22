@@ -18,6 +18,9 @@ import (
 	"github.com/kackerx/hudiff/internal/diff"
 )
 
+// The strings below are page-visible and byte-compared against the oracle
+// (diagram titles land in /api/session, the labels land in the d2 source and
+// therefore in the SVG cache key). They turn English in M5 with the page.
 const autoMapCaption = "文件 → 本次新增(绿)/删除(红)/改动(黄)的符号 → 改动文件之外的引用方。" +
 	"红线 = 符号被删了但别处还在引用。由 `hudiff ctx` 的数据自动生成, 不是 agent 画的。"
 

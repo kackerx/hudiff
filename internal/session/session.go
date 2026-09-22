@@ -216,13 +216,13 @@ func Current(explicit string) (string, string, error) {
 	if sid == "" {
 		b, err := os.ReadFile(CurrentFile())
 		if err != nil {
-			return "", "", fmt.Errorf("还没有会话, 先 hudiff")
+			return "", "", fmt.Errorf("no sessions yet; run hudiff first")
 		}
 		sid = strings.TrimSpace(string(b))
 	}
 	d := Dir(sid)
 	if st, err := os.Stat(d); err != nil || !st.IsDir() {
-		return "", "", fmt.Errorf("会话不存在: %s", sid)
+		return "", "", fmt.Errorf("no such session: %s", sid)
 	}
 	return sid, d, nil
 }

@@ -57,7 +57,7 @@ func Ensure(wantPort int) (int, error) {
 			return i.Port, nil
 		}
 	}
-	return 0, fmt.Errorf("server 没起来, 看 %s/server.log", session.StateDir())
+	return 0, fmt.Errorf("the daemon did not come up; see %s/server.log", session.StateDir())
 }
 
 func spawn(wantPort int) error {
@@ -80,12 +80,12 @@ func spawn(wantPort int) error {
 func Stop() string {
 	i := ReadInfo()
 	if !i.Alive() {
-		return "server 本来就没在跑"
+		return "daemon was not running"
 	}
 	if p, err := os.FindProcess(i.PID); err == nil {
 		_ = p.Signal(syscall.SIGTERM)
 	}
-	return fmt.Sprintf("已停止 server(pid %d), 会话数据都在", i.PID)
+	return fmt.Sprintf("stopped the daemon (pid %d); session data is untouched", i.PID)
 }
 
 func HomeURL(wantPort int) (string, error) {
@@ -107,7 +107,7 @@ func SessionURL(sid string, wantPort int) (string, error) {
 func StatusLine() string {
 	i := ReadInfo()
 	if !i.Alive() {
-		return "server: ○ 未运行(任何子命令会自动拉起)"
+		return "daemon: ○ not running (any subcommand starts it)"
 	}
-	return fmt.Sprintf("server: ● http://127.0.0.1:%d/", i.Port)
+	return fmt.Sprintf("daemon: ● http://127.0.0.1:%d/", i.Port)
 }
