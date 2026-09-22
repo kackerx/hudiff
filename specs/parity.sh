@@ -41,6 +41,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Sessions record who opened them (session.json opener.agent_session, from
+# CLAUDE_SESSION_ID / PI_COMPANION_SESSION_ID). Left alone, the goldens would
+# carry the UUID of whoever ran --bless and fail for everyone else.
+CLAUDE_SESSION_ID=parity
+PI_COMPANION_SESSION_ID=parity
+export CLAUDE_SESSION_ID PI_COMPANION_SESSION_ID
+
 WORK=$(mktemp -d)
 FIX=$(mktemp -d)
 STATES=$(mktemp)

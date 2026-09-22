@@ -10,7 +10,7 @@
   "scope": "staged"
  },
  "opener": {
-  "agent_session": "<SHA>-b0dd-4130-be29-<SHA>",
+  "agent_session": "parity",
   "cwd": "<TMP>/repo"
  },
  "refresh": [

@@ -17,6 +17,7 @@ import sys
 
 MASK = [
     (r'\b\d{8}-\d{6}-[0-9a-f]{4}\b', '<SID>'),
+    (r'\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b', '<UUID>'),
     (r'(?:/private)?/var/folders/[^\s"\',]*?/T/tmp\.[A-Za-z0-9]+', '<TMP>'),
     (r'/tmp/tmp\.[A-Za-z0-9]+', '<TMP>'),
     (r'127\.0\.0\.1:\d+', '127.0.0.1:<PORT>'),
