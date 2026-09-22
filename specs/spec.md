@@ -244,8 +244,10 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 ## 9. 前端改动清单(在拆文件之外)
 
 - 全部文案英文, 直接写在原处; **不做** `T` 字符串表(2026-09-22: 为不存在的第二语言建 235 条间接层是推测性需求, 真要加语言时从英文抽比从中文抽容易; `ui.language` 字段保留但无实现)
-- **agent 选择器保留**(2026-09-22 用户实测后要回来, 推翻 M5 的删除): Send 下拉和 Request review 弹层都列出**本仓库目录下**
-  正在跑的 agent 进程(`ps` + `lsof` cwd, 进程名集合 {claude, pi, opencode, codex}, `config.agents.names` 可扩; Windows 返回空);
+- **agent 选择器保留, 交互照 Python 第一版**(2026-09-22 用户两次实测后定): Send 是 **split button**(主按钮 + 右侧紧贴的 ▾ 小按钮,
+  点 ▾ 弹列表); 列表是**全机器**正在跑的 agent 进程(`ps` + `lsof` cwd, 进程名集合 {claude, pi, opencode, codex},
+  `config.agents.names` 可扩; Windows 返回空), 分 "This repo" / "Other" 两组(cwd 与会话 repo 互为前缀 = 同仓库), 排序
+  waiting > bound > same_repo; Request review 面板同一份分组列表, 点一行 → confirm → review-request(reviewer 常在别的 worktree, 所以必须全列);
   命名 = 进程自带名字 > 目录名, 同目录多个按启动先后 `目录:1 / 目录:2`(不按 pid, macOS pid 回绕)。选中 → 写 `session.bound`
   + 显示要在那个 agent 里跑的命令 + 复制按钮 + 触发 hook(环境变量多给 HUDIFF_AGENT_PID / NAME / CWD)。
   **投递 = 适配器链, 自动检测, 零配置, 结果一致可见**(2026-09-22 拍板): 有 waiter → 直接叫醒; 否则按 agent 进程的 tty / 环境
@@ -307,3 +309,4 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 13. (2026-09-22) agent 选择列表**恢复**(用户实测后要求): 发现走 ps + lsof, 无 tmux 依赖; `session.bound` 加回; 只有 tmux send-keys
     投递仍不做(可选适配器待定)
 14. (2026-09-22) 投递适配器链 tmux → kitty → cmux → 复制, 零配置自动检测, 结果必须可见一致; 不做 Stop hook, 不做 Ghostty 原生(无公开 API)
+15. (2026-09-22) picker 交互回到 Python 第一版: split 按钮(主按钮 + ▾), 列表全机器分 "This repo / Other" 两组, review 面板同列表点行即请求
