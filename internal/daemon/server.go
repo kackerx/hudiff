@@ -82,6 +82,9 @@ func (s *server) mux() *http.ServeMux {
 	})
 	m.HandleFunc("GET /favicon.svg", s.favicon)
 	m.HandleFunc("GET /favicon.ico", s.favicon)
+	for name, ctype := range staticAssets {
+		m.HandleFunc("GET /"+name, serveAsset(name, ctype))
+	}
 	m.HandleFunc("GET /s/{sid}/{$}", s.withSession(s.page))
 	m.HandleFunc("GET /s/{sid}/api/session", s.withSession(s.apiSession))
 	m.HandleFunc("GET /s/{sid}/api/state", s.withSession(s.apiState))
@@ -95,6 +98,25 @@ func (s *server) mux() *http.ServeMux {
 
 func (s *server) favicon(w http.ResponseWriter, r *http.Request) {
 	send(w, 200, web.Read("favicon.svg"), "image/svg+xml")
+}
+
+// staticAssets are served at the root so both / and /s/{sid}/ can link them.
+var staticAssets = map[string]string{
+	"app.css":   "text/css; charset=utf-8",
+	"app.js":    "text/javascript; charset=utf-8",
+	"index.css": "text/css; charset=utf-8",
+	"index.js":  "text/javascript; charset=utf-8",
+}
+
+func serveAsset(name, ctype string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body := web.Read(name)
+		if body == nil {
+			sendJSON(w, 404, map[string]any{"error": "not found"})
+			return
+		}
+		send(w, 200, body, ctype)
+	}
 }
 
 // notImplemented keeps the M1 surface honest: every write route answers 501

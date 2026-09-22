@@ -139,8 +139,9 @@ hudiff/
     daemon/               net/http server, 长轮询 waiters, server.json, 拉起/停止
     viewer/               interface Viewer { Open(sess) }; web/ 实现 = 确保 daemon 在 + 开浏览器; tui/ 占位
     browser/              跨平台 open URL
-  web/                    index.html / session.html / dlg.html / favicon.svg(embed)
-                          M1 从 Python 常量原样拆出, M5 英文化时再分出 app.css / app.js
+  web/                    index.html + index.css + index.js / session.html + app.css + app.js
+                          / dlg.html(自绘弹窗, markup+style+script 一体, 注入到 body 末尾) / favicon.svg
+                          全部 embed; 根级路由 /app.css /app.js /index.css /index.js
   skills/hudiff/SKILL.md  (embed; `skill path` 会把它落到 $XDG_DATA_HOME/hudiff/skill/ 再打印路径)
   legacy/hudiff.py        Python 版 oracle, M6 删
   hudiff                  M1–M5 是跑 legacy 的 /bin/sh shim(会解析软链), M6 换成 go build 产物
