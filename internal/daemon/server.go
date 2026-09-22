@@ -85,7 +85,7 @@ func (s *server) mux() *http.ServeMux {
 	})
 	m.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		cfg := config.Load()
-		sendJSON(w, 200, map[string]any{"keymap": cfg.MergedKeymap(), "ui": cfg.UI})
+		sendJSON(w, 200, map[string]any{"keymap": cfg.MergedKeymap(), "ui": cfg.UI, "build": Build})
 	})
 	m.HandleFunc("GET /favicon.svg", s.favicon)
 	m.HandleFunc("GET /favicon.ico", s.favicon)
@@ -250,6 +250,13 @@ func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir strin
 
 // apiAgents is the Send / Request review picker: the agents running in this
 // session's repo, how many are blocked in `wait`, and the one already picked.
+// Build is what the page stamps on its diagram URLs: the browser is told to
+// cache those forever, so upgrading hudiff has to change the URL or the old
+// picture stays on screen.
+var Build = "dev"
+
+func SetBuild(v string) { Build = v + "-r" + diagram.RendererVersion }
+
 func (s *server) apiAgents(w http.ResponseWriter, r *http.Request, sid, dir string) {
 	sendJSON(w, 200, map[string]any{
 		"agents":  s.agentList(sid, dir),

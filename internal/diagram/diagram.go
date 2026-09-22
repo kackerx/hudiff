@@ -156,14 +156,15 @@ func Render(dir, repo string, d diff.Diff, which, theme string, cfg Config, boar
 	return svgs[board]
 }
 
-// rendererVersion invalidates every cached SVG when the rendering itself
+// RendererVersion invalidates every cached SVG when the rendering itself
 // changes. Without it a file written by an older hudiff keeps being served:
 // the multiboard diagrams stayed animated for exactly that reason. Bump it
 // whenever the bytes coming out of renderBoards would differ for the same input.
-var rendererVersion = "2"
+// RendererVersion is also what the daemon stamps on the page's diagram URLs.
+var RendererVersion = "2"
 
 func cacheKey(src, theme string, sketch bool) string {
-	sum := sha1.Sum([]byte(rendererVersion + "\x00" + theme + "\x00" + strconv.FormatBool(sketch) + "\x00" + Preamble + "\x00" + src))
+	sum := sha1.Sum([]byte(RendererVersion + "\x00" + theme + "\x00" + strconv.FormatBool(sketch) + "\x00" + Preamble + "\x00" + src))
 	return hex.EncodeToString(sum[:])[:16]
 }
 

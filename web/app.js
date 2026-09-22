@@ -1,5 +1,5 @@
 'use strict';
-const S = {data:null, state:null, active:0, activeHunk:null, showResolved:false, openForms:new Set(), theme:'auto', sumOpen:false, pin:null, tab:'notes', mid:'code', activeDg:null};
+const S = {data:null, state:null, active:0, activeHunk:null, showResolved:false, openForms:new Set(), theme:'auto', sumOpen:false, pin:null, tab:'notes', mid:'code', activeDg:null, build:''};
 const C = { q:'', st:new Set(['open','sent','replied']), au:null };   // comment list: filter text / which statuses to show
 const LS = { get(k,d){ try{ const v=localStorage.getItem('hudiff.'+k); return v===null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem('hudiff.'+k, JSON.stringify(v)); }catch(e){} } };
 
@@ -122,11 +122,11 @@ async function api(method, path, body){
 
 let treeReady=false;
 async function loadAll(){
-  S.data = await api('GET','/api/session'); S.state = S.data.state;
+  const [data] = await Promise.all([api('GET','/api/session'), loadKeymap()]);
+  S.data = data; S.state = S.data.state;
   if(!treeReady){ treeReady=true; T.closed=new Set(LS.get('closed.'+S.data.session.id, [])); setupTree(); }
   renderHeader(); renderTree(); renderDiff(); renderComments(); renderMidbar(); renderDiagrams(); renderReview(); markReviewLines(); renderNotes();
   refreshWaiting().catch(()=>{});
-  loadKeymap();
 }
 
 const kindCN = {worktree:'working tree', commit:'commit', range:'range', pr:'PR', patch:'patch'};
@@ -437,7 +437,9 @@ function focusCard(fi,hi){
   c.scrollIntoView({block:'center'}); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
 }
 const isDark = () => S.theme==='dark' || (S.theme==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board===undefined?'':'&board='+board}&v=${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
+// The browser is told to keep these forever, so the stamp has to carry the
+// build too: upgrading hudiff changes how a diagram renders.
+const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board===undefined?'':'&board='+board}&v=${S.build||'0'}-${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
 const hunkLabel = ref => { const m=/^(.+)#(\d+)$/.exec(ref); return m ? m[1].split('/').pop()+'#'+m[2] : ref; };
 function dgForHunk(path, hi){ return (S.data.diagrams||[]).filter(d=>(d.hunks||[]).includes(`${path}#${hi}`)); }
 
@@ -770,7 +772,7 @@ function highlightLines(fi, hi, spec, on){
 // serves the table at /api/config; single keys are ignored while typing.
 let KEYS = {};
 async function loadKeymap(){
-  try{ const r=await fetch('/api/config'); KEYS=(await r.json()).keymap||{}; }catch(e){ KEYS={}; }
+  try{ const c=await (await fetch('/api/config')).json(); KEYS=c.keymap||{}; S.build=c.build||''; }catch(e){ KEYS={}; }
 }
 const ACTIONS = {
   next_hunk: () => stepHunk(1), prev_hunk: () => stepHunk(-1),

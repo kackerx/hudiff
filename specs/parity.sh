@@ -327,6 +327,16 @@ if [ "$PAGE" = 1 ]; then
     # The home page is its own render path; a JS error there once showed up as an
     # empty list while every session-page check stayed green.
     dump "http://127.0.0.1:$P/" "$WORK/index.html"
+    # The browser is told to keep a diagram forever, so the URL has to carry the
+    # build: upgrading hudiff changed how they render and the old picture stayed.
+    ver=$(hud "$STATE" version)
+    build=$(curl -s "http://127.0.0.1:$P/api/config" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("build",""))')
+    if [ -n "$ver" ] && [ "${build#"$ver"}" != "$build" ] && [ "${build%-r*}" = "$ver" ] &&
+       grep -q "api/diagram?i=[^\"]*v=$build" "$WORK/page.diagrams.html"; then
+        ok "diagram URLs carry the build stamp ($build)"
+    else
+        bad "build stamp: version=$ver build=$build, not in the page's diagram URLs"
+    fi
     if grep -q 'id="agentpop"' "$WORK/page.code.html"; then
         ok "the page carries the agent picker"
     else

@@ -7,11 +7,11 @@ import "testing"
 // release because the key did not say which renderer wrote the file.
 func TestCacheKeyChangesWithRenderer(t *testing.T) {
 	before := cacheKey("a -> b", "light", false)
-	old := rendererVersion
-	rendererVersion = old + "-next"
-	defer func() { rendererVersion = old }()
+	old := RendererVersion
+	RendererVersion = old + "-next"
+	defer func() { RendererVersion = old }()
 	if after := cacheKey("a -> b", "light", false); after == before {
-		t.Fatal("bumping rendererVersion left the key alone: an SVG from an older renderer would still be served")
+		t.Fatal("bumping RendererVersion left the key alone: an SVG from an older renderer would still be served")
 	}
 }
 

@@ -49,6 +49,7 @@ func main() {
 	daemon.SetAssets(assets)
 	cli.SetSkills(assets)
 	v := buildVersion()
+	daemon.SetBuild(v)
 	ctx, c := cli.Parse(v)
 	err := ctx.Run(&c.Globals, cli.Version(v))
 	if err == nil {
