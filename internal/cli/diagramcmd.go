@@ -43,7 +43,7 @@ func (c *DiagramCmd) Run(g *Globals) error {
 		fmt.Print(src)
 		return nil
 	}
-	svg := diagram.Render(dir, sess.Repo, d, c.Which, c.Theme, cfg)
+	svg := diagram.Render(dir, sess.Repo, d, c.Which, c.Theme, cfg, c.Board)
 	if c.Out == "" {
 		_, err = os.Stdout.Write(svg)
 		return err

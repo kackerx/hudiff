@@ -437,7 +437,7 @@ function focusCard(fi,hi){
   c.scrollIntoView({block:'center'}); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
 }
 const isDark = () => S.theme==='dark' || (S.theme==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-const dgSrc = dg => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}&v=${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
+const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board?'&board='+board:''}&v=${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
 const hunkLabel = ref => { const m=/^(.+)#(\d+)$/.exec(ref); return m ? m[1].split('/').pop()+'#'+m[2] : ref; };
 function dgForHunk(path, hi){ return (S.data.diagrams||[]).filter(d=>(d.hunks||[]).includes(`${path}#${hi}`)); }
 
@@ -548,7 +548,12 @@ function renderDiagrams(){
   let html='';
   dgs.forEach(dg=>{
     const chips=(dg.hunks||[]).map(r=>`<span class="chip hk" data-ref="${esc(r)}" title="${esc(r)}">${esc(hunkLabel(r))}</span>`).join('');
-    const body = `<div class="svgwrap"><img src="${dgSrc(dg)}" alt="${esc(dg.title)}"></div>`;
+    // steps / layers / scenarios: one static board per SVG, stacked, each labelled.
+    // They used to be one animated SVG flipping between near-identical frames.
+    const boards = dg.boards && dg.boards.length>1 ? dg.boards : null;
+    const body = boards
+      ? `<div class="svgwrap boards">${boards.map((n,i)=>`<div class="board"><div class="bl">${esc(n)}</div><img src="${dgSrc(dg,i)}" alt="${esc(dg.title)} ${esc(n)}"></div>`).join('')}</div>`
+      : `<div class="svgwrap"><img src="${dgSrc(dg)}" alt="${esc(dg.title)}"></div>`;
     html+=`<figure class="dg ${dg.id===S.activeDg?'active':''}" id="dg-${esc(dg.id)}" data-id="${esc(dg.id)}" style="margin:0 0 18px">
       <div class="dgh"><span class="t">${esc(dg.title)}</span><span class="kind">${esc(dg.kind)}${dg.auto?' · auto':''}</span>${chips}${dg.src?`<button class="sm ghost" data-act="src">Source</button>`:''}<button class="sm ghost" data-act="full">⛶ Zoom</button></div>
       ${body}

@@ -29,6 +29,8 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 	L := strings.Split(autoMapHeader, "\n")
 	var edges []string
 	var plain []plainFile
+	var nodes []node
+	linked := map[string]bool{}
 	var extOrder []string
 	extSeen := map[string]bool{}
 
@@ -43,15 +45,15 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 			plain = append(plain, plainFile{fid, label, it.Path})
 			continue
 		}
-		L = append(L, fid+": {", "  label: "+q(label), "  class: file", "  tooltip: "+q(it.Path))
+		blk := []string{fid + ": {", "  label: " + q(label), "  class: file", "  tooltip: " + q(it.Path)}
 		for _, sym := range capSyms(it.Syms) {
 			lab := sym.Kind + " " + sym.Name
 			if sym.Total != 0 && sym.Noisy {
 				lab += fmt.Sprintf("  ·%d refs", sym.Total)
 			}
-			L = append(L, fmt.Sprintf("  %s: { label: %s; class: %s }", q(sym.Name), q(lab), symClass[sym.Kind]))
+			blk = append(blk, fmt.Sprintf("  %s: { label: %s; class: %s }", q(sym.Name), q(lab), symClass[sym.Kind]))
 		}
-		L = append(L, "}")
+		nodes = append(nodes, node{fid, append(blk, "}")})
 
 		for _, sym := range capSyms(it.Syms) {
 			if sym.Noisy || sym.Total == 0 {
@@ -68,22 +70,58 @@ func AutoMapSrc(repo string, d diff.Diff) string {
 					extSeen[f] = true
 					extOrder = append(extOrder, f)
 				}
+				linked[fid], linked[q(f)] = true, true
 				edges = append(edges, refEdge(fid, sym.Name, f, sym.Kind == "-"))
 			}
 			if len(files) > 4 {
 				more := fmt.Sprintf("…%d more files reference %s", len(files)-4, sym.Name)
 				mid := q(fmt.Sprintf("more:%s:%s", it.Path, sym.Name))
-				L = append(L, fmt.Sprintf("%s: { label: %s; class: ext }", mid, q(more)))
+				nodes = append(nodes, node{mid, []string{fmt.Sprintf("%s: { label: %s; class: ext }", mid, q(more))}})
+				linked[fid], linked[mid] = true, true
 				edges = append(edges, fmt.Sprintf("%s.%s -> %s { class: ref }", fid, q(sym.Name), mid))
 			}
 		}
 	}
 	for _, f := range extOrder {
-		L = append(L, fmt.Sprintf("%s: { label: %s; class: ext; tooltip: %s }", q(f), q(path.Base(f)), q(f)))
+		nodes = append(nodes, node{q(f), []string{fmt.Sprintf("%s: { label: %s; class: ext; tooltip: %s }", q(f), q(path.Base(f)), q(f))}})
 	}
-	L = append(L, plainNodes(plain)...)
+	for _, p := range plainNodes(plain) {
+		nodes = append(nodes, p)
+	}
+	L = append(L, layout(nodes, linked)...)
 	L = append(L, edges...)
 	return strings.Join(L, "\n") + "\n"
+}
+
+type node struct {
+	id   string
+	text []string
+}
+
+// layout keeps the connected part as it is — TALA routes edges well — and puts
+// the nodes nothing points at into a grid: on their own they stack into one tall
+// column, which is what made a four-file change map 202 wide and 419 high.
+func layout(nodes []node, linked map[string]bool) []string {
+	var out, loose []string
+	for _, n := range nodes {
+		if linked[n.id] {
+			out = append(out, n.text...)
+			continue
+		}
+		loose = append(loose, n.text...)
+	}
+	if len(loose) == 0 {
+		return out
+	}
+	if len(nodes) == len(loose) && len(out) == 0 && len(nodes) < 2 {
+		return append(out, loose...)
+	}
+	out = append(out, "loose: {", "  label: \"\"", "  grid-columns: 3", "  grid-gap: 26",
+		"  style: { stroke-width: 0; fill: transparent }")
+	for _, l := range loose {
+		out = append(out, "  "+l)
+	}
+	return append(out, "}")
 }
 
 func refEdge(fid, sym, target string, danger bool) string {
@@ -96,17 +134,17 @@ func refEdge(fid, sym, target string, danger bool) string {
 	return e + " { class: " + cls + " }"
 }
 
-func plainNodes(plain []plainFile) []string {
+func plainNodes(plain []plainFile) []node {
 	if len(plain) == 0 {
 		return nil
 	}
 	if len(plain) > 8 {
 		lab := fmt.Sprintf("%d other files (no symbol-level change)", len(plain))
-		return []string{fmt.Sprintf("others: { label: %s; class: file }", q(lab))}
+		return []node{{"others", []string{fmt.Sprintf("others: { label: %s; class: file }", q(lab))}}}
 	}
-	out := make([]string, 0, len(plain))
+	out := make([]node, 0, len(plain))
 	for _, p := range plain {
-		out = append(out, fmt.Sprintf("%s: { label: %s; class: file; tooltip: %s }", p.id, q(p.label), q(p.path)))
+		out = append(out, node{p.id, []string{fmt.Sprintf("%s: { label: %s; class: file; tooltip: %s }", p.id, q(p.label), q(p.path))}})
 	}
 	return out
 }

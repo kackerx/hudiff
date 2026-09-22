@@ -149,8 +149,12 @@ nav .file .nn{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .dg .dgh .kind{font-size:10.5px;padding:0 6px;border-radius:9px;background:var(--bg3);color:var(--fg2);line-height:17px;font-family:var(--mono)}
 .dg .dgh .hk{cursor:pointer;font-family:var(--mono);font-size:10.5px} .dg .dgh .hk:hover{background:var(--accent);color:#fff}
 .dg .svgwrap{padding:12px;overflow:auto;text-align:center;background:var(--bg);cursor:zoom-in;min-height:80px}
-.dg .svgwrap img,.dg .svgwrap svg{max-width:100%;height:auto;display:inline-block}
-.dg .svgwrap svg{max-height:70vh}
+.dg .svgwrap img,.dg .svgwrap svg{max-width:100%;max-height:60vh;height:auto;display:inline-block}
+/* a small diagram stays small: the SVG carries its own width now, so this only
+   ever shrinks. Zoom opens the same file full size. */
+.dg .svgwrap.boards{display:flex;flex-direction:column;gap:14px;align-items:center}
+.dg .svgwrap .board{display:flex;flex-direction:column;gap:4px;align-items:center;max-width:100%}
+.dg .svgwrap .bl{font-size:11px;color:var(--fg2);font-family:var(--mono);letter-spacing:.03em}
 .dg figcaption{padding:8px 14px 10px;font-size:12.5px;color:var(--fg2);border-top:1px solid var(--line2)} .dg figcaption p{margin:0 0 4px}
 .dg pre.src{margin:0;padding:10px 14px;background:var(--bg3);font-size:11.5px;overflow:auto;border-top:1px solid var(--line2);white-space:pre}
 .review{padding:16px 22px 40vh;background:var(--bg);max-width:1100px}

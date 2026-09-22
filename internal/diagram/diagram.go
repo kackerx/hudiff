@@ -34,6 +34,7 @@ type Entry struct {
 	Auto    bool     `json:"auto"`
 	Hunks   []string `json:"hunks"`
 	Caption string   `json:"caption"`
+	Boards  []string `json:"boards,omitempty"` // steps / layers / scenarios, one SVG each
 	Src     *string  `json:"src,omitempty"`
 	Index   *int     `json:"index,omitempty"`
 }
@@ -93,7 +94,8 @@ func List(dir string, d diff.Diff, cfg Config) []Entry {
 		}
 		src, idx := strOr(dg, "src", ""), i
 		out = append(out, Entry{ID: id, Title: title, Kind: strOr(dg, "kind", "d2"), Auto: false,
-			Hunks: strList(dg, "hunks"), Caption: strOr(dg, "caption", ""), Src: &src, Index: &idx})
+			Hunks: strList(dg, "hunks"), Caption: strOr(dg, "caption", ""), Boards: Boards(src),
+			Src: &src, Index: &idx})
 	}
 	return out
 }
@@ -133,29 +135,37 @@ func Source(dir, repo string, d diff.Diff, which string, cfg Config) (src, kind 
 
 // Render returns SVG bytes, always succeeding: a failure comes back as an error
 // card so the page has something to show.
-func Render(dir, repo string, d diff.Diff, which, theme string, cfg Config) []byte {
+func Render(dir, repo string, d diff.Diff, which, theme string, cfg Config, board int) []byte {
 	src, _, err := Source(dir, repo, d, which, cfg)
 	if err != nil {
 		return errorSVG(err.Error())
 	}
-	cache := filepath.Join(dir, "diagrams", cacheKey(src, theme, cfg.Sketch)+".svg")
+	cache := filepath.Join(dir, "diagrams", cacheKey(src, theme, cfg.Sketch)+boardSuffix(board)+".svg")
 	if b, err := os.ReadFile(cache); err == nil {
 		return b
 	}
-	svg, err := renderD2(src, theme, cfg.Sketch)
+	svgs, _, err := renderBoards(src, theme, cfg.Sketch)
 	if err != nil {
 		return errorSVG(err.Error())
 	}
+	if board < 0 || board >= len(svgs) {
+		board = 0
+	}
 	_ = os.MkdirAll(filepath.Dir(cache), 0o755)
-	_ = os.WriteFile(cache, svg, 0o644)
-	return svg
+	_ = os.WriteFile(cache, svgs[board], 0o644)
+	return svgs[board]
 }
 
-// cacheKey covers everything that changes the pixels: the source, the theme,
-// sketch mode and the style preamble.
 func cacheKey(src, theme string, sketch bool) string {
 	sum := sha1.Sum([]byte(theme + "\x00" + strconv.FormatBool(sketch) + "\x00" + Preamble + "\x00" + src))
 	return hex.EncodeToString(sum[:])[:16]
+}
+
+func boardSuffix(board int) string {
+	if board <= 0 {
+		return ""
+	}
+	return "-b" + strconv.Itoa(board)
 }
 
 type autoSrc struct {

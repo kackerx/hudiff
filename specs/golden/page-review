@@ -969,8 +969,17 @@
 <button class="sm ghost" data-act="full">
 </button>
 </div>
-<div class="svgwrap">
+<div class="svgwrap boards">
+<div class="board">
+<div class="bl">
+</div>
 <img>
+</div>
+<div class="board">
+<div class="bl">
+</div>
+<img>
+</div>
 </div>
 <figcaption>
 <p>

@@ -134,9 +134,15 @@ match it**, and use `null` for hunks it says not to bother with.
    - **When**: a call path across ≥3 files → sequence diagram; a branch, state
      machine or retry path changed → flowchart; types, interfaces or struct fields
      changed → class diagram; a migration or refactor "old shape → new shape" →
-     a `steps` animation (two frames, same layout, the clearest thing there is).
+     two containers `before: {…}` / `after: {…}` in **one** diagram, side by side.
      Usually 1–3 per change. Never draw for the sake of drawing; a purely
      mechanical change gets none.
+   - **One board.** Do not reach for `steps` / `layers` / `scenarios`: hudiff
+     renders every board as its own static picture and stacks them, so a
+     before/after split across boards just makes the reader scroll between two
+     nearly identical images. Put both states in one picture instead.
+   - **Keep it small.** At most 12 nodes and 3 lines per label; past that, split
+     it into two diagrams. A picture that needs zooming has stopped explaining.
    - **d2 only.** `kind` is `"d2"`; hudiff compiles it in-process, so there is
      nothing to install and `hudiff notes` fails loudly on a syntax error.
    - **`hunks` is required**: which hunks the diagram is about (`path#n`). The page
@@ -147,12 +153,12 @@ match it**, and use `null` for hunks it says not to bother with.
      Do not set your own fills or strokes; they will not match the page theme.
      Do not set `border-radius` either, hudiff applies it.
    - **Mark the main path**: put `style.animated: true` on the 1–3 edges that carry
-     the primary flow or the data direction. Animating every edge makes the
-     diagram unreadable.
+     the primary flow or the data direction — that flowing line is the only
+     animation hudiff renders. Animating every edge makes the diagram unreadable.
    - **d2 notes**: an id containing `.` must be quoted (`"CLAUDE.md"`), otherwise
      the `.` reads as nesting; a sequence diagram starts with
      `shape: sequence_diagram`; a class diagram is `x.shape: class` plus members;
-     before/after is `steps: { 1: {...} 2: {...} }`; label the edges with *why*
+     before/after is two containers in one diagram, not `steps`; label the edges with *why*
      (`a -> b: fetch the token, fall back on failure`), not just an arrow; keep it
      under about 15 nodes or split it in two.
    - `hudiff diagram <id> --ascii` renders it as text so you can check your own

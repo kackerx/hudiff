@@ -47,6 +47,7 @@ type DiagramCmd struct {
 	Src   bool   `help:"Print the diagram source instead of rendering."`
 	ASCII bool   `name:"ascii" help:"Render as text, readable in a terminal."`
 	Theme string `default:"light" enum:"light,dark" help:"Render theme."`
+	Board int    `help:"Which board of a steps / layers / scenarios diagram." placeholder:"<n>"`
 	Out   string `short:"o" help:"Write the SVG here instead of stdout." placeholder:"<svg>"`
 }
 

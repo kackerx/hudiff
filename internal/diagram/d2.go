@@ -3,7 +3,9 @@
 package diagram
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,7 +14,6 @@ import (
 	"github.com/d2lang/d2/d2graph"
 	"github.com/d2lang/d2/d2layouts/d2talalayout"
 	"github.com/d2lang/d2/d2lib"
-	"github.com/d2lang/d2/d2renderers/d2animate"
 	"github.com/d2lang/d2/d2renderers/d2ascii"
 	"github.com/d2lang/d2/d2renderers/d2ascii/charset"
 	"github.com/d2lang/d2/d2renderers/d2svg"
@@ -35,9 +36,6 @@ classes: {
   ref: { style: { stroke: "#8b949e"; font-size: 11 } }
 }
 `
-
-// animateMS matches the oracle's --animate-interval for steps diagrams.
-const animateMS = 1400
 
 var themeID = map[string]int64{"light": 0, "dark": 200}
 
@@ -70,29 +68,77 @@ func compile(src, theme string, sketch bool) (*d2target.Diagram, *d2svg.RenderOp
 	return d, ro, err
 }
 
-func renderD2(src, theme string, sketch bool) ([]byte, error) {
+// renderBoards returns one SVG per board: a steps / layers / scenarios diagram
+// used to be wrapped by d2animate, which flipped between near-identical frames.
+// Static boards stacked in the page are readable; the only animation left is
+// what an agent asks for with `style.animated: true` on an edge.
+func renderBoards(src, theme string, sketch bool) ([][]byte, []string, error) {
 	diagram, ro, err := compile(src, theme, sketch)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if !multiboard(diagram) {
-		return d2svg.Render(diagram, ro)
+	boards, names := boardsOf(diagram)
+	out := make([][]byte, 0, len(boards))
+	for _, b := range boards {
+		svg, err := d2svg.Render(b, ro)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, sizeSVG(svg))
 	}
-	master, err := diagram.HashID(ro.Salt)
-	if err != nil {
-		return nil, err
-	}
-	ro.MasterID = master
-	boards, err := d2svg.RenderMultiboard(diagram, ro)
-	if err != nil || len(boards) == 0 {
-		return nil, err
-	}
-	return d2animate.Wrap(diagram, boards, *ro, animateMS)
+	return out, names, nil
 }
 
-func multiboard(d *d2target.Diagram) bool {
-	return len(d.Steps)+len(d.Layers)+len(d.Scenarios) > 0
+// sizeSVG copies the viewBox onto the root element's width / height. d2 leaves
+// them off, and a browser showing a viewBox-only SVG in an <img> has no
+// intrinsic size to work from, so it stretches it to the container.
+var svgOpen = regexp.MustCompile(`<svg ([^>]*?)viewBox="0 0 ([0-9.]+) ([0-9.]+)"`)
+
+func sizeSVG(b []byte) []byte {
+	m := svgOpen.FindSubmatchIndex(b)
+	if m == nil || bytes.Contains(b[m[0]:m[1]], []byte("width=")) {
+		return b
+	}
+	size := fmt.Sprintf(` width="%s" height="%s"`, b[m[4]:m[5]], b[m[6]:m[7]])
+	return append(b[:m[1]:m[1]], append([]byte(size), b[m[1]:]...)...)
 }
+
+// boardsOf: the boards to draw, with the label each one gets in the page.
+func boardsOf(d *d2target.Diagram) ([]*d2target.Diagram, []string) {
+	for _, set := range []struct {
+		boards []*d2target.Diagram
+		prefix string
+	}{{d.Steps, "Step "}, {d.Layers, ""}, {d.Scenarios, ""}} {
+		if len(set.boards) == 0 {
+			continue
+		}
+		names := make([]string, len(set.boards))
+		for i, b := range set.boards {
+			names[i] = set.prefix + b.Name
+			if b.Name == "" {
+				names[i] = set.prefix + strconv.Itoa(i+1)
+			}
+		}
+		return set.boards, names
+	}
+	return []*d2target.Diagram{d}, nil
+}
+
+// Boards names a diagram's boards, or nil when it is a plain one. Compiling is
+// the only way to know, so the answer is kept per source.
+func Boards(src string) []string {
+	if v, ok := boardCache.Load(src); ok {
+		return v.([]string)
+	}
+	var names []string
+	if d, _, err := compile(src, "light", false); err == nil {
+		_, names = boardsOf(d)
+	}
+	boardCache.Store(src, names)
+	return names
+}
+
+var boardCache sync.Map // diagram source -> board names
 
 // RenderASCII draws the diagram as text, so an agent can read its own diagram
 // in the terminal. The d2 CLI switches to ELK for this; we keep TALA rather
@@ -113,7 +159,7 @@ func RenderASCII(src string) (string, error) {
 // CheckD2 compiles a source and returns the compiler's own message, which is
 // what `hudiff notes` hands back to the agent.
 func CheckD2(src string) error {
-	_, err := renderD2(src, "light", false)
+	_, _, err := renderBoards(src, "light", false)
 	if err != nil {
 		return trimErr(err)
 	}

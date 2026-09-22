@@ -320,8 +320,9 @@ func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir str
 	if q.Get("theme") == "dark" {
 		theme = "dark"
 	}
+	board, _ := strconv.Atoi(q.Get("board"))
 	sess, _ := session.LoadSession(dir)
-	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagram.DefaultConfig())
+	svg := diagram.Render(dir, sess.Repo, diff.Load(dir), which, theme, diagram.DefaultConfig(), board)
 	cache := "no-store"
 	if q.Has("v") {
 		cache = "max-age=31536000, immutable"

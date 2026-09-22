@@ -5,12 +5,6 @@ direction: right
   tooltip: "a.go"
   "beta": { label: "~ beta"; class: changed }
 }
-"added.go": {
-  label: "added.go\nadded  +5 -0"
-  class: file
-  tooltip: "added.go"
-  "fresh": { label: "+ fresh"; class: added }
-}
 "gone.go": {
   label: "gone.go\ndeleted  +0 -5"
   class: file
@@ -18,6 +12,18 @@ direction: right
   "gone": { label: "- gone"; class: removed }
 }
 "user.go": { label: "user.go"; class: ext; tooltip: "user.go" }
-"new_name.go": { label: "new_name.go\nrenamed  +1 -1"; class: file; tooltip: "new_name.go" }
+loose: {
+  label: ""
+  grid-columns: 3
+  grid-gap: 26
+  style: { stroke-width: 0; fill: transparent }
+  "added.go": {
+    label: "added.go\nadded  +5 -0"
+    class: file
+    tooltip: "added.go"
+    "fresh": { label: "+ fresh"; class: added }
+  }
+  "new_name.go": { label: "new_name.go\nrenamed  +1 -1"; class: file; tooltip: "new_name.go" }
+}
 "a.go"."beta" -> "user.go" { class: ref }
 "gone.go"."gone" -> "user.go": "still referenced!" { class: danger }

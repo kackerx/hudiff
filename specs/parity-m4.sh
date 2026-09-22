@@ -116,11 +116,29 @@ if grep -q '#dafbe1' "$WORK/dg-flow-light.svg" && grep -q '#1a7f37' "$WORK/dg-fl
 else
     bad "class: added had no effect  ($WORK/dg-flow-light.svg)"
 fi
-# A steps diagram is several boards stitched into one animated SVG (spec §7).
-if [ "$(grep -c '<svg' "$WORK/dg-steps-light.svg")" -gt 1 ] || grep -q 'animate\|@keyframes' "$WORK/dg-steps-light.svg"; then
-    ok "a steps diagram renders as an animated multi-board SVG"
+# A steps diagram is N static boards the page stacks, each with its own label.
+# It used to be one animated SVG flipping between near-identical frames.
+hud "$STATE" -s "$SID" diagram steps --board 1 --theme light >"$WORK/dg-steps-b1.svg" 2>&1 || true
+if python3 -c 'import json,sys,urllib.request
+dgs = json.load(urllib.request.urlopen(sys.argv[1]))["diagrams"]
+steps = [d for d in dgs if d["id"] == "steps"][0]
+assert steps.get("boards") == ["Step 1", "Step 2"], steps.get("boards")
+assert [d for d in dgs if d["id"] == "flow"][0].get("boards") in (None, []), "a plain diagram has no boards"'    "http://127.0.0.1:$P/s/$SID/api/session" 2>"$WORK/boards.err"; then
+    ok "a steps diagram reports its boards, a plain one reports none"
 else
-    bad "steps rendered as a single static board  ($WORK/dg-steps-light.svg)"
+    bad "board listing  ($WORK/boards.err)"
+fi
+if [ -s "$WORK/dg-steps-b1.svg" ] && ! cmp -s "$WORK/dg-steps-light.svg" "$WORK/dg-steps-b1.svg" &&
+   ! grep -q '<animate' "$WORK/dg-steps-light.svg" && ! grep -q '<animate' "$WORK/dg-steps-b1.svg"; then
+    ok "each board is its own static SVG (no <animate>)"
+else
+    bad "steps boards  ($WORK/dg-steps-light.svg vs $WORK/dg-steps-b1.svg)"
+fi
+# every SVG carries its own size, or the page stretches a small diagram to fit
+if head -c 300 "$WORK/auto-light.svg" | grep -q 'width="[0-9]*" height="[0-9]*"'; then
+    ok "the rendered SVG carries width / height, so the page cannot upscale it"
+else
+    bad "SVG root has no intrinsic size  ($WORK/auto-light.svg)"
 fi
 
 # The page asks for every diagram at once, and a shared d2 ruler turned that
