@@ -82,6 +82,13 @@ func Parse(version string) (*kong.Context, *CLI) {
 		kong.UsageOnError(),
 		kong.ConfigureHelp(kong.HelpOptions{Compact: true, FlagsLast: true}),
 		kong.Vars{"version": version},
+		// kong exits 80 on a usage error; spec §3 says 1.
+		kong.Exit(func(code int) {
+			if code != 0 {
+				code = 1
+			}
+			os.Exit(code)
+		}),
 	)
 	ctx, err := parser.Parse(os.Args[1:])
 	parser.FatalIfErrorf(err)
