@@ -968,15 +968,15 @@
 </button>
 </div>
 <div class="svgwrap boards">
-<div class="board">
+<div class="board" data-board="0">
 <div class="bl">
 </div>
-<img>
+<img data-board="0" data-name="Step 1">
 </div>
-<div class="board">
+<div class="board" data-board="1">
 <div class="bl">
 </div>
-<img>
+<img data-board="1" data-name="Step 2">
 </div>
 </div>
 <figcaption>
@@ -1210,12 +1210,20 @@
 </kbd>
 <kbd>
 </kbd>
+<kbd>
+</kbd>
+<kbd>
+</kbd>
 </span>
 <button class="sm" id="lb-x">
 </button>
 </div>
 <div class="lbbody" id="lb-body">
+<button class="lbnav" id="lb-prev">
+</button>
 <img id="lb-img">
+<button class="lbnav" id="lb-next">
+</button>
 </div>
 </div>
 <div id="dlg">

@@ -207,6 +207,11 @@ tr.line[class*="rv-"] td.num:first-child{cursor:pointer}
 #lb{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.72);display:flex;flex-direction:column}
 #lb .lbbar{display:flex;gap:14px;align-items:center;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--line);color:var(--fg);font-size:13px;font-weight:600} #lb .lbbar .hint{font-weight:400;margin-left:auto}
 #lb .lbbody{flex:1;overflow:hidden;position:relative;cursor:grab} #lb .lbbody.drag{cursor:grabbing}
+#lb .lbnav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:38px;height:56px;
+  border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font-size:22px;
+  line-height:1;cursor:pointer;opacity:.85}
+#lb .lbnav:hover{opacity:1;background:var(--bg2)}
+#lb #lb-prev{left:14px} #lb #lb-next{right:14px}
 #lb img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;background:#fff;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
 .file-block{border-bottom:1px solid var(--line);content-visibility:auto;contain-intrinsic-size:auto 600px}
 table.hunk{content-visibility:auto;contain-intrinsic-size:auto 300px}

@@ -554,7 +554,7 @@ function renderDiagrams(){
     // They used to be one animated SVG flipping between near-identical frames.
     const boards = dg.boards && dg.boards.length>1 ? dg.boards : null;
     const body = boards
-      ? `<div class="svgwrap boards">${boards.map((n,i)=>`<div class="board"><div class="bl">${esc(n)}</div><img src="${dgSrc(dg,i)}" alt="${esc(dg.title)} ${esc(n)}"></div>`).join('')}</div>`
+      ? `<div class="svgwrap boards">${boards.map((n,i)=>`<div class="board" data-board="${i}"><div class="bl">${esc(n)}</div><img src="${dgSrc(dg,i)}" data-board="${i}" data-name="${esc(n)}" alt="${esc(dg.title)} ${esc(n)}"></div>`).join('')}</div>`
       : `<div class="svgwrap"><img src="${dgSrc(dg)}" alt="${esc(dg.title)}"></div>`;
     html+=`<figure class="dg ${dg.id===S.activeDg?'active':''}" id="dg-${esc(dg.id)}" data-id="${esc(dg.id)}" style="margin:0 0 18px">
       <div class="dgh"><span class="t">${esc(dg.title)}</span><span class="kind">${esc(dg.kind)}${dg.auto?' · auto':''}</span>${chips}${dg.src?`<button class="sm ghost" data-act="src">Source</button>`:''}<button class="sm ghost" data-act="full">⛶ Zoom</button></div>
@@ -565,21 +565,41 @@ function renderDiagrams(){
   $('#diagrams').innerHTML = html;
   $('#diagrams').querySelectorAll('.hk').forEach(c=>c.onclick=()=>{ const m=/^(.+)#(\d+)$/.exec(c.dataset.ref); if(!m) return; const fi=S.data.diff.files.findIndex(f=>f.path===m[1]); if(fi<0) return; showMid('code'); const fb=document.getElementById('f-'+fi); fb.classList.remove('collapsed'); scrollCodeTo(document.getElementById(`h-${fi}-${m[2]}`), 0.05); setActive(fi,+m[2]); S.pin={fi,hi:+m[2]}; applyPin(); });
   $('#diagrams').querySelectorAll('[data-act=src]').forEach(b=>b.onclick=()=>{ const pre=b.closest('.dg').querySelector('pre.src'); pre.style.display = pre.style.display==='none'?'':'none'; });
-  $('#diagrams').querySelectorAll('[data-act=full], .svgwrap').forEach(el=>el.onclick=e=>{ if(e.target.closest('button')&&el.tagName!=='BUTTON') return; const fig=el.closest('.dg'); const img=fig.querySelector('img'); const svg=fig.querySelector('svg'); openLightbox(fig.querySelector('.t').textContent, img?img.src:(svg?'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg.outerHTML):null)); });
+  $('#diagrams').querySelectorAll('[data-act=full], .svgwrap').forEach(el=>el.onclick=e=>{
+    if(e.target.closest('button')&&el.tagName!=='BUTTON') return;
+    const fig=el.closest('.dg'), title=fig.querySelector('.t').textContent;
+    const imgs=[...fig.querySelectorAll('img')];
+    if(!imgs.length){ const svg=fig.querySelector('svg'); if(svg) openLightbox(title, [{src:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg.outerHTML)}], 0); return; }
+    // click a board → zoom that board; the others stay reachable with ← / →
+    const hit=e.target.closest('.board') ? +e.target.closest('.board').dataset.board : 0;
+    openLightbox(title, imgs.map(i=>({src:i.src, name:i.dataset.name})), hit);
+  });
   const io=new IntersectionObserver(es=>{ es.forEach(en=>{ if(en.isIntersecting){ S.activeDg=en.target.dataset.id; document.querySelectorAll('.dg').forEach(f=>f.classList.toggle('active', f.dataset.id===S.activeDg)); document.querySelectorAll('.dgcard').forEach(c=>c.classList.toggle('active', c.dataset.id===S.activeDg)); } }); }, {root:$('#diagrams'), rootMargin:'-20% 0px -60% 0px', threshold:0});
   document.querySelectorAll('.dg').forEach(f=>io.observe(f));
 }
 function scrollToDiagram(id){ showMid('diagrams'); const f=document.getElementById('dg-'+id); if(f){ f.scrollIntoView({block:'start'}); S.activeDg=id; document.querySelectorAll('.dg').forEach(x=>x.classList.toggle('active', x.dataset.id===id)); } }
 
-// Lightbox: wheel to zoom, drag to pan
-const LB={scale:1,x:0,y:0,drag:null};
+// Lightbox: wheel to zoom, drag to pan, ← / → between the boards of one diagram
+const LB={scale:1,x:0,y:0,drag:null,set:[],i:0,title:''};
 function lbApply(){ $('#lb-img').style.transform=`translate(${LB.x}px,${LB.y}px) scale(${LB.scale})`; }
-function openLightbox(title, src){
-  if(!src) return; $('#lb-title').textContent=title; const img=$('#lb-img'); img.src=src; $('#lb').style.display='flex';
+function openLightbox(title, set, i){
+  if(!set || !set.length) return;
+  LB.set=set; LB.title=title; $('#lb').style.display='flex';
+  lbShow(i||0);
+}
+function lbShow(i){
+  LB.i=(i+LB.set.length)%LB.set.length;
+  const cur=LB.set[LB.i], many=LB.set.length>1;
+  $('#lb-title').textContent = cur.name ? `${LB.title} · ${cur.name} (${LB.i+1}/${LB.set.length})` : LB.title;
+  $('#lb-prev').style.display=$('#lb-next').style.display = many?'':'none';
+  const img=$('#lb-img'); img.src=cur.src;
   img.onload=()=>{ const body=$('#lb-body').getBoundingClientRect(); const sc=Math.min((body.width-40)/img.naturalWidth,(body.height-40)/img.naturalHeight,2); LB.scale=sc>0?sc:1; LB.x=(body.width-img.naturalWidth*LB.scale)/2; LB.y=(body.height-img.naturalHeight*LB.scale)/2; lbApply(); };
 }
-function closeLightbox(){ $('#lb').style.display='none'; $('#lb-img').src=''; }
+const lbStep = d => { if(LB.set.length>1) lbShow(LB.i+d); };
+function closeLightbox(){ $('#lb').style.display='none'; $('#lb-img').src=''; LB.set=[]; }
 $('#lb-x').onclick=closeLightbox;
+$('#lb-prev').onclick=e=>{ e.stopPropagation(); lbStep(-1); };
+$('#lb-next').onclick=e=>{ e.stopPropagation(); lbStep(1); };
 $('#lb').onclick=e=>{ if(e.target.id==='lb'||e.target.id==='lb-body') closeLightbox(); };
 $('#lb-body').onwheel=e=>{ e.preventDefault(); const r=$('#lb-body').getBoundingClientRect(); const mx=e.clientX-r.left, my=e.clientY-r.top; const k=e.deltaY<0?1.12:1/1.12; const ns=Math.max(.1,Math.min(8,LB.scale*k)); LB.x=mx-(mx-LB.x)*(ns/LB.scale); LB.y=my-(my-LB.y)*(ns/LB.scale); LB.scale=ns; lbApply(); };
 $('#lb-body').onmousedown=e=>{ if(e.target.id==='lb-body'&&e.detail===1){} LB.drag={x:e.clientX-LB.x,y:e.clientY-LB.y}; $('#lb-body').classList.add('drag'); e.preventDefault(); };
@@ -817,7 +837,11 @@ document.addEventListener('keydown', e => {
   if(e.metaKey||e.ctrlKey||e.altKey) return;
   if(e.key==='/'){ e.preventDefault(); ACTIONS.filter_files(); return; }
   if(e.key==='v'){ showMid({code:'diagrams',diagrams:'review',review:'code'}[S.mid]); return; }
-  if(e.key==='0' && $('#lb').style.display!=='none'){ $('#lb-img').onload(); return; }
+  if($('#lb').style.display!=='none'){
+    if(e.key==='0'){ $('#lb-img').onload(); return; }
+    if(e.key==='ArrowLeft'){ e.preventDefault(); lbStep(-1); return; }
+    if(e.key==='ArrowRight'){ e.preventDefault(); lbStep(1); return; }
+  }
   for(const [action, key] of Object.entries(KEYS)){
     if(key===e.key && ACTIONS[action]){ e.preventDefault(); ACTIONS[action](); return; }
   }

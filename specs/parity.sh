@@ -337,6 +337,14 @@ if [ "$PAGE" = 1 ]; then
     else
         bad "build stamp: version=$ver build=$build, not in the page's diagram URLs"
     fi
+    # Zoom has to open the board that was clicked, so each one is tagged and the
+    # lightbox can walk between them; it used to grab whichever img came first.
+    if [ "$(grep -o 'class="board" data-board="[0-9]*"' "$WORK/page.diagrams.html" | wc -l | tr -d ' ')" -ge 2 ] &&
+       grep -q 'id="lb-prev"' "$WORK/page.diagrams.html" && grep -q 'id="lb-next"' "$WORK/page.diagrams.html"; then
+        ok "every board is tagged and the lightbox can step between them"
+    else
+        bad "board tagging / lightbox nav  ($WORK/page.diagrams.html)"
+    fi
     if grep -q 'id="agentpop"' "$WORK/page.code.html"; then
         ok "the page carries the agent picker"
     else
