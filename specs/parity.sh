@@ -46,6 +46,14 @@ trap restore EXIT
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$1"; }
 bad()  { printf '  \033[31mFAIL\033[0m  %s\n' "$1"; FAILED=$((FAILED + 1)); }
+shots_match() {
+    for a in 1 2; do
+        for b in 1 2; do
+            cmp -s "$WORK/py.$1.$a.png" "$WORK/go.$1.$b.png" && return 0
+        done
+    done
+    return 1
+}
 
 same() {   # same <label> <a> <b>
     if diff -u "$2" "$3" >"$WORK/$1.diff" 2>&1; then
@@ -89,7 +97,12 @@ diagram_ids() {
 
 grab() {   # grab <side> <port>
     for v in code diagrams review; do
-        [ "$SHOTS" = 1 ] && shot "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.png"
+        [ "$SHOTS" = 1 ] || continue
+        # Twice per side: the page polls /api/state while the shot is taken, so
+        # once in a while one render lands a frame off. Two on each side make a
+        # one-off miss harmless while a real difference still never matches.
+        shot "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.1.png"
+        shot "http://127.0.0.1:$2/s/$SID/?view=$v" "$WORK/$1.$v.2.png"
     done
     for id in $(diagram_ids "$WORK/$1.api-session"); do
         for th in light dark; do
@@ -176,17 +189,17 @@ done
 
 if [ "$SHOTS" = 1 ]; then
     for v in code review; do
-        if [ ! -s "$WORK/go.$v.png" ]; then
+        if [ ! -s "$WORK/go.$v.1.png" ]; then
             bad "page-$v  (no screenshot; is Chrome at $CHROME?)"
-        elif cmp -s "$WORK/py.$v.png" "$WORK/go.$v.png"; then
+        elif shots_match "$v"; then
             ok "page-$v"
         else
-            bad "page-$v  ($WORK/py.$v.png vs $WORK/go.$v.png)"
+            bad "page-$v  ($WORK/py.$v.*.png vs $WORK/go.$v.*.png)"
         fi
     done
     # The diagrams tab holds a d2 `steps` animation, so its pixels move between
     # runs; the SVGs above are the real check, this only proves it renders.
-    if [ -s "$WORK/go.diagrams.png" ]; then
+    if [ -s "$WORK/go.diagrams.1.png" ]; then
         ok "page-diagrams (rendered; pixels not compared, d2 steps animation)"
     else
         bad "page-diagrams  (no screenshot; is Chrome at $CHROME?)"

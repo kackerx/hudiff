@@ -81,9 +81,10 @@ func (s *server) mux() *http.ServeMux {
 	})
 	m.HandleFunc("GET /favicon.svg", s.favicon)
 	m.HandleFunc("GET /favicon.ico", s.favicon)
-	for name, ctype := range staticAssets {
-		m.HandleFunc("GET /"+name, serveAsset(name, ctype))
+	for _, name := range rootAssets {
+		m.HandleFunc("GET /"+name, serveAsset(name))
 	}
+	m.HandleFunc("GET /vendor/{file}", s.vendor)
 	m.HandleFunc("GET /s/{sid}/{$}", s.withSession(s.page))
 	m.HandleFunc("GET /s/{sid}/api/session", s.withSession(s.apiSession))
 	m.HandleFunc("GET /s/{sid}/api/state", s.withSession(s.apiState))
@@ -99,23 +100,46 @@ func (s *server) favicon(w http.ResponseWriter, r *http.Request) {
 	send(w, 200, asset("favicon.svg"), "image/svg+xml")
 }
 
-// staticAssets are served at the root so both / and /s/{sid}/ can link them.
-var staticAssets = map[string]string{
-	"app.css":   "text/css; charset=utf-8",
-	"app.js":    "text/javascript; charset=utf-8",
-	"index.css": "text/css; charset=utf-8",
-	"index.js":  "text/javascript; charset=utf-8",
+// rootAssets sit at / so both the index and /s/{sid}/ can link them.
+var rootAssets = []string{"app.css", "app.js", "index.css", "index.js"}
+
+func serveAsset(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeAsset(w, name)
+	}
 }
 
-func serveAsset(name, ctype string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body := asset(name)
-		if body == nil {
-			sendJSON(w, 404, map[string]any{"error": "not found"})
-			return
-		}
-		send(w, 200, body, ctype)
+// vendor serves the third-party bundles embedded under web/vendor, so the page
+// works with no network (spec §7). The pattern is one path segment, so the name
+// cannot walk out of the directory.
+func (s *server) vendor(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("file")
+	if name == "" || strings.HasPrefix(name, ".") {
+		sendJSON(w, 404, map[string]any{"error": "not found"})
+		return
 	}
+	writeAsset(w, "vendor/"+name)
+}
+
+func writeAsset(w http.ResponseWriter, name string) {
+	body := asset(name)
+	if body == nil {
+		sendJSON(w, 404, map[string]any{"error": "not found"})
+		return
+	}
+	send(w, 200, body, contentType(name))
+}
+
+func contentType(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".css"):
+		return "text/css; charset=utf-8"
+	case strings.HasSuffix(name, ".js"):
+		return "text/javascript; charset=utf-8"
+	case strings.HasSuffix(name, ".svg"):
+		return "image/svg+xml"
+	}
+	return "application/octet-stream"
 }
 
 // notImplemented keeps the surface honest: write routes answer 501 instead of
