@@ -133,6 +133,7 @@ hudiff/
     session/              data_dir 布局, JSON 原子读写(temp+rename), source_key 幂等, archive, 列表
     diff/                 unified diff → files/hunks/lines; hunk 编号必须与 Python 逐字一致(讲解按它对位)
     source/               git worktree/ref/range、commit、gh pr、patch → diff 文本 + meta
+                          (meta 结构体的字段顺序 = session.json 里的键顺序, 别重排)
     repoctx/              git log / 符号提取 / 引用查找(原 collect_ctx); 不叫 context/ 是为了不遮蔽标准库
     review/               validate(file:line 在 diff 里)+ merge(并入规则, 见 §8.4)
     diagram/              d2 渲染缓存、auto-map 生成(两种方言各一个 emitter)
@@ -234,8 +235,9 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 ## 10. 移植策略与里程碑
 
 冻结四个契约(§8 数据、§3 CLI、§8 HTTP、`read` 文本), 现有 3 个会话是夹具, Python 版是 oracle。
-`specs/parity.sh`: 对同一会话跑 `read`(含 `-W` / `-U`)/ `session info --json` / `session list` /
-`GET /api/session` / `GET /api/sessions` / 每张图的 SVG(两个主题)/ 冷缓存重渲染 / 页面截图, 全部相等才算过。
+`specs/parity.sh` 对同一会话跑 `read`(含 `-W` / `-U`)/ `session info --json` / `session list` /
+`GET /api/session` / `GET /api/sessions` / 每张图的 SVG(两个主题)/ 冷缓存重渲染 / 页面截图;
+`specs/parity-m2.sh`(被它 source)再用两边各建一次会话, 比 `diff.json` 字节和 `session.json`。全部相等才算过。
 两个 daemon 共用 server.json, 所以脚本让它们轮流上: 先抓 Python 侧, 换 Go daemon 再抓一遍, 退出前把
 Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `steps` 图是动画, 每次截到的帧不同, 真正的
 对照是上面逐字节比的 SVG。
@@ -244,7 +246,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 - **M1** ✅ 2026-09-21 骨架: `go.mod` / kong / config / embed / daemon / `session list|info|url` / `read` / `open`,
   Python 写好的会话在 Go daemon 下页面完整可用 → 契约正确的证明。`git mv hudiff legacy/hudiff.py`,
   根目录 `hudiff` 暂为 shim(`exec python3 legacy/hudiff.py "$@"`), `~/.config/bin/hudiff` 软链不用动
-- **M2** `diff/show/pr/patch` + source key 幂等 + `refresh` 评论对位
+- **M2** ✅ 2026-09-22 `workspace/commit/range/pr/patch` + source key 幂等 + `refresh` 评论对位
 - **M3** 写路径: `notes / comments / submit / wait / reply / resolve`
 - **M4** `review`(并入)/ `diagram`(双引擎)/ `context`
 - **M5** config / keymap / hooks / `skill install` / 英文化 / author 字段

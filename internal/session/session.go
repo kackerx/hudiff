@@ -94,6 +94,7 @@ type Session struct {
 	Meta      Meta            `json:"meta"`
 	Repo      string          `json:"repo"`
 	Created   string          `json:"created"`
+	Refresh   []string        `json:"refresh"`
 	SubmitSeq int             `json:"submit_seq"`
 	Archived  any             `json:"archived"`
 	Brief     *Brief          `json:"brief"`
@@ -101,12 +102,14 @@ type Session struct {
 	Raw       json.RawMessage `json:"-"`
 }
 
+type Preset struct {
+	Path string `json:"path"`
+	Text string `json:"text"`
+}
+
 type Brief struct {
-	Presets []struct {
-		Path string `json:"path"`
-		Text string `json:"text"`
-	} `json:"presets"`
 	Prompt  string   `json:"prompt"`
+	Presets []Preset `json:"presets"`
 	Context []string `json:"context"`
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/kackerx/hudiff/internal/daemon"
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/session"
+	"github.com/kackerx/hudiff/internal/source"
 )
 
 type SessionCmd struct {
@@ -260,7 +261,77 @@ func (c *SessionURLCmd) Run(g *Globals) error {
 
 type SessionRefreshCmd struct{}
 
-func (c *SessionRefreshCmd) Run(g *Globals) error { return todo("session refresh") }
+func (c *SessionRefreshCmd) Run(g *Globals) error {
+	_, dir, err := session.Current(g.Session)
+	if err != nil {
+		return usage("%v", err)
+	}
+	sess, err := session.LoadSession(dir)
+	if err != nil {
+		return usage("%v", err)
+	}
+	if sess.Refresh == nil {
+		return usage("a patch session cannot be refreshed")
+	}
+	src, err := sourceFromRefresh(sess)
+	if err != nil {
+		return envErr("%v", err)
+	}
+	r, err := session.ApplyRefresh(dir, src)
+	if err != nil {
+		return envErr("%v", err)
+	}
+	if !r.Changed {
+		fmt.Println("the diff is unchanged")
+		return nil
+	}
+	add, del := 0, 0
+	for _, f := range r.Files {
+		add, del = add+f.Add, del+f.Del
+	}
+	fmt.Printf("refreshed: %d files +%d -%d\n", len(r.Files), add, del)
+	if len(r.Dropped) > 0 {
+		fmt.Println("notes void (hunks moved, rewrite them): " + strings.Join(r.Dropped, ", "))
+	}
+	if len(r.Stale) > 0 {
+		fmt.Println("comments that lost their line (marked stale): " + strings.Join(r.Stale, ", "))
+	}
+	return nil
+}
+
+// sourceFromRefresh replays the tokens stored in session.refresh. They are the
+// oracle's argv fragments, so the mapping has to match source_from_args().
+func sourceFromRefresh(sess *session.Session) (*source.Source, error) {
+	if err := os.Chdir(sess.Repo); err != nil {
+		return nil, err
+	}
+	o := source.Opts{Title: sess.Title}
+	scope, target := source.Worktree, []string{}
+	for i := 0; i < len(sess.Refresh); i++ {
+		switch tok := sess.Refresh[i]; tok {
+		case "--staged":
+			scope = source.Staged
+		case "--unstaged":
+			scope = source.Unstaged
+		case "--":
+			o.Pathspec = sess.Refresh[i+1:]
+			i = len(sess.Refresh)
+		default:
+			target = append(target, tok)
+		}
+	}
+	if len(target) == 0 {
+		return source.FromWorktree(scope, o)
+	}
+	if target[0] == "pr" && len(target) > 1 {
+		return source.FromPR(target[1], o)
+	}
+	spec := strings.Join(target, " ")
+	if strings.Contains(spec, "..") {
+		return source.FromRange(spec, o)
+	}
+	return source.FromCommit(spec, o)
+}
 
 type SessionArchiveCmd struct {
 	IDs  []string `arg:"" optional:"" help:"Session ids."`

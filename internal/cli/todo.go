@@ -12,35 +12,25 @@ type WorkspaceCmd struct {
 	Pathspec []string `arg:"" optional:"" help:"Limit to these paths." placeholder:"<pathspec>"`
 }
 
-func (c *WorkspaceCmd) Run(g *Globals) error { return todo("hudiff (workspace diff)") }
-
 type CommitCmd struct {
 	ReviewOpts
 	Rev string `arg:"" optional:"" default:"HEAD" help:"Commit to show." placeholder:"<rev>"`
 }
-
-func (c *CommitCmd) Run(g *Globals) error { return todo("commit") }
 
 type RangeCmd struct {
 	ReviewOpts
 	Spec string `arg:"" help:"<a>..<b>, <a>...<b>, or <a>." placeholder:"<range>"`
 }
 
-func (c *RangeCmd) Run(g *Globals) error { return todo("range") }
-
 type PRCmd struct {
 	ReviewOpts
 	Ref string `arg:"" help:"PR number, #number or URL." placeholder:"<n|#n|url>"`
 }
 
-func (c *PRCmd) Run(g *Globals) error { return todo("pr") }
-
 type PatchCmd struct {
 	ReviewOpts
 	File string `arg:"" optional:"" default:"-" help:"Patch file, or - for stdin." placeholder:"<file|->"`
 }
-
-func (c *PatchCmd) Run(g *Globals) error { return todo("patch") }
 
 type ContextCmd struct {
 	File string `short:"f" help:"Only this path." placeholder:"<path>"`

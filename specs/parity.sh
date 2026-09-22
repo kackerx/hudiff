@@ -192,6 +192,9 @@ if [ "$SHOTS" = 1 ]; then
     fi
 fi
 
+echo "M2: session creation"
+. "$ROOT/specs/parity-m2.sh"
+
 if [ "$FAILED" = 0 ]; then
     echo "parity ok"
     rm -rf "$WORK"
