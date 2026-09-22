@@ -216,7 +216,7 @@ chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片�
 目录 `<data_dir>/sessions/<id>/`, id = `YYYYMMDD-HHMMSS-xxxx`。
 
 1. `session.json`: `id, kind(worktree|commit|range|pr|patch), title, repo, created, meta{…}, key, submit_seq,
-   last_submit, refresh, archived, opener{cwd, agent_session}`。**删掉** `bound`(tmux 绑定)。
+   last_submit, refresh, archived, opener{cwd, agent_session}, bound{pid, name, kind}`(bound 2026-09-22 加回, 不含 tmux pane)。
 2. `diff.patch` 原文; `diff.json`: `files[]{path, old_path, status, binary, add, del, hunks[]{header, section,
    old_start, old_count, new_start, new_count, lines[]{t, o, n, s}}}`。
 3. `notes.json`: `title, summary, diagrams[]{id, title, kind, caption, hunks[], src}, files{path: {summary,
@@ -233,8 +233,8 @@ chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片�
 
 HTTP API 前缀 `/s/{sid}/api/`: `session(GET)`, `state`, `wait`, `submit(POST)`, `comments(POST/PATCH/DELETE)`,
 `notes(POST)`, `review(GET/POST)`, `review/{id}(PATCH)`, `review/{id}/note(POST)`, `diagram?i=&theme=`,
-`refresh(POST)`, `archive(PATCH)`; 根级 `/api/sessions`, `/api/config`, `/favicon.svg`, `/s/{sid}/`, `/`。
-**删掉** `/api/agents`、`/api/notify`、`/api/review-request` 的投递部分(改为返回要粘贴的命令 + 触发 hook)。
+`refresh(POST)`, `archive(PATCH)`, `agents(GET)`(本仓库下的 agent 进程列表 + waiter 数 + bound); 根级 `/api/sessions`, `/api/config`,
+`/favicon.svg`, `/s/{sid}/`, `/`。**删掉** `/api/notify` 和 `/api/review-request` 的 tmux 投递部分(改为返回要粘贴的命令 + 触发 hook)。
 
 `hudiff read` 的文本格式逐字保留(`=== path [M] +a -b` / `--- [path#n] ✓ @@…` / 双列行号), 只把中文注释行换成英文。
 CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标签、错误信息)**M1-fix 起已全英文**;
@@ -244,8 +244,11 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
 ## 9. 前端改动清单(在拆文件之外)
 
 - 全部文案英文, 直接写在原处; **不做** `T` 字符串表(2026-09-22: 为不存在的第二语言建 235 条间接层是推测性需求, 真要加语言时从英文抽比从中文抽容易; `ui.language` 字段保留但无实现)
-- 删: agent 选择器弹层、绑定状态、"在 tmux 里" 分支; Send 在无 waiter 时提示 `Run: hudiff wait` + 复制按钮;
-  Request review 弹出 `/hudiff review <id>` 命令 + 复制按钮(hook 若配置则同时触发)
+- **agent 选择器保留**(2026-09-22 用户实测后要回来, 推翻 M5 的删除): Send 下拉和 Request review 弹层都列出**本仓库目录下**
+  正在跑的 agent 进程(`ps` + `lsof` cwd, 进程名集合 {claude, pi, opencode, codex}, `config.agents.names` 可扩; Windows 返回空);
+  命名 = 进程自带名字 > 目录名, 同目录多个按启动先后 `目录:1 / 目录:2`(不按 pid, macOS pid 回绕)。选中 → 写 `session.bound`
+  + 显示要在那个 agent 里跑的命令 + 复制按钮 + 触发 hook(环境变量多给 HUDIFF_AGENT_PID / NAME / CWD)。
+  **删的只是 tmux `send-keys` 投递**(是否做成"检测到 tmux 就用"的可选适配器, 待定); 无 waiter 时仍提示 `Run: hudiff wait`。
 - 加: keymap 模块(§6)、评论 `author` 头像/颜色 + 按作者筛选、首页评论数按作者分
 - 保: content-visibility、scrollCodeTo 定位、sash 拖宽、自绘 dlg、tab 独立滚动
 
@@ -296,3 +299,5 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
     `config.diagram.engine`。二进制 stripped 32.5MB → 27.5MB。
 12. (2026-09-22) 分发 → v1 只 `go install`, PATH 上不再用软链(~/.config/bin/hudiff 删除, config-doctor 改查 `command -v hudiff`);
     goreleaser / brew tap / GitHub repo 等成熟再做; `.handoff/` 目录不入库(含本机路径)
+13. (2026-09-22) agent 选择列表**恢复**(用户实测后要求): 发现走 ps + lsof, 无 tmux 依赖; `session.bound` 加回; 只有 tmux send-keys
+    投递仍不做(可选适配器待定)
