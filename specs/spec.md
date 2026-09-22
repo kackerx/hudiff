@@ -248,7 +248,12 @@ CLI 侧(stdout/stderr 提示、`read` 的 `#` 头、`session list|info` 的标�
   正在跑的 agent 进程(`ps` + `lsof` cwd, 进程名集合 {claude, pi, opencode, codex}, `config.agents.names` 可扩; Windows 返回空);
   命名 = 进程自带名字 > 目录名, 同目录多个按启动先后 `目录:1 / 目录:2`(不按 pid, macOS pid 回绕)。选中 → 写 `session.bound`
   + 显示要在那个 agent 里跑的命令 + 复制按钮 + 触发 hook(环境变量多给 HUDIFF_AGENT_PID / NAME / CWD)。
-  **删的只是 tmux `send-keys` 投递**(是否做成"检测到 tmux 就用"的可选适配器, 待定); 无 waiter 时仍提示 `Run: hudiff wait`。
+  **投递 = 适配器链, 自动检测, 零配置, 结果一致可见**(2026-09-22 拍板): 有 waiter → 直接叫醒; 否则按 agent 进程的 tty / 环境
+  依次试 **tmux**(`list-panes` 按 tty 定位 → `send-keys`)、**kitty**(`kitten @ ls` 按前台 pid 定位 → `send-text`, 需用户开
+  `allow_remote_control`)、**cmux**(socket API `cmux send`); 都不行 → **一键复制**命令。每次点击都以 toast 明确说明
+  "Sent to X via tmux" / "Copied — paste into X" 及未投递的原因。**不做** Stop hook(用户点了要等 agent 下次停下才响应, 反直觉);
+  **不做** Ghostty 原生适配器(1.3.1 无 AppleScript 字典、无 send-text IPC, 用户走 cmux / tmux / 复制)。herdr 是 tmux 之上的层, tmux 适配器覆盖。
+  API `POST /s/{sid}/api/deliver {pid, text}` → `{via, detail}`; CLI `hudiff agents [--json]` / `hudiff agents deliver <pid> <text>`。
 - 加: keymap 模块(§6)、评论 `author` 头像/颜色 + 按作者筛选、首页评论数按作者分
 - 保: content-visibility、scrollCodeTo 定位、sash 拖宽、自绘 dlg、tab 独立滚动
 
@@ -301,3 +306,4 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
     goreleaser / brew tap / GitHub repo 等成熟再做; `.handoff/` 目录不入库(含本机路径)
 13. (2026-09-22) agent 选择列表**恢复**(用户实测后要求): 发现走 ps + lsof, 无 tmux 依赖; `session.bound` 加回; 只有 tmux send-keys
     投递仍不做(可选适配器待定)
+14. (2026-09-22) 投递适配器链 tmux → kitty → cmux → 复制, 零配置自动检测, 结果必须可见一致; 不做 Stop hook, 不做 Ghostty 原生(无公开 API)
