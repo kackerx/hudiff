@@ -7,7 +7,7 @@
 set -eu
 
 CFG=$(mktemp -d)
-remember "$CFG"
+remember "$CFG/state"   # the daemon writes its server.json under XDG_STATE_HOME
 
 hud() { XDG_CONFIG_HOME=$CFG XDG_STATE_HOME=$CFG/state "$GO" "$@"; }
 
@@ -57,12 +57,12 @@ c["hooks"] = {"on_submit": "printf %s\\\\n \"$HUDIFF_SESSION|$HUDIFF_URL|$HUDIFF
 json.dump(c, open(p, "w"), indent=2)' "$CFG/hudiff/config.json" "$CFG/hook.out"
 hud daemon start >/dev/null 2>&1 || true
 KP=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$CFG/state/hudiff/server.json")
-SID=$(basename "$FGS")
+MSID=$(basename "$FGS")   # not SID: that is parity.sh's fixture, used by restore()
 curl -s -o /dev/null -X POST -H 'Content-Type: application/json' \
-    -d '{"target":"general","body":"hook probe"}' "http://127.0.0.1:$KP/s/$SID/api/comments"
-curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$KP/s/$SID/api/submit"
+    -d '{"target":"general","body":"hook probe"}' "http://127.0.0.1:$KP/s/$MSID/api/comments"
+curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{}' "http://127.0.0.1:$KP/s/$MSID/api/submit"
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$CFG/hook.out" ] && break; sleep 0.2; done
-if [ -s "$CFG/hook.out" ] && grep -q "^$SID|http://127.0.0.1:$KP/s/$SID/|.*|[0-9]" "$CFG/hook.out"; then
+if [ -s "$CFG/hook.out" ] && grep -q "^$MSID|http://127.0.0.1:$KP/s/$MSID/|.*|[0-9]" "$CFG/hook.out"; then
     ok "hooks.on_submit ran with HUDIFF_SESSION / URL / REPO / COUNT"
 else
     bad "hooks.on_submit  (got: $(cat "$CFG/hook.out" 2>/dev/null || echo nothing))"
@@ -81,8 +81,8 @@ fi
 rm -rf "$HOME_T"
 
 # ── diagram --ascii: readable in a terminal, and it keeps the node labels ──
-hud -s "$SID" diagram auto-map --ascii >"$CFG/auto.txt" 2>"$CFG/ascii.err" || true
-hud -s "$SID" diagram auto-map --src >"$CFG/auto.d2" 2>/dev/null || true
+hud -s "$MSID" diagram auto-map --ascii >"$CFG/auto.txt" 2>"$CFG/ascii.err" || true
+hud -s "$MSID" diagram auto-map --src >"$CFG/auto.d2" 2>/dev/null || true
 if [ -s "$CFG/auto.txt" ] && python3 "$ROOT/specs/parity-labels.py" "$CFG/auto.txt" "$CFG/auto.d2" 2>>"$CFG/ascii.err"; then
     ok "diagram --ascii keeps every node label ($(wc -l <"$CFG/auto.txt" | tr -d ' ') lines)"
 else
