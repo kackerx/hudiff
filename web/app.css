@@ -308,3 +308,17 @@ header .brief{margin-top:6px;font-size:12px;color:var(--fg2);display:flex;gap:6p
 .cbar .chip.au{display:inline-flex;align-items:center;gap:5px}
 .cbar .chip.au i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .thread .meta .av{color:#fff;font-size:9.5px;font-weight:700}
+
+/* agent picker: one row per agent, no headers — name, kind, branch, directory */
+.sendgrp .tgt{cursor:pointer}
+.sendgrp .tgt .pick{color:var(--fg3)}
+.agpop{position:absolute;right:0;top:calc(100% + 16px);z-index:40;min-width:340px;max-width:min(560px,90vw);
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);padding:4px;text-align:left}
+.ag{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;cursor:pointer;font-size:12px;white-space:nowrap}
+.ag:hover{background:var(--accent-soft)}
+.ag .nm{font-weight:600;color:var(--fg)}
+.ag .kd{color:var(--fg3);font-size:10.5px}
+.ag .br{color:var(--accent);font-size:11px;overflow:hidden;text-overflow:ellipsis;max-width:14ch}
+.ag .cw{color:var(--fg2);font-size:11px;margin-left:auto;overflow:hidden;text-overflow:ellipsis}
+.aghint{padding:7px 9px;color:var(--fg2);font-size:11.5px;white-space:normal}
+.aglist{margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:4px;background:var(--bg2)}

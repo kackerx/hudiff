@@ -47,6 +47,7 @@ type CLI struct {
 	Reply    ReplyCmd    `cmd:"" help:"Reply to a comment."`
 	Resolve  ResolveCmd  `cmd:"" help:"Mark a comment handled, awaiting the user's confirmation."`
 
+	Agents  AgentsCmd  `cmd:"" help:"The coding agents running in this repo."`
 	Daemon  DaemonCmd  `cmd:"" help:"The single local server that owns every session."`
 	Skill   SkillCmd   `cmd:"" help:"The agent skill shipped with hudiff."`
 	Config  ConfigCmd  `cmd:"" help:"Configuration file."`

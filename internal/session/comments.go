@@ -225,6 +225,21 @@ func Exists(dir string) bool {
 	return err == nil && st.IsDir()
 }
 
+// SetBound records which agent the user is handing this session to.
+func SetBound(dir string, b *Bound) error {
+	mu := lockFor(dir)
+	mu.Lock()
+	defer mu.Unlock()
+	path := filepath.Join(dir, "session.json")
+	raw := loadAny(path)
+	if b == nil {
+		raw["bound"] = nil
+	} else {
+		raw["bound"] = map[string]any{"pid": b.PID, "name": b.Name, "kind": b.Kind}
+	}
+	return WriteJSON(path, raw)
+}
+
 // SetArchived hides a session from the home page; the data and the link stay.
 // The oracle stores a timestamp, not a bool, and old data may hold either.
 func SetArchived(dir string, on bool) error {

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kackerx/hudiff/internal/agents"
 	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/diagram"
 	"github.com/kackerx/hudiff/internal/diff"
@@ -97,6 +98,7 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("GET /s/{sid}/{$}", s.withSession(s.page))
 	m.HandleFunc("GET /s/{sid}/api/session", s.withSession(s.apiSession))
 	m.HandleFunc("GET /s/{sid}/api/state", s.withSession(s.apiState))
+	m.HandleFunc("GET /s/{sid}/api/agents", s.withSession(s.apiAgents))
 	m.HandleFunc("GET /s/{sid}/api/diagram", s.withSession(s.apiDiagram))
 	m.HandleFunc("GET /s/{sid}/api/wait", s.withSession(s.apiWait))
 	m.HandleFunc("POST /s/{sid}/api/comments", s.withSession(s.postComment))
@@ -104,6 +106,7 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("PATCH /s/{sid}/api/comments/{id}", s.withSession(s.patchComment))
 	m.HandleFunc("DELETE /s/{sid}/api/comments/{id}", s.withSession(s.deleteComment))
 	m.HandleFunc("POST /s/{sid}/api/submit", s.withSession(s.postSubmit))
+	m.HandleFunc("POST /s/{sid}/api/deliver", s.withSession(s.postDeliver))
 	m.HandleFunc("POST /s/{sid}/api/notes", s.withSession(s.postNotes))
 	m.HandleFunc("POST /s/{sid}/api/review-request", s.withSession(s.postReviewRequest))
 	m.HandleFunc("POST /s/{sid}/api/review", s.withSession(s.postReview))
@@ -238,7 +241,60 @@ func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir strin
 	st := session.ReadState(dir)
 	n := s.rooms.count(sid)
 	st.Waiting = &n
+	if sess, err := session.LoadSession(dir); err == nil && sess.Bound != nil {
+		alive := agents.Alive(sess.Bound.PID)
+		st.BoundLive = &alive
+	}
 	sendJSON(w, 200, st)
+}
+
+// apiAgents is the Send / Request review picker: the agents running in this
+// session's repo, how many are blocked in `wait`, and the one already picked.
+func (s *server) apiAgents(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	var repo string
+	var bound *session.Bound
+	if sess, err := session.LoadSession(dir); err == nil {
+		repo, bound = sess.Repo, sess.Bound
+	}
+	sendJSON(w, 200, map[string]any{
+		"agents":  agents.InRepo(repo, config.Load().Agents.Names),
+		"waiting": s.rooms.count(sid),
+		"bound":   bound,
+	})
+}
+
+// postDeliver is what the page calls when the user picks an agent: try to type
+// the command into that agent's terminal, and say which way it went so the page
+// can tell the user rather than leave them guessing.
+func (s *server) postDeliver(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	b := readBody(r)
+	text, _ := b["text"].(string)
+	pid := asInt(b["pid"])
+	// Only ever type into a pid that is still an agent in this repo: the page
+	// can be holding a stale one, and macOS hands pids out again.
+	ag := bindAgent(dir, pid)
+	if ag == nil {
+		sendJSON(w, 200, map[string]any{"via": "copy", "detail": "that agent is no longer running", "text": text})
+		return
+	}
+	d := agents.Deliver(pid, text)
+	sendJSON(w, 200, map[string]any{"via": d.Via, "detail": d.Detail, "agent": ag, "text": text})
+}
+
+// bindAgent records the agent the page picked; the returned one goes into the
+// hook environment. An unknown pid binds nothing.
+func bindAgent(dir string, pid int) *agents.Agent {
+	sess, err := session.LoadSession(dir)
+	if pid <= 0 || err != nil {
+		return nil
+	}
+	for _, a := range agents.InRepo(sess.Repo, config.Load().Agents.Names) {
+		if a.PID == pid {
+			_ = session.SetBound(dir, &session.Bound{PID: a.PID, Name: a.Name, Kind: a.Kind})
+			return &a
+		}
+	}
+	return nil
 }
 
 func (s *server) apiDiagram(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -273,6 +329,11 @@ func (s *server) apiWait(w http.ResponseWriter, r *http.Request, sid, dir string
 	}
 	seq := s.rooms.wait(r, sid, dir, since, time.Duration(timeout*float64(time.Second)))
 	sendJSON(w, 200, waitResult{SubmitSeq: seq, Changed: seq > since})
+}
+
+func asInt(v any) int {
+	f, _ := v.(float64)
+	return int(f)
 }
 
 func readBody(r *http.Request) map[string]any {
@@ -326,6 +387,7 @@ func (s *server) deleteComment(w http.ResponseWriter, r *http.Request, sid, dir 
 
 // postSubmit is the session's inbox bell: whoever is in /api/wait wakes up.
 func (s *server) postSubmit(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	ag := bindAgent(dir, asInt(readBody(r)["pid"]))
 	n, seq, err := session.Submit(dir)
 	if err != nil {
 		sendJSON(w, 500, map[string]any{"error": err.Error()})
@@ -337,10 +399,10 @@ func (s *server) postSubmit(w http.ResponseWriter, r *http.Request, sid, dir str
 	if waiting > 0 {
 		delivered = "wait"
 	} else {
-		runHook(hooks().OnSubmit, sid, dir, n)
+		runHook(hooks().OnSubmit, sid, dir, n, ag)
 	}
 	sendJSON(w, 200, map[string]any{"sent": n, "submit_seq": seq, "waiting": waiting,
-		"delivered": delivered, "command": "hudiff -s " + sid + " wait"})
+		"delivered": delivered, "command": "hudiff -s " + sid + " wait", "agent": ag})
 }
 
 func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir string) {
@@ -356,11 +418,12 @@ func (s *server) postNotes(w http.ResponseWriter, r *http.Request, sid, dir stri
 	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
-// postReviewRequest has nothing to deliver to any more (spec §5 dropped tmux):
-// it returns the command for the user to paste and fires the hook.
+// postReviewRequest hands back the command for the user to paste at the agent
+// they picked, and fires the hook. Nothing is delivered for them (spec §5).
 func (s *server) postReviewRequest(w http.ResponseWriter, r *http.Request, sid, dir string) {
-	runHook(hooks().OnReviewRequest, sid, dir, 0)
-	sendJSON(w, 200, map[string]any{"ok": true, "command": "/hudiff review " + sid})
+	ag := bindAgent(dir, asInt(readBody(r)["pid"]))
+	runHook(hooks().OnReviewRequest, sid, dir, 0, ag)
+	sendJSON(w, 200, map[string]any{"ok": true, "command": "/hudiff review " + sid, "agent": ag})
 }
 
 // postReview also bumps submit_seq: a new round is something an agent waiting

@@ -24,6 +24,10 @@ type Hooks struct {
 	OnReviewRequest string `json:"on_review_request"`
 }
 
+type Agents struct {
+	Names []string `json:"names"`
+}
+
 type UI struct {
 	Theme    string `json:"theme"`
 	Language string `json:"language"`
@@ -36,6 +40,7 @@ type Config struct {
 	DataDir    string            `json:"data_dir"`
 	PromptsDir string            `json:"prompts_dir"`
 	Hooks      Hooks             `json:"hooks"`
+	Agents     Agents            `json:"agents"`
 	Keymap     map[string]string `json:"keymap"`
 	UI         UI                `json:"ui"`
 }

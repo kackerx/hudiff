@@ -282,6 +282,9 @@ echo "M4: review / context / diagram"
 echo "M5: config / keymap / hooks / skill"
 . "$ROOT/specs/parity-m5.sh"
 
+echo "agents: the Send / Request review picker"
+. "$ROOT/specs/parity-agents.sh"
+
 # ── the page ─────────────────────────────────────────────────────────────────
 # Compared as rendered DOM rather than pixels: the DOM is reproducible, while
 # screenshots differ by a sub-pixel, and the diagrams tab animates.
@@ -310,6 +313,11 @@ if [ "$PAGE" = 1 ]; then
     # The home page is its own render path; a JS error there once showed up as an
     # empty list while every session-page check stayed green.
     dump "http://127.0.0.1:$P/" "$WORK/index.html"
+    if grep -q 'id="agentpop"' "$WORK/page.code.html"; then
+        ok "the page carries the agent picker"
+    else
+        bad "no agent picker in the page  ($WORK/page.code.html)"
+    fi
     if grep -q 'class="card' "$WORK/index.html"; then
         ok "home page lists sessions"
     else

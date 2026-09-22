@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"github.com/kackerx/hudiff/internal/agents"
 	"github.com/kackerx/hudiff/internal/config"
 	"github.com/kackerx/hudiff/internal/session"
 )
@@ -13,7 +14,7 @@ import (
 // runHook replaces the old tmux delivery: a user-configured shell command, told
 // which session it is about through the environment. Fire and forget — the
 // daemon must not block on someone's notifier.
-func runHook(cmdline, sid, dir string, count int) {
+func runHook(cmdline, sid, dir string, count int, ag *agents.Agent) {
 	if cmdline == "" {
 		return
 	}
@@ -26,6 +27,10 @@ func runHook(cmdline, sid, dir string, count int) {
 	cmd.Env = append(os.Environ(),
 		"HUDIFF_SESSION="+sid, "HUDIFF_URL="+url,
 		"HUDIFF_REPO="+repo, "HUDIFF_COUNT="+strconv.Itoa(count))
+	if ag != nil {
+		cmd.Env = append(cmd.Env, "HUDIFF_AGENT_PID="+strconv.Itoa(ag.PID),
+			"HUDIFF_AGENT_NAME="+ag.Name, "HUDIFF_AGENT_CWD="+ag.CWD)
+	}
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "hudiff: hook failed: %v\n", err)
 		return

@@ -31,7 +31,11 @@
 <span class="tgt" id="send-tgt">
 <span class="dot off">
 </span>
+<span class="pick">
 </span>
+</span>
+<div class="agpop" id="agentpop">
+</div>
 </span>
 </div>
 </div>

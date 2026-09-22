@@ -36,6 +36,8 @@ Commands:
                      comments.
   reply              Reply to a comment.
   resolve            Mark a comment handled, awaiting the user's confirmation.
+  agents list        List the agents running in this repo.
+  agents deliver     Type a command into the terminal an agent is running in.
   daemon start       Start the daemon if it is not running.
   daemon stop        Stop the daemon; session data is kept.
   daemon status      Print URL, port and pid.

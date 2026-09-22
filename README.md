@@ -48,6 +48,7 @@ After it edits, `hudiff session refresh` re-anchors your comments to the new dif
 ## Features
 
 - **Works with any agent that can run a shell.** The CLI is the product; the bundled `SKILL.md` teaches the agent the workflow.
+- **Pick which agent to hand the comments to.** hudiff finds the agents running in your repo — `ps` and `lsof`, nothing installed — and types the command into that one's terminal (tmux, kitty), or hands it to you to paste.
 - **Zero runtime deps.** One binary, d2 compiled in. `git` is required; `gh` only for pull requests.
 - **Sessions, not tabs.** One local daemon serves every session at `/s/<id>/`. Sessions live on disk, reopen any time, archive or delete when done.
 - **Idempotent.** Running hudiff twice on the same target reuses the session and refreshes it in place.
@@ -142,6 +143,7 @@ Environment: `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `HUDIFF_STATE` (or `XDG_STATE_HOME
   or fires your `on_submit` hook.
 - **Reviews merge.** A second round keeps every earlier item and its done/won't-fix state, updates wording in place, and appends re-review notes.
 - **Diagrams:** d2 is compiled into the binary, renders in the daemon and is cached by source hash.
+- **Delivery adapters:** picking an agent tries tmux (matched by the pane's tty), then kitty (remote control, matched by the window's foreground process), then cmux; anything else falls back to copying the command, and the page always says which one happened. Ghostty has no send-text channel — use tmux or copy.
 
 ## Development
 

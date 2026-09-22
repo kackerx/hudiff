@@ -83,7 +83,15 @@ type Session struct {
 	Archived  any             `json:"archived"`
 	Brief     *Brief          `json:"brief"`
 	Key       string          `json:"key"`
+	Bound     *Bound          `json:"bound"`
 	Raw       json.RawMessage `json:"-"`
+}
+
+// Bound is the agent the user picked to hand this session to.
+type Bound struct {
+	PID  int    `json:"pid"`
+	Name string `json:"name"`
+	Kind string `json:"kind"`
 }
 
 type Preset struct {
@@ -127,6 +135,7 @@ type State struct {
 	DiffV     int64 `json:"diff_v"`
 	SubmitSeq int   `json:"submit_seq"`
 	Waiting   *int  `json:"waiting,omitempty"`
+	BoundLive *bool `json:"bound_alive,omitempty"`
 }
 
 func mtimeNS(path string) int64 {
