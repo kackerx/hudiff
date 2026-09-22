@@ -90,8 +90,66 @@ else
 fi
 
 # ── the UI is English: no CJK left in anything we ship ──
-if leak=$(grep -rl '[一-鿿]' "$ROOT/web" "$ROOT/skills" --exclude-dir=vendor 2>/dev/null); then
-    bad "CJK left in shipped assets: $leak"
+# Chinese left in anything a user sees. internal/review/review.go's priority
+# alias table is on purpose — it accepts what an agent might write — and Go
+# comments are not user-visible.
+if leak=$(grep -rn '[一-鿿]' "$ROOT/web" "$ROOT/skills" "$ROOT/internal" --exclude-dir=vendor 2>/dev/null |
+          grep -v 'internal/review/review.go' | grep -v ':[0-9]*:[[:space:]]*//'); then
+    bad "CJK left where a user can see it: $leak"
 else
-    ok "no CJK left in web/ or skills/"
+    ok "no CJK in web/, skills/ or Go output strings"
+fi
+
+# ── archive / rm: the home page buttons and the two subcommands ─────────────
+M5_AR=$(mktemp -d)
+remember "$M5_AR/state"
+mkdir -p "$M5_AR/state/hudiff/sessions"
+cp -R "$FGS" "$M5_AR/state/hudiff/sessions/"
+arh() { XDG_STATE_HOME=$M5_AR/state "$GO" "$@"; }
+
+arh session archive "$MSID" >/dev/null 2>&1 || true
+hidden=$(arh session list 2>/dev/null | grep -c "$MSID" || true)
+shown=$(arh session list --all 2>/dev/null | grep -c "$MSID" || true)
+if [ "$hidden" = 0 ] && [ "$shown" -ge 1 ]; then
+    ok "session archive hides it from list, --all still shows it"
+else
+    bad "session archive: default listed $hidden, --all listed $shown"
+fi
+if arh session list --all 2>/dev/null | grep -q '\[archived\]'; then
+    ok "archived sessions are marked in the list"
+else
+    bad "archived marker missing from session list --all"
+fi
+
+# the home page's checkbox reads the same flag off /api/sessions
+arh daemon start >/dev/null 2>&1 || true
+M5_AP=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["port"])' "$M5_AR/state/hudiff/server.json")
+if curl -s "http://127.0.0.1:$M5_AP/api/sessions" |
+   python3 -c 'import json,sys; assert json.load(sys.stdin)["sessions"][0]["archived"] is True' 2>/dev/null; then
+    ok "/api/sessions reports the session as archived"
+else
+    bad "/api/sessions did not report archived"
+fi
+curl -s -o /dev/null -X PATCH -H 'Content-Type: application/json' -d '{"archived":false}' \
+    "http://127.0.0.1:$M5_AP/api/s/$MSID"
+if arh session list 2>/dev/null | grep -q "$MSID"; then
+    ok "PATCH /api/s/{id} unarchives it (the page's button)"
+else
+    bad "PATCH /api/s/{id} did not unarchive"
+fi
+curl -s -o /dev/null -X DELETE "http://127.0.0.1:$M5_AP/api/s/$MSID"
+if [ ! -d "$M5_AR/state/hudiff/sessions/$MSID" ]; then
+    ok "DELETE /api/s/{id} removes the session directory"
+else
+    bad "DELETE /api/s/{id} left the directory behind"
+fi
+arh daemon stop >/dev/null 2>&1 || true
+
+# and the CLI path, on a second copy
+cp -R "$FGS" "$M5_AR/state/hudiff/sessions/" 2>/dev/null || true
+arh session rm "$MSID" >/dev/null 2>&1 || true
+if [ ! -d "$M5_AR/state/hudiff/sessions/$MSID" ]; then
+    ok "session rm removes the session directory"
+else
+    bad "session rm left the directory behind"
 fi

@@ -110,8 +110,38 @@ func (s *server) mux() *http.ServeMux {
 	m.HandleFunc("POST /s/{sid}/api/review", s.withSession(s.postReview))
 	m.HandleFunc("PATCH /s/{sid}/api/review/{id}", s.withSession(s.patchReview))
 	m.HandleFunc("POST /s/{sid}/api/review/{id}/note", s.withSession(s.postReviewNote))
+	m.HandleFunc("PATCH /api/s/{sid}", s.archiveSession)
+	m.HandleFunc("DELETE /api/s/{sid}", s.deleteSession)
 	m.HandleFunc("/", notImplemented)
 	return m
+}
+
+func (s *server) archiveSession(w http.ResponseWriter, r *http.Request) {
+	sid := r.PathValue("sid")
+	dir := session.Dir(sid)
+	if !sidRe.MatchString(sid) || !session.Exists(dir) {
+		sendJSON(w, 404, map[string]any{"error": "no such session"})
+		return
+	}
+	on, _ := readBody(r)["archived"].(bool)
+	if err := session.SetArchived(dir, on); err != nil {
+		sendJSON(w, 500, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true, "archived": on})
+}
+
+func (s *server) deleteSession(w http.ResponseWriter, r *http.Request) {
+	sid := r.PathValue("sid")
+	if !sidRe.MatchString(sid) {
+		sendJSON(w, 404, map[string]any{"error": "no such session"})
+		return
+	}
+	if err := session.Remove(sid); err != nil {
+		sendJSON(w, 404, map[string]any{"error": err.Error()})
+		return
+	}
+	sendJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *server) favicon(w http.ResponseWriter, r *http.Request) {

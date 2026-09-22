@@ -224,3 +224,34 @@ func Exists(dir string) bool {
 	st, err := os.Stat(dir)
 	return err == nil && st.IsDir()
 }
+
+// SetArchived hides a session from the home page; the data and the link stay.
+// The oracle stores a timestamp, not a bool, and old data may hold either.
+func SetArchived(dir string, on bool) error {
+	mu := lockFor(dir)
+	mu.Lock()
+	defer mu.Unlock()
+	path := filepath.Join(dir, "session.json")
+	raw := loadAny(path)
+	if on {
+		raw["archived"] = NowISO()
+	} else {
+		raw["archived"] = nil
+	}
+	return WriteJSON(path, raw)
+}
+
+// Remove deletes a session and its comments. Irreversible.
+func Remove(sid string) error {
+	dir := Dir(sid)
+	if !Exists(dir) {
+		return fmt.Errorf("no such session: %s", sid)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+	if b, err := os.ReadFile(CurrentFile()); err == nil && strings.TrimSpace(string(b)) == sid {
+		_ = os.Remove(CurrentFile())
+	}
+	return nil
+}

@@ -241,15 +241,27 @@ for a in app.css app.js index.css index.js vendor/highlight.min.js \
     fi
 done
 
+# A sourced section that assigns one of these by accident breaks the sections
+# after it — and once broke restore(), leaving the user with no daemon.
+guard() { printf '%s|%s|%s|%s|%s' "$SID" "$WORK" "$ROOT" "$GO" "$PY"; }
+GUARD=$(guard)
+check_guard() {
+    [ "$(guard)" = "$GUARD" ] || bad "$1 clobbered a parity.sh global: $(guard) != $GUARD"
+}
+
 echo "M2: session creation"
 . "$ROOT/specs/parity-m2.sh"
+check_guard parity-m2.sh
 
 echo "M3: the write path"
 . "$ROOT/specs/parity-m3.sh"
+check_guard parity-m3.sh
 echo "M4: review / context / diagram"
 . "$ROOT/specs/parity-m4.sh"
+check_guard parity-m4.sh
 echo "M5: config / keymap / hooks / skill"
 . "$ROOT/specs/parity-m5.sh"
+check_guard parity-m5.sh
 rm -rf "$FIX"
 
 if [ "$FAILED" = 0 ]; then

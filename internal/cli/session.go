@@ -323,10 +323,36 @@ type SessionArchiveCmd struct {
 	Undo bool     `help:"Un-archive instead."`
 }
 
-func (c *SessionArchiveCmd) Run(g *Globals) error { return todo("session archive") }
+func (c *SessionArchiveCmd) Run(g *Globals) error {
+	for _, sid := range c.IDs {
+		dir := session.Dir(sid)
+		if !session.Exists(dir) {
+			fmt.Fprintf(os.Stderr, "hudiff: no such session: %s\n", sid)
+			continue
+		}
+		if err := session.SetArchived(dir, !c.Undo); err != nil {
+			return envErr("%v", err)
+		}
+		state := "archived (hidden from the home page)"
+		if c.Undo {
+			state = "unarchived"
+		}
+		fmt.Printf("%s → %s\n", sid, state)
+	}
+	return nil
+}
 
 type SessionRmCmd struct {
 	IDs []string `arg:"" optional:"" help:"Session ids."`
 }
 
-func (c *SessionRmCmd) Run(g *Globals) error { return todo("session rm") }
+func (c *SessionRmCmd) Run(g *Globals) error {
+	for _, sid := range c.IDs {
+		if err := session.Remove(sid); err != nil {
+			fmt.Fprintf(os.Stderr, "hudiff: %v\n", err)
+			continue
+		}
+		fmt.Printf("deleted %s\n", sid)
+	}
+	return nil
+}

@@ -2,7 +2,7 @@
 # M4 half of the parity gate: review, context, diagram, and the two budgets
 # (binary size, dependency count).
 #
-# Sourced by parity.sh after parity-m3.sh, which leaves both fixture sessions
+# Sourced by parity.sh m4_after parity-m3.sh, which leaves both fixture sessions
 # in $FPS / $FGS and their state dirs in $FP / $FG.
 set -eu
 
@@ -63,7 +63,7 @@ print(json.dumps(rv, sort_keys=True, indent=1, ensure_ascii=False))' "$1"
 }
 strip_review "$FPS/review.json" >"$FP/review.norm"
 strip_review "$FGS/review.json" >"$FG/review.norm"
-same "review.json after two rounds" "$FP/review.norm" "$FG/review.norm"
+same "review.json m4_after two rounds" "$FP/review.norm" "$FG/review.norm"
 same_norm "review md" md "$FP/review.md" "$FG/review.md"
 
 # --replace throws the old report away, including the user's ticks.
@@ -98,13 +98,13 @@ else
 fi
 
 # Second render must come from the cache, not the compiler.
-before=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
+m4_before=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
 XDG_STATE_HOME=$FG $GO_BIN -s "$(basename "$FGS")" diagram auto-map >/dev/null 2>&1 || true
-after=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
-if [ "$before" = "$after" ] && [ "$before" -gt 0 ]; then
-    ok "diagram cache hit on the second render ($before file(s))"
+m4_after=$(ls "$FGS/diagrams" | wc -l | tr -d ' ')
+if [ "$m4_before" = "$m4_after" ] && [ "$m4_before" -gt 0 ]; then
+    ok "diagram cache hit on the second render ($m4_before file(s))"
 else
-    bad "diagram cache: $before → $after files"
+    bad "diagram cache: $m4_before → $m4_after files"
 fi
 
 # ── notes rejects a d2 source that does not compile ─────────────────────────
