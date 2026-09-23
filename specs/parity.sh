@@ -350,10 +350,10 @@ if [ "$PAGE" = 1 ]; then
     else
         bad "no agent picker in the page  ($WORK/page.code.html)"
     fi
-    if grep -q 'class="card' "$WORK/index.html"; then
+    if grep -q 'class="lr' "$WORK/index.html"; then
         ok "home page lists sessions"
     else
-        bad "home page rendered no session cards  ($WORK/index.html)"
+        bad "home page rendered no session rows  ($WORK/index.html)"
     fi
 fi
 
