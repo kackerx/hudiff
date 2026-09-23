@@ -43,11 +43,12 @@ main{flex-grow:1;min-width:0;overflow:auto;padding:0 24px 20px}
 .gh .name{font-weight:700;font-size:14px} .gh .path{color:var(--faint)}
 .ledger{background:var(--bg);border:1px solid var(--line2);border-radius:10px}
 /* title gives way first, down to 160px; only then does ref */
-.lr{display:grid;grid-template-columns:60px minmax(160px,1fr) minmax(0,330px) 150px 176px 30px 28px;align-items:center;gap:12px;height:42px;padding:0 12px 0 14px;border-top:1px solid var(--line3);cursor:pointer}
+.lr{display:grid;grid-template-columns:68px minmax(160px,1fr) minmax(0,330px) 150px 176px 30px 28px;align-items:center;gap:12px;height:42px;padding:0 12px 0 14px;border-top:1px solid var(--line3);cursor:pointer}
 .lr:first-child{border-top:0;border-top-left-radius:9px;border-top-right-radius:9px} .lr:last-child{border-bottom-left-radius:9px;border-bottom-right-radius:9px}
 .lr:hover{background:var(--bg2)} .lr.sel{background:var(--sel)} .lr.archived{opacity:.55}
 .lr .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lr .ref{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg2)} .lr .ref>*+*{margin-left:8px}
+/* the branch-ish part (.b) takes the ellipsis, so base / scope / @author stay readable */
+.lr .ref{display:flex;gap:8px;white-space:nowrap;overflow:hidden;color:var(--fg2)} .lr .ref>*{flex:none} .lr .ref>.b{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .lr .st{display:flex;gap:5px;overflow:hidden}
 .lr .delta{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 .lr .delta .n{width:88px;text-align:right} .lr .delta .f{width:26px;text-align:right}
@@ -58,7 +59,7 @@ main{flex-grow:1;min-width:0;overflow:auto;padding:0 24px 20px}
 .more .menu{display:none;position:absolute;right:0;top:30px;z-index:5;flex-direction:column;min-width:120px;padding:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
 .more.open .menu{display:flex} .menu button{border:0;background:transparent;text-align:left;height:28px} .menu button:hover{background:var(--bg3)}
 
-.pill{display:inline-flex;align-items:center;justify-content:center;height:20px;width:60px;padding:0 8px;border-radius:5px;font-size:10.5px;font-weight:600;color:#fff;letter-spacing:.2px;flex:none}
+.pill{display:inline-flex;align-items:center;justify-content:center;height:20px;width:68px;padding:0 6px;border-radius:5px;font-size:10.5px;font-weight:600;color:#fff;letter-spacing:.2px;flex:none}
 .pill.worktree{background:#9a6700} .pill.commit{background:#0969da} .pill.pr{background:#8250df} .pill.range{background:#1a7f37} .pill.patch{background:#6e7781}
 .chip{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:var(--bg3);color:var(--fg2);white-space:nowrap}
 .chip.wait{background:var(--wait-bg);color:var(--wait)} .chip.pend{background:var(--pend-bg);color:var(--pend)} .chip.draft{background:var(--draft-bg);color:var(--draft)}

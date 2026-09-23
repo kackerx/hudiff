@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const KIND={worktree:'worktree',pr:'PR',commit:'commit',range:'range',patch:'patch'};
+const KIND={worktree:'workspace',pr:'PR',commit:'commit',range:'range',patch:'patch'};
 const ATT={waiting:['<i class="dot"></i>agent waiting',s=>s.waiting], unsent:['unsent drafts',s=>s.counts?.open>0], pending:['pending',s=>s.counts?.sent>0]};
 const F={repo:'',kind:'',att:''};   // one pick per rail section, '' = no narrowing
 let D=null, raw='', sel='', selIdx=0;
@@ -11,17 +11,17 @@ let showArch=!!LS.get('arch',0), railW=LS.get('railw',208), railOff=LS.get('rail
 const repoOf=s=>s.repo.replace(/\.worktrees\/.*$/,'');
 const tilde=p=>p.replace(/^\/(Users|home)\/[^/]+/,'~');
 const h7=s=>String(s||'').slice(0,7);
-const dim=s=>s?`<span class="dim">${s}</span>`:'';
+const dim=(s,c='')=>s?`<span class="dim${c}">${s}</span>`:'';
 function age(t){ const m=(Date.now()-Date.parse(t))/6e4; return m<60?Math.max(1,m|0)+'m':m<1440?(m/60|0)+'h':(m/1440|0)+'d'; }
 function ref(s){
   const m=s.meta||{};
-  if(s.kind==='worktree') return `<span>${esc(m.branch)}</span>`+dim(m.base&&'base '+esc(h7(m.base)))+dim({worktree:'uncommitted',staged:'staged',unstaged:'unstaged'}[m.scope]);
+  if(s.kind==='worktree') return `<span class="b">${esc(m.branch)}</span>`+dim(m.base&&'base '+esc(h7(m.base)))+dim({worktree:'uncommitted',staged:'staged',unstaged:'unstaged'}[m.scope]);
   if(s.kind==='commit'){ const day=m.date&&new Date(m.date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-    return `<span>${esc(h7(m.rev))}${m.base?` ${dim('←')} ${esc(h7(m.base))}`:''}</span>`+dim(esc([m.author,day].filter(Boolean).join(' · '))); }
+    return `<span>${esc(h7(m.rev))}${m.base?` ${dim('←')} ${esc(h7(m.base))}`:''}</span>`+dim(esc([m.author,day].filter(Boolean).join(' · ')),' b'); }
   if(s.kind==='pr'){ const n=/\/pull\/(\d+)/.exec(m.url||'');
-    return (n?`<a href="${esc(m.url)}" target="_blank">#${n[1]}</a>`:'')+`<span>${esc(m.head)} ${dim('→')} ${esc(m.base)}</span>`+dim(m.author&&'@'+esc(m.author)); }
-  if(s.kind==='range') return `<span>${esc(m.base)} ${dim('…')} ${esc(m.head)}</span>`+dim(esc(m.branch));
-  return `<span>${esc(m.source)}</span>`;
+    return (n?`<a href="${esc(m.url)}" target="_blank">#${n[1]}</a>`:'')+`<span class="b">${esc(m.head)} ${dim('→')} ${esc(m.base)}</span>`+dim(m.author&&'@'+esc(m.author)); }
+  if(s.kind==='range') return `<span class="b">${esc(m.base)} ${dim('…')} ${esc(m.head)}</span>`+dim(esc(m.branch));
+  return `<span class="b">${esc(m.source)}</span>`;
 }
 function chips(s){
   const c=s.counts||{};
