@@ -47,6 +47,11 @@ done
 CLAUDE_SESSION_ID=parity
 PI_COMPANION_SESSION_ID=parity
 export CLAUDE_SESSION_ID PI_COMPANION_SESSION_ID
+# Same for the fixture's commit dates: `read`, context and commit sessions
+# print them, and they would follow the calendar.
+GIT_AUTHOR_DATE='2026-09-22T12:00:00+08:00'
+GIT_COMMITTER_DATE=$GIT_AUTHOR_DATE
+export GIT_AUTHOR_DATE GIT_COMMITTER_DATE
 
 WORK=$(mktemp -d)
 FIX=$(mktemp -d)
