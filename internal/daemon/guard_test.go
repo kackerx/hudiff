@@ -3,6 +3,7 @@ package daemon
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -28,5 +29,15 @@ func TestReadOnlyAway(t *testing.T) {
 		if w.Code != c.want {
 			t.Errorf("%s %s from %s: %d, want %d", c.method, c.path, c.from, w.Code, c.want)
 		}
+	}
+}
+
+func TestAgentsHiddenFromAway(t *testing.T) {
+	r := httptest.NewRequest("GET", "/s/x/api/agents", nil)
+	r.RemoteAddr = "172.16.0.9:5000"
+	w := httptest.NewRecorder()
+	(&server{rooms: newRooms()}).apiAgents(w, r, "x", t.TempDir())
+	if got := strings.TrimSpace(w.Body.String()); w.Code != 200 || got != `{"agents":[],"bound":null,"waiting":0}` {
+		t.Errorf("remote agents: %d %s", w.Code, got)
 	}
 }

@@ -308,6 +308,12 @@ var Build = "dev"
 func SetBuild(v string) { Build = v + "-r" + diagram.RendererVersion }
 
 func (s *server) apiAgents(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	// Process names and cwds are nobody else's business, and a remote page
+	// cannot deliver anyway. Empty rather than 403, so its page stays quiet.
+	if !fromHere(r) {
+		sendJSON(w, 200, map[string]any{"agents": []any{}, "waiting": 0, "bound": nil})
+		return
+	}
 	sendJSON(w, 200, map[string]any{
 		"agents":  s.agentList(sid, dir),
 		"waiting": s.rooms.count(sid),
