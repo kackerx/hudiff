@@ -22,7 +22,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 
 非目标(v1 不做)
 - TUI 本体(只留 `--tui` 和 `viewer` 配置位, 选了报 "not implemented yet")
-- 多用户 / 远程访问 / 鉴权(只监听 127.0.0.1)
+- 多用户 / 鉴权 / 远程**写**。2026-09-23 起可选把 daemon 开到局域网(`web.host`), 但其他机器**只读**(§5); 远端评论需要身份, v1 不做
 - WebSocket / SSE(5 秒轮询 + `/api/wait` 长轮询够用)
 - sqlite(磁盘 JSON 是 agent 可直接读的契约)
 - 非 git 的 VCS
@@ -106,7 +106,8 @@ hudiff version
 ```jsonc
 {
   "viewer": "web",                        // web | tui(预留)
-  "web":     { "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
+  "web":     { "host": "",                // 绑定地址, 空 = 127.0.0.1; "0.0.0.0" = 全部网卡; 也可写一个局域网地址。$HUDIFF_HOST 优先
+               "port": 0,                 // 0 = 沿用上次(server.json), 首次随机
                "open": true,              // 建会话后自动开浏览器
                "browser": "" },           // 覆盖打开命令, 空 = 系统默认(open / xdg-open / start)
   "diagram": { "sketch": false },         // 草图(手绘)风格: d2 的 --sketch; 进 SVG 缓存键
@@ -155,6 +156,11 @@ hudiff/
 - **单 daemon 管所有会话**。任何子命令发现 daemon 不在就 `exec.Command(os.Executable(), "daemon", "serve")`
   + `Setsid`(unix)/ `DETACHED_PROCESS`(windows)拉起, 轮询 `server.json` 最多 3 秒。
 - **daemon 是 comments / review 的唯一写者**; CLI 的 `reply/resolve/review set` 走 HTTP; daemon 不在才直接落盘。
+- **绑定与远端只读**(2026-09-23): 默认只听 127.0.0.1。`web.host`/`$HUDIFF_HOST` 给了别的地址就听那里, 且**同时**听 127.0.0.1:port
+  (所有 CLI 命令都拨 127.0.0.1)。整个 mux 外包一层 `readOnlyAway`: RemoteAddr 不是 loopback 的请求只放 GET/HEAD, 其余 403
+  "read-only from other machines"; `/api/wait` 即使是 GET 也拦(外人挂着会吞掉用户下一次 Send 的 hook)。理由: `/api/deliver` 会往
+  agent 终端打字, 等于远程执行。远端 GET `/s/{sid}/api/agents` 返回空列表(本机进程名/cwd 不外泄, 页面不弹 toast)。
+  开了局域网 = 首页**全部**会话对局域网可见(含私有代码), 用户知情; 单会话分享、远端评论(需身份)是后话。
   每会话一把 `sync.RWMutex`; 文件写入 temp + rename。
 - **会话即收件箱**: 页面 Send 只做 `submit_seq++` 并 close 该会话的 broadcast channel;
   `/api/wait?since=N` 挂在 channel 上, `r.Context()` 处理断开。没人在 wait 时触发 `hooks.on_submit`。
@@ -325,3 +331,5 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
     左栏 repo/kind/attention 筛选、j/k ⏎ / a esc 键位、`···` 只在选中/hover 行; 宽 <1280 先折左栏。**否掉** worktree 改叫 workspace(用户提出后撤回)。
 18. (2026-09-23) 新入口 `hudiff files <left> <right>`: 依赖 git 二进制可以, 但会话**不得要求身在 git 仓库里**, 且要能比 git 不跟踪的两个文件;
     实现走 `git diff --no-index`(退出码 1 = 有差异, 正常), kind `files`, 页面 pill 青色 #1b7c83; 门禁夹具建在 $FIX 之外的目录里以证明不依赖仓库。
+19. (2026-09-23) 局域网只读(用户要同事能开 `http://<ip>:7788/…`): `web.host` + `HUDIFF_HOST`, 默认不变 127.0.0.1; 远端只读靠方法白名单
+    (GET/HEAD)+ 显式拦 `/api/wait`, 不做鉴权、不做单会话分享。否掉"开了就全放": deliver 打字进终端不能给局域网。
