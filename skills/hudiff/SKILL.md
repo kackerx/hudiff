@@ -28,6 +28,7 @@ Usage: `/hudiff [target] [-- review request]`
     /hudiff range a1b2c3..HEAD a range
     /hudiff pr 562             a GitHub PR (also #562 or a PR URL)
     /hudiff patch x.patch      a patch file, or - for stdin
+    /hudiff files old/ new/    two files or two directories on disk, no repo needed
     /hudiff comments           skip the explanation, go straight to the user's comments
     /hudiff commit HEAD~1 -- focus on concurrency and error handling, skip styling, see docs/spec.md
     /hudiff review <session>   cross-review: I am a *different* agent re-reviewing someone

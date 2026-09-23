@@ -1,0 +1,121 @@
+{
+ "files": [
+  {
+   "add": 1,
+   "binary": false,
+   "del": 1,
+   "hunks": [
+    {
+     "header": "@@ -5,5 +5,5 @@ func port() int {",
+     "lines": [
+      {
+       "n": 5,
+       "o": 5,
+       "s": "\tb := 2",
+       "t": " "
+      },
+      {
+       "n": 6,
+       "o": 6,
+       "s": "\tc := 3",
+       "t": " "
+      },
+      {
+       "n": 7,
+       "o": 7,
+       "s": "\td := 4",
+       "t": " "
+      },
+      {
+       "n": null,
+       "o": 8,
+       "s": "\treturn 80 + a + b + c + d",
+       "t": "-"
+      },
+      {
+       "n": 8,
+       "o": null,
+       "s": "\treturn 8080 + a + b + c + d",
+       "t": "+"
+      },
+      {
+       "n": 9,
+       "o": 9,
+       "s": "}",
+       "t": " "
+      }
+     ],
+     "new_count": 5,
+     "new_start": 5,
+     "old_count": 5,
+     "old_start": 5,
+     "section": "func port() int {"
+    }
+   ],
+   "old_path": "conf.go",
+   "path": "conf.go",
+   "status": "M"
+  },
+  {
+   "add": 0,
+   "binary": false,
+   "del": 1,
+   "hunks": [
+    {
+     "header": "@@ -1 +0,0 @@",
+     "lines": [
+      {
+       "n": null,
+       "o": 1,
+       "s": "only on the left",
+       "t": "-"
+      }
+     ],
+     "new_count": 0,
+     "new_start": 0,
+     "old_count": 1,
+     "old_start": 1,
+     "section": ""
+    }
+   ],
+   "old_path": "gone.txt",
+   "path": "gone.txt",
+   "status": "D"
+  },
+  {
+   "add": 0,
+   "binary": false,
+   "del": 0,
+   "hunks": [],
+   "old_path": "old.txt",
+   "path": "new.txt",
+   "status": "R"
+  },
+  {
+   "add": 1,
+   "binary": false,
+   "del": 0,
+   "hunks": [
+    {
+     "header": "@@ -0,0 +1 @@",
+     "lines": [
+      {
+       "n": 1,
+       "o": null,
+       "s": "only on the right",
+       "t": "+"
+      }
+     ],
+     "new_count": 1,
+     "new_start": 1,
+     "old_count": 0,
+     "old_start": 0,
+     "section": ""
+    }
+   ],
+   "old_path": "sub/added.txt",
+   "path": "sub/added.txt",
+   "status": "A"
+  }
+ ]
+}

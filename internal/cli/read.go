@@ -11,6 +11,7 @@ import (
 
 	"github.com/kackerx/hudiff/internal/diff"
 	"github.com/kackerx/hudiff/internal/session"
+	"github.com/kackerx/hudiff/internal/source"
 )
 
 type ReadCmd struct {
@@ -212,8 +213,8 @@ func fileVersions(sess *session.Session, path, oldPath string) (old, new []strin
 		}
 		return at(rev + ":" + p)
 	}
-	disk := func(p string) []string {
-		b, err := os.ReadFile(filepath.Join(repo, p))
+	disk := func(root, p string) []string {
+		b, err := os.ReadFile(filepath.Join(root, p))
 		if err != nil {
 			return nil
 		}
@@ -234,9 +235,11 @@ func fileVersions(sess *session.Session, path, oldPath string) (old, new []strin
 		if m("scope") == "staged" {
 			return show("HEAD", op), at(":" + path) // the index version
 		}
-		return show("HEAD", op), disk(path)
+		return show("HEAD", op), disk(repo, path)
 	case "commit":
 		return show(m("base"), op), show(m("full"), path)
+	case "files":
+		return disk(source.FilesRoot(m("left")), op), disk(source.FilesRoot(m("right")), path)
 	case "range":
 		return show(m("base"), op), show(m("head"), path)
 	case "pr":

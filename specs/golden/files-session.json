@@ -1,0 +1,23 @@
+{
+ "brief": null,
+ "created": "<TS>",
+ "id": "<SID>",
+ "key": "files:<TMP>:<TMP>/left → <TMP>/right",
+ "kind": "files",
+ "meta": {
+  "left": "<TMP>/left",
+  "right": "<TMP>/right"
+ },
+ "opener": {
+  "agent_session": "parity",
+  "cwd": "<TMP>"
+ },
+ "refresh": [
+  "files",
+  "<TMP>/left",
+  "<TMP>/right"
+ ],
+ "repo": "<TMP>",
+ "submit_seq": 0,
+ "title": "left → right"
+}

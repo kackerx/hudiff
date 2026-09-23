@@ -129,7 +129,7 @@ async function loadAll(){
   refreshWaiting().catch(()=>{});
 }
 
-const kindCN = {worktree:'working tree', commit:'commit', range:'range', pr:'PR', patch:'patch'};
+const kindCN = {worktree:'working tree', commit:'commit', range:'range', pr:'PR', files:'files', patch:'patch'};
 function renderHeader(){
   const {session:s, diff, notes} = S.data;
   const adds = diff.files.reduce((a,f)=>a+f.add,0), dels = diff.files.reduce((a,f)=>a+f.del,0), hunks = diff.files.reduce((a,f)=>a+f.hunks.length,0);
@@ -139,6 +139,7 @@ function renderHeader(){
   else if(m.base) parts.push(`<span>base <code>${esc(m.base)}</code></span>`);
   if(m.author) parts.push(`<span>${esc(m.author)}</span>`); if(m.date) parts.push(`<span>${esc(m.date)}</span>`);
   if(m.branch) parts.push(`<span>branch <code>${esc(m.branch)}</code></span>`);
+  if(m.left) parts.push(`<span><code>${esc(m.left)}</code> → <code>${esc(m.right)}</code></span>`);
   if(m.url) parts.push(`<a href="${esc(m.url)}" target="_blank">${esc(m.url.replace(/^https?:\/\//,''))}</a>`);
   parts.push(`<span class="hint">${esc(s.created?.slice(0,16).replace('T',' ')||'')}</span>`);
   parts.push(`<span class="hint" title="hudiff -s ${esc(s.id)} …">session <code>${esc(s.id)}</code></span>`);

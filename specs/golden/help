@@ -11,6 +11,7 @@ Commands:
                      tree.
   pr                 A GitHub pull request.
   patch              A patch file or stdin.
+  files              Two files or two directories on disk; no repository needed.
   open               Reopen an existing session in the viewer.
   session list       List sessions.
   session info       Print session info.

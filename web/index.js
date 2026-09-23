@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const KIND={worktree:'worktree',pr:'PR',commit:'commit',range:'range',patch:'patch'};
+const KIND={worktree:'worktree',pr:'PR',commit:'commit',range:'range',files:'files',patch:'patch'};
 const ATT={waiting:['<i class="dot"></i>agent waiting',s=>s.waiting], unsent:['unsent drafts',s=>s.counts?.open>0], pending:['pending',s=>s.counts?.sent>0]};
 const F={repo:'',kind:'',att:''};   // one pick per rail section, '' = no narrowing
 let D=null, raw='', sel='', selIdx=0;
@@ -20,6 +20,8 @@ function ref(s){
     return `<span>${esc(h7(m.rev))}${m.base?` ${dim('←')} ${esc(h7(m.base))}`:''}</span>`+dim(esc([m.author,day].filter(Boolean).join(' · ')),' b'); }
   if(s.kind==='pr'){ const n=/\/pull\/(\d+)/.exec(m.url||'');
     return (n?`<a href="${esc(m.url)}" target="_blank">#${n[1]}</a>`:'')+`<span class="b">${esc(m.head)} ${dim('→')} ${esc(m.base)}</span>`+dim(m.author&&'@'+esc(m.author)); }
+  if(s.kind==='files'){ const rel=p=>p.startsWith(s.repo+'/')?p.slice(s.repo.length+1):tilde(p);   // the group header already carries the directory
+    return `<span class="b">${esc(rel(m.left))} ${dim('→')} ${esc(rel(m.right))}</span>`; }
   if(s.kind==='range') return `<span class="b">${esc(m.base)} ${dim('…')} ${esc(m.head)}</span>`+dim(esc(m.branch));
   return `<span class="b">${esc(m.source)}</span>`;
 }

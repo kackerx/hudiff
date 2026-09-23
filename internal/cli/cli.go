@@ -34,6 +34,7 @@ type CLI struct {
 	Range     RangeCmd     `cmd:"" help:"A range: <a>..<b>, <a>...<b>, or just <a> vs the working tree."`
 	PR        PRCmd        `cmd:"" name:"pr" help:"A GitHub pull request."`
 	Patch     PatchCmd     `cmd:"" help:"A patch file or stdin."`
+	Files     FilesCmd     `cmd:"" help:"Two files or two directories on disk; no repository needed."`
 	Open      OpenCmd      `cmd:"" help:"Reopen an existing session in the viewer."`
 
 	Session  SessionCmd  `cmd:"" help:"Manage sessions."`

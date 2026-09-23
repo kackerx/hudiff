@@ -1,0 +1,26 @@
+# hudiff session <SID>: left → right  [files]
+# Every hunk is tagged [path#n]; use n as the key in notes.json. The two number columns are old | new.
+# Mark after the number: ✓ noted  · explicitly needs no note (null)  blank = not written yet
+# Lines starting with ~ are extra context from the new file, not part of the diff; they only show the enclosing block.
+
+=== conf.go  [M]  +1 -1
+--- [conf.go#0]   @@ -5,5 +5,5 @@ func port() int {
+      3 ~func port() int {
+      4 ~	a := 1
+  5   5  	b := 2
+  6   6  	c := 3
+  7   7  	d := 4
+  8     -	return 80 + a + b + c + d
+      8 +	return 8080 + a + b + c + d
+  9   9  }
+
+=== gone.txt  [D]  +0 -1
+    (cannot read the new file; only the diff's own context is shown)
+--- [gone.txt#0]   @@ -1 +0,0 @@
+  1     -only on the left
+
+=== new.txt (was old.txt)  [R]  +0 -0
+
+=== sub/added.txt  [A]  +1 -0
+--- [sub/added.txt#0]   @@ -0,0 +1 @@
+      1 +only on the right

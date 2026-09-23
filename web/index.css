@@ -60,7 +60,7 @@ main{flex-grow:1;min-width:0;overflow:auto;padding:0 24px 20px}
 .more.open .menu{display:flex} .menu button{border:0;background:transparent;text-align:left;height:28px} .menu button:hover{background:var(--bg3)}
 
 .pill{display:inline-flex;align-items:center;justify-content:center;height:20px;width:60px;padding:0 8px;border-radius:5px;font-size:10.5px;font-weight:600;color:#fff;letter-spacing:.2px;flex:none}
-.pill.worktree{background:#9a6700} .pill.commit{background:#0969da} .pill.pr{background:#8250df} .pill.range{background:#1a7f37} .pill.patch{background:#6e7781}
+.pill.worktree{background:#9a6700} .pill.commit{background:#0969da} .pill.pr{background:#8250df} .pill.range{background:#1a7f37} .pill.files{background:#1b7c83} .pill.patch{background:#6e7781}
 .chip{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:500;background:var(--bg3);color:var(--fg2);white-space:nowrap}
 .chip.wait{background:var(--wait-bg);color:var(--wait)} .chip.pend{background:var(--pend-bg);color:var(--pend)} .chip.draft{background:var(--draft-bg);color:var(--draft)}
 .chip.none{background:transparent;color:var(--faint);border:1px dashed var(--line)}

@@ -2,10 +2,12 @@ package source
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -226,6 +228,86 @@ func FromPatch(file string, o Opts) (*Source, error) {
 		Kind: "patch", Title: title(o, "Patch: "+file),
 		Meta: PatchMeta{Source: file}, Patch: text, Repo: cwd, Refresh: nil,
 	}, nil
+}
+
+// FromFiles compares two files, or two directories, straight off the disk.
+// git only does the diffing (--no-index), so neither side has to be in a repo.
+func FromFiles(left, right string, o Opts) (*Source, error) {
+	var abs [2]string
+	var dir [2]bool
+	for i, p := range []string{left, right} {
+		a, err := filepath.Abs(p)
+		if err != nil {
+			return nil, err
+		}
+		fi, err := os.Stat(a)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %s: %v", p, errors.Unwrap(err))
+		}
+		abs[i], dir[i] = a, fi.IsDir()
+	}
+	if dir[0] != dir[1] {
+		return nil, fmt.Errorf("%s and %s: compare a file with a file, or a directory with a directory", left, right)
+	}
+	args := append(append([]string{"-c", "core.quotePath=false", "diff", "--no-index"}, diffFlags...), abs[0], abs[1])
+	cmd := exec.Command("git", args...)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	// --no-index exits 1 when the two sides differ
+	if ee, ok := err.(*exec.ExitError); err != nil && (!ok || ee.ExitCode() != 1) {
+		return nil, fmt.Errorf("git diff --no-index failed:\n%s", strings.TrimSpace(stderr.String()))
+	}
+	repo, err := Root()
+	if err != nil {
+		repo, _ = os.Getwd()
+	}
+	return &Source{
+		Kind: "files", Title: title(o, left+" → "+right),
+		Meta:  FilesMeta{Left: abs[0], Right: abs[1]},
+		Patch: rootless(string(out), FilesRoot(abs[0]), FilesRoot(abs[1])), Repo: repo,
+		Refresh: []string{"files", abs[0], abs[1]},
+	}, nil
+}
+
+// FilesRoot is what the paths of a files session are relative to: the
+// directory itself, or the one a single file sits in.
+func FilesRoot(p string) string {
+	if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+		return p
+	}
+	return filepath.Dir(p)
+}
+
+// rootless cuts the two roots out of git's file headers, so left/x and right/x
+// read as one path x rather than two files in two trees. Hunk bodies are left
+// alone: a changed line may well mention the root.
+func rootless(patch, left, right string) string {
+	roots := []string{left + "/", right + "/"}
+	if len(roots[1]) > len(roots[0]) { // the longer first, in case one holds the other
+		roots[0], roots[1] = roots[1], roots[0]
+	}
+	// git writes a/<root>/x and b/<root>/x with the root's leading slash
+	// dropped, and `rename from` lines with the bare path.
+	var cut []string
+	for _, r := range roots {
+		cut = append(cut, "a"+r, "a/", "b"+r, "b/", r, "")
+	}
+	un := strings.NewReplacer(cut...)
+	lines := strings.SplitAfter(patch, "\n")
+	head := false
+	for i, ln := range lines {
+		switch {
+		case strings.HasPrefix(ln, "diff --git "):
+			head = true
+		case strings.HasPrefix(ln, "@@"):
+			head = false
+		}
+		if head {
+			lines[i] = un.Replace(ln)
+		}
+	}
+	return strings.Join(lines, "")
 }
 
 func title(o Opts, def string) string {

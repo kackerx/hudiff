@@ -70,7 +70,7 @@ header .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
 header h1 .brand{display:flex;align-items:center;border-radius:6px;padding:2px;margin:-2px 0 -2px -2px} header h1 .brand:hover{background:var(--accent-bg)}
 header h1 .kind{font-size:11px;padding:2px 8px;border-radius:5px;background:var(--accent);color:#fff;font-weight:600;letter-spacing:.02em}
-header h1 .kind.worktree{background:#bf8700} header h1 .kind.pr{background:#8250df} header h1 .kind.range{background:#1a7f37}
+header h1 .kind.worktree{background:#bf8700} header h1 .kind.pr{background:#8250df} header h1 .kind.range{background:#1a7f37} header h1 .kind.files{background:#1b7c83}
 header .meta{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;color:var(--fg2);font-size:12px;margin-top:4px}
 header .meta b.add{color:var(--add-fg);font-weight:600} header .meta b.del{color:var(--del-fg);font-weight:600}
 header .meta code{font-size:11px;background:var(--bg3);padding:0 5px;border-radius:4px}

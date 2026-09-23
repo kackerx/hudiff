@@ -61,6 +61,14 @@ func (c *PRCmd) Run(g *Globals) error {
 	return c.create(g, src)
 }
 
+func (c *FilesCmd) Run(g *Globals) error {
+	src, err := source.FromFiles(c.Left, c.Right, c.opts())
+	if err != nil {
+		return envErr("%v", err)
+	}
+	return c.create(g, src)
+}
+
 func (c *PatchCmd) Run(g *Globals) error {
 	src, err := source.FromPatch(c.File, c.opts())
 	if err != nil {
@@ -69,7 +77,7 @@ func (c *PatchCmd) Run(g *Globals) error {
 	return c.create(g, src)
 }
 
-// create is the shared tail of the five entry commands: reuse or build the
+// create is the shared tail of the six entry commands: reuse or build the
 // session, then hand it to the viewer.
 func (o *ReviewOpts) create(g *Globals, src *source.Source) error {
 	if o.TUI {

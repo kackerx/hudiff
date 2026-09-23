@@ -59,7 +59,12 @@ type PatchMeta struct {
 	Source string `json:"source"`
 }
 
-// Opts carries what the five entry commands have in common.
+type FilesMeta struct {
+	Left  string `json:"left"`
+	Right string `json:"right"`
+}
+
+// Opts carries what the six entry commands have in common.
 type Opts struct {
 	Title    string
 	Pathspec []string

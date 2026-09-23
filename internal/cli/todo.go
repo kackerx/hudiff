@@ -32,6 +32,12 @@ type PatchCmd struct {
 	File string `arg:"" optional:"" default:"-" help:"Patch file, or - for stdin." placeholder:"<file|->"`
 }
 
+type FilesCmd struct {
+	ReviewOpts
+	Left  string `arg:"" help:"Old side: a file or a directory." placeholder:"<left>"`
+	Right string `arg:"" help:"New side, a file if <left> is one, a directory if it is one." placeholder:"<right>"`
+}
+
 type ContextCmd struct {
 	File string `short:"f" help:"Only this path." placeholder:"<path>"`
 	Refs int    `default:"6" help:"Max references listed per symbol."`

@@ -311,6 +311,9 @@ func sourceFromRefresh(sess *session.Session) (*source.Source, error) {
 	if target[0] == "pr" && len(target) > 1 {
 		return source.FromPR(target[1], o)
 	}
+	if target[0] == "files" && len(target) == 3 {
+		return source.FromFiles(target[1], target[2], o)
+	}
 	spec := strings.Join(target, " ")
 	if strings.Contains(spec, "..") {
 		return source.FromRange(spec, o)

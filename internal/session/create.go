@@ -62,6 +62,8 @@ func SourceKey(kind, repo string, meta map[string]any, refresh []string) string 
 		if ident = str("url"); ident == "" {
 			ident = pyList(refresh)
 		}
+	case "files":
+		ident = str("left") + " → " + str("right")
 	case "worktree":
 		if ident = str("scope"); ident == "" {
 			ident = "worktree"

@@ -81,6 +81,7 @@ hudiff commit HEAD~1         # one commit
 hudiff range main..HEAD      # a range
 hudiff pr 562                # a GitHub PR (number, #562, or URL)
 hudiff patch fix.patch       # any patch file ('-' for stdin)
+hudiff files old/ new/       # two files or two directories, no repo needed
 hudiff -p "focus on error handling; skip style changes"   # a brief for the agent
 ```
 

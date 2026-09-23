@@ -32,6 +32,25 @@ kind() {
 kind commit "$FIX/repo" commit HEAD
 kind range  "$FIX/repo" range HEAD~1..HEAD
 
+# Two directories outside any repo. Paths come out relative to the two roots
+# (conf.toml, not left/conf.toml and right/conf.toml), every status shows up,
+# and `read -W` pads from the right-hand side on disk.
+mkdir -p "$FIX/left" "$FIX/right/sub"
+body='package main\n\nfunc port() int {\n\ta := 1\n\tb := 2\n\tc := 3\n\td := 4\n\treturn %s + a + b + c + d\n}\n'
+printf "$body" 80 >"$FIX/left/conf.go"
+printf "$body" 8080 >"$FIX/right/conf.go"
+printf 'only on the left\n' >"$FIX/left/gone.txt"
+printf 'same text, new name\n' >"$FIX/left/old.txt"
+printf 'same text, new name\n' >"$FIX/right/new.txt"
+printf 'only on the right\n' >"$FIX/right/sub/added.txt"
+kind files "$FIX" files left right
+if [ -n "${KS:-}" ]; then
+    XDG_STATE_HOME=$KSTATE "$GO" -s "$(basename "$KS")" read -W >"$WORK/read-W-files" 2>&1 || true
+    gold read-W-files mask "$WORK/read-W-files"
+else
+    bad "read-W-files  (no files session)"
+fi
+
 # -p / -c land in session.brief, and `read` grows a review-request header that
 # nothing else covers.
 kind brief "$FIX/repo" -p check-errors -c a.go
