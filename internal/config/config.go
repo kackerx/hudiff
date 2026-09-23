@@ -10,6 +10,8 @@ import (
 )
 
 type Web struct {
+	// Host is the address the daemon binds; 0.0.0.0 lets the LAN look (read-only).
+	Host    string `json:"host"`
 	Port    int    `json:"port"`
 	Open    bool   `json:"open"`
 	Browser string `json:"browser"`

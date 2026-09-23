@@ -124,7 +124,7 @@ hudiff review set <json>    cross-review report (merged into earlier rounds)
 ```jsonc
 {
   "viewer": "web",                          // "tui" reserved for a future terminal UI
-  "web": { "port": 0, "open": true, "browser": "" },
+  "web": { "host": "", "port": 0, "open": true, "browser": "" },   // host "0.0.0.0" = the LAN can look, read-only
   "diagram": { "sketch": false },           // true = hand-drawn style
   "data_dir": "",                           // default: $XDG_STATE_HOME/hudiff
   "prompts_dir": "",                        // default: <config dir>/prompts/{default,<repo>}.md
@@ -134,7 +134,9 @@ hudiff review set <json>    cross-review report (merged into earlier rounds)
 }
 ```
 
-Environment: `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `HUDIFF_STATE` (or `XDG_STATE_HOME`), `HUDIFF_DEV=1` + `HUDIFF_WEB_DIR` (serve `web/` from disk while hacking on the UI).
+Environment: `HUDIFF_HOST`, `HUDIFF_PORT`, `HUDIFF_PROMPTS`, `HUDIFF_STATE` (or `XDG_STATE_HOME`), `HUDIFF_DEV=1` + `HUDIFF_WEB_DIR` (serve `web/` from disk while hacking on the UI).
+
+**Sharing on the LAN.** With `web.host` set to `0.0.0.0` (or one LAN address), colleagues can open `http://<your-ip>:<port>/` and read every session. Only this machine can write: from anywhere else, commenting, sending, archiving and deleting get a 403, since Send can type into your agent's terminal. Every session on the home page is visible, not just the one you share.
 
 ## How it works
 

@@ -1,5 +1,6 @@
 // Package daemon is the single local server for every session (spec §5).
-// It listens on 127.0.0.1 only and is the sole writer of comments/review.
+// It listens on 127.0.0.1 unless web.host says otherwise, and is the sole
+// writer of comments/review.
 package daemon
 
 import (
@@ -36,7 +37,8 @@ func Serve(wantPort int) error {
 	if err := os.MkdirAll(session.StateDir(), 0o755); err != nil {
 		return err
 	}
-	ln, err := listen(wantPort)
+	host := bindHost()
+	ln, err := listen(host, wantPort)
 	if err != nil {
 		return err
 	}
@@ -45,13 +47,53 @@ func Serve(wantPort int) error {
 	if err := session.WriteJSON(session.ServerFile(), Info{Port: port, PID: os.Getpid(), Started: session.NowISO()}); err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "hudiff serve http://127.0.0.1:%d/\n", port)
-	return (&http.Server{Handler: s.mux()}).Serve(ln)
+	srv := &http.Server{Handler: readOnlyAway(s.mux())}
+	// Every CLI command dials 127.0.0.1, so a daemon bound to one LAN address
+	// still needs the loopback one too.
+	if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() && !ip.IsUnspecified() {
+		lo, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		if err != nil {
+			return err
+		}
+		go func() { _ = srv.Serve(lo) }()
+	}
+	fmt.Fprintf(os.Stderr, "hudiff serve http://%s/\n", net.JoinHostPort(host, strconv.Itoa(port)))
+	return srv.Serve(ln)
+}
+
+func bindHost() string {
+	if h := os.Getenv("HUDIFF_HOST"); h != "" {
+		return h
+	}
+	if h := config.Load().Web.Host; h != "" {
+		return h
+	}
+	return "127.0.0.1"
+}
+
+// readOnlyAway lets other machines look but not touch. Anything but a read has
+// to come from this machine: /deliver types into an agent's terminal. /wait is
+// a read, but a stranger waiting there would swallow the user's next Send.
+func readOnlyAway(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		read := r.Method == http.MethodGet || r.Method == http.MethodHead
+		if (!read || strings.HasSuffix(r.URL.Path, "/api/wait")) && !fromHere(r) {
+			http.Error(w, "read-only from other machines", http.StatusForbidden)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func fromHere(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	ip := net.ParseIP(host)
+	return err == nil && ip != nil && ip.IsLoopback()
 }
 
 // listen mirrors the oracle's port ladder: --port, $HUDIFF_PORT, last used,
 // then a random one so a restart keeps old tabs alive.
-func listen(want int) (net.Listener, error) {
+func listen(host string, want int) (net.Listener, error) {
 	var tries []int
 	add := func(p int) {
 		if p > 0 {
@@ -67,7 +109,7 @@ func listen(want int) (net.Listener, error) {
 	var err error
 	for _, p := range tries {
 		var ln net.Listener
-		ln, err = net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p))
+		ln, err = net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(p)))
 		if err == nil {
 			return ln, nil
 		}
