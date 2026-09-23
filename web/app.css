@@ -13,12 +13,13 @@
   --hunk-bg:#f1f8ff; --hunk-fg:#0969da; --accent:#0969da; --accent-bg:#ddf4ff; --accent-soft:#eaf3ff;
   --warn:#9a6700; --warn-bg:#fff8c5; --ok:#1a7f37; --ok-bg:#dafbe1;
   --note-bg:#fff; --note-border:#d8dee4; --chip:#eef1f5; --sel:#fff3b0; --shadow:0 1px 2px rgba(31,35,40,.06);
-  --mono:ui-monospace,"SF Mono",Menlo,"JetBrains Mono",monospace;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif;
   /* prose: latin from the embedded font, CJK from the system — a CJK face is
      19MB a weight, far past the binary budget */
   --prose-font:"JetBrains Mono","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   color-scheme:light;
+  tab-size:4;
 }
 :root[data-theme="dark"]{
   --bg:#0d1117; --bg2:#161b22; --bg3:#1f2630; --fg:#e6edf3; --fg2:#9198a1; --fg3:#6e7681; --line:#30363d; --line2:#21262d;
@@ -41,7 +42,7 @@
   color-scheme:dark;
 }}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans)}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);font-variant-ligatures:none}
 body{display:flex;flex-direction:column}
 a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
 button{font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);cursor:pointer;transition:background .12s,border-color .12s}
@@ -73,7 +74,7 @@ header h1 .kind.worktree{background:#bf8700} header h1 .kind.pr{background:#8250
 header .meta{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;color:var(--fg2);font-size:12px;margin-top:4px}
 header .meta b.add{color:var(--add-fg);font-weight:600} header .meta b.del{color:var(--del-fg);font-weight:600}
 header .meta code{font-size:11px;background:var(--bg3);padding:0 5px;border-radius:4px}
-header .summary{margin-top:8px;font-size:13.5px;max-width:1150px;padding:12px 16px 10px;border:1px solid var(--line);background:var(--bg);border-radius:12px;box-shadow:var(--shadow);cursor:pointer;position:relative;line-height:1.65}
+header .summary{margin-top:8px;font-size:13.5px;padding:12px 16px 10px;border:1px solid var(--line);background:var(--bg);border-radius:12px;box-shadow:var(--shadow);cursor:pointer;position:relative;line-height:1.65}
 header .summary.empty{color:var(--fg2);font-style:italic;cursor:default;box-shadow:none;border-style:dashed}
 header .summary.collapsed{border:0;box-shadow:none;background:transparent;padding:2px 0;margin-top:4px;font-size:12.5px;color:var(--fg2);border-radius:0}
 header .summary.collapsed .md{padding-right:64px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 140px),transparent calc(100% - 64px))}
@@ -169,18 +170,10 @@ nav .file .nn{width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .dg .svgwrap .bl{font-size:11px;color:var(--fg2);font-family:var(--mono);letter-spacing:.03em}
 .dg figcaption{padding:8px 14px 10px;font-size:12.5px;color:var(--fg2);border-top:1px solid var(--line2)} .dg figcaption p{margin:0 0 4px}
 .dg pre.src{margin:0;padding:10px 14px;background:var(--bg3);font-size:11.5px;overflow:auto;border-top:1px solid var(--line2);white-space:pre}
-.review{padding:16px 22px 40vh;background:var(--bg);max-width:1100px}
+.review{padding:16px 22px 40vh;background:var(--bg)}
 .rv-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px} .rv-head h2{font-size:17px;margin:0;font-weight:650} .rv-head .hint{margin-left:auto}
-.rv-sum{position:relative;padding:14px 16px 12px;border:1px solid var(--line);background:var(--bg2);border-radius:12px;
-  font-size:13.5px;margin-bottom:12px;cursor:pointer;line-height:1.65} .rv-sum p{margin:0 0 4px} .rv-sum p:last-child{margin:0}
-.rv-sum .body>*:first-child{padding-right:76px}
-.rv-sum .tog{position:absolute;right:10px;top:8px;font-size:11px;color:var(--fg2);background:var(--bg);padding:0 7px;border-radius:9px;line-height:18px}
-.rv-sum:hover .tog{color:var(--accent)}
-.rv-sum.collapsed{border:0;background:transparent;padding:2px 0;font-size:12.5px;color:var(--fg2);border-radius:0}
-.rv-sum.collapsed .tog{top:2px;right:0}
-.rv-sum.collapsed .body{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;padding-right:64px}
-.rv-sum.collapsed .body p,.rv-sum.collapsed .body ul,.rv-sum.collapsed .body ol{display:inline;margin:0;padding:0}
-.rv-sum.collapsed .body li{display:inline} .rv-sum.collapsed .body li::after{content:" · "}
+.rv-sum{padding:14px 16px 12px;border:1px solid var(--line);background:var(--bg2);border-radius:12px;
+  font-size:13.5px;margin-bottom:12px;line-height:1.65} .rv-sum p{margin:0 0 4px} .rv-sum p:last-child{margin:0}
 .rv-good{margin:0 0 16px;padding-left:22px;font-size:13px} .rv-good li{margin:2px 0} .rv-good li::marker{color:var(--ok)}
 .rv-sec{margin:14px 0 6px;display:flex;gap:8px;align-items:center} .rv-sec h3{margin:0;font-size:13px;font-weight:650;text-transform:none;letter-spacing:0;color:var(--fg)}
 .rv-sec .pr{font-size:11px;padding:1px 8px;border-radius:9px;font-weight:600} .pr.high{background:var(--del-bg);color:var(--del-fg)} .pr.medium{background:var(--warn-bg);color:var(--warn)} .pr.low{background:var(--accent-bg);color:var(--accent)}
@@ -288,7 +281,7 @@ tr.crow td{padding:8px 14px 10px 76px;background:var(--bg2);border-top:1px solid
 .thread .cform{margin-top:8px;padding-left:28px}
 
 /* ── right pane: notes ── */
-aside{border-left:1px solid var(--line);padding:12px 14px;font-size:13px;background:var(--bg2)}
+aside{border-left:1px solid var(--line);padding:12px 14px;font-size:13px;background:var(--bg2);font-family:var(--prose-font)}
 aside h3{font-size:11.5px;color:var(--fg2);margin:6px 0 8px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 aside .tabs{display:flex;gap:2px;align-items:center;margin:-4px -6px 10px;padding:0 6px 6px;border-bottom:1px solid var(--line);position:sticky;top:-12px;background:var(--bg2);z-index:2;padding-top:4px}
 aside .tabs button.tab{border:0;background:transparent;color:var(--fg2);padding:4px 10px;border-radius:6px;font-size:12.5px} aside .tabs button.tab:hover{background:var(--bg3)}
@@ -368,12 +361,11 @@ header .brief{margin-top:6px;font-size:12px;color:var(--fg2);display:flex;gap:6p
 .agempty{padding:14px 10px;color:var(--fg2);font-size:12px}
 .aglist{margin:10px 0;border:1px solid var(--line2);border-radius:10px;padding:4px;background:var(--bg2)}
 
-/* ── Prose: the long text an agent writes. 12px / 1.7 / 800px keeps a line at
-   about 66 CJK characters; inline code drops its box and carries colour
-   instead, so a paragraph full of identifiers stays one piece of text. ── */
+/* ── Prose: the long text an agent writes. Inline code drops its box and
+   carries colour instead, so a paragraph full of identifiers stays one
+   piece of text. ── */
 header .summary,.rv-sum,.rvi .body,.rv-good,.card .body,.thread .b{
-  font-family:var(--prose-font);font-size:12px;line-height:1.7;color:var(--prose)}
-header .summary,.rv-sum,.rvi .body,.rv-good{max-width:800px}
+  font-family:var(--prose-font);font-size:12.5px;line-height:1.7;color:var(--prose)}
 header .summary .md>*,.rv-sum .body>*,.rvi .body>p,.rvi .body>ul,.rvi .body>ol,.card .body>p{margin:0 0 11px}
 header .summary .md>*:last-child,.rv-sum .body>*:last-child,.rvi .body>*:last-child,.card .body>p:last-child{margin-bottom:0}
 .rvi .body ul,.rvi .body ol,.rv-good{padding-left:22px} .rvi .body li,.rv-good li{margin:4px 0}
