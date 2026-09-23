@@ -12,7 +12,7 @@ codex…)和所有平台(macOS / Linux / Windows 尽力), 单二进制分发。
 ## 1. 目标与非目标
 
 目标
-- 单二进制, 零运行时依赖, **离线可用**(d2 引擎以 Go 库内嵌, highlight.js embed, 不引 CDN; 外部工具只剩 `git` 必需、`gh` 看 PR 时)
+- 单二进制, 零运行时依赖, **离线可用**(d2 引擎以 Go 库内嵌, highlight.js embed, 不引 CDN; 外部工具只剩 `git` 必需、`gh` 看 PR 时; 需要 git **二进制**, 不需要身在 git 仓库里 —— `files` 走 `git diff --no-index`)
 - 页面 HTML/CSS/JS 是真文件(`web/`), embed 进二进制; 开发时可从磁盘热读
 - CLI 表面现代、统一(参考 `hunk`), `hudiff -h` 就是 agent 的说明书
 - 不绑定任何终端复用器(tmux / ccmux 全部去掉), 用户级"通知"走可配置的 shell hook
@@ -55,12 +55,13 @@ hudiff commit [<rev>]                             单个 commit(默认 HEAD)与�
 hudiff range <a>..<b> | <a>...<b> | <a>           区间; 只给 <a> = 工作区 vs <a>
 hudiff pr <n|#n|url>                              GitHub PR(gh pr diff / gh pr view)
 hudiff patch [<file>|-]                           补丁文件 / stdin
+hudiff files <left> <right>                       两个文件或两个目录(磁盘上, 不需要仓库; 一边文件一边目录退 2)
 hudiff open [<session-id|prefix>]                 用查看器重开已有会话(默认最近一次)
 
   kong 实现提示: 根命令无子命令时落到 `workspace` 子命令(`cmd:"" default:"withargs"`), 它挂 --staged/--unstaged
   和 `-- pathspec`; 这样 `hudiff --staged` 和 `hudiff -p "…"` 都不用写动词。
 
-  Review options(workspace / commit / range / pr / patch 共用):
+  Review options(workspace / commit / range / pr / patch / files 共用):
   --web | --tui                 查看器覆盖(默认 config.viewer; v1 里 --tui 报 not implemented)
   --no-open                     只建/刷新会话并打印 id, 不开查看器
   --json                        打印会话信息 JSON(隐含 --no-open)—— agent 走这条
@@ -133,7 +134,7 @@ hudiff/
     config/               加载 / 默认值 / keymap 默认表 / `config path|show|init`
     session/              data_dir 布局, JSON 原子读写(temp+rename), source_key 幂等, archive, 列表
     diff/                 unified diff → files/hunks/lines; hunk 编号必须与 Python 逐字一致(讲解按它对位)
-    source/               git worktree/ref/range、commit、gh pr、patch → diff 文本 + meta
+    source/               git worktree/ref/range、commit、gh pr、patch、files(git diff --no-index) → diff 文本 + meta
                           (meta 结构体的字段顺序 = session.json 里的键顺序, 别重排)
     repoctx/              git log / 符号提取 / 引用查找(原 collect_ctx); 不叫 context/ 是为了不遮蔽标准库
     review/               validate(file:line 在 diff 里)+ merge(并入规则, 见 §8.4)
@@ -220,8 +221,11 @@ chip, 点击 `scrollCodeTo` 跳到对应 hunk; 代码 tab 里每个 hunk 卡片�
 
 目录 `<data_dir>/sessions/<id>/`, id = `YYYYMMDD-HHMMSS-xxxx`。
 
-1. `session.json`: `id, kind(worktree|commit|range|pr|patch), title, repo, created, meta{…}, key, submit_seq,
+1. `session.json`: `id, kind(worktree|commit|range|pr|patch|files), title, repo, created, meta{…}, key, submit_seq,
    last_submit, refresh, archived, opener{cwd, agent_session}, bound{pid, name, kind}`(bound 2026-09-22 加回, 不含 tmux pane)。
+   `files`(2026-09-23 加): `meta{left, right}` 绝对路径, `refresh = ["files", left, right]`, key `files:<real>:<left> → <right>`
+   (同一对路径复用会话), `repo` = cwd 的 git root、不在仓库里则 = cwd; 默认标题是原样输入的 `left → right`。
+   目录模式只在文件头(`diff --git` 到首个 `@@`)剥掉两侧根目录, hunk 正文不动, 所以 `left/x` 与 `right/x` 合成一个 path `x`。
 2. `diff.patch` 原文; `diff.json`: `files[]{path, old_path, status, binary, add, del, hunks[]{header, section,
    old_start, old_count, new_start, new_count, lines[]{t, o, n, s}}}`。
 3. `notes.json`: `title, summary, diagrams[]{id, title, kind, caption, hunks[], src}, files{path: {summary,
@@ -317,3 +321,7 @@ Python daemon 放回去。图解 tab 的截图不比像素 —— 那张 d2 `ste
 15. (2026-09-22) picker 交互回到 Python 第一版: split 按钮(主按钮 + ▾), 列表全机器分 "This repo / Other" 两组, review 面板同列表点行即请求
 16. (2026-09-22) 图解效果: 不放大(外层 svg 补 width/height)、steps 改静态分板不做板间动画、auto-map 孤立节点走网格;
     SKILL 约束: 优先一张 board, 改前/改后用同图两个容器不用 steps, 节点标签 ≤ 3 行、一图 ≤ 12 节点
+17. (2026-09-23) 首页改版: 按 repo 分组(`<repo>.worktrees/*` 归入 `<repo>` 组)、组内 created 倒序、42px 单行共用一套 7 列 grid、
+    左栏 repo/kind/attention 筛选、j/k ⏎ / a esc 键位、`···` 只在选中/hover 行; 宽 <1280 先折左栏。**否掉** worktree 改叫 workspace(用户提出后撤回)。
+18. (2026-09-23) 新入口 `hudiff files <left> <right>`: 依赖 git 二进制可以, 但会话**不得要求身在 git 仓库里**, 且要能比 git 不跟踪的两个文件;
+    实现走 `git diff --no-index`(退出码 1 = 有差异, 正常), kind `files`, 页面 pill 青色 #1b7c83; 门禁夹具建在 $FIX 之外的目录里以证明不依赖仓库。
