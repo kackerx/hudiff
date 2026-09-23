@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const KIND={worktree:'workspace',pr:'PR',commit:'commit',range:'range',patch:'patch'};
+const KIND={worktree:'worktree',pr:'PR',commit:'commit',range:'range',patch:'patch'};
 const ATT={waiting:['<i class="dot"></i>agent waiting',s=>s.waiting], unsent:['unsent drafts',s=>s.counts?.open>0], pending:['pending',s=>s.counts?.sent>0]};
 const F={repo:'',kind:'',att:''};   // one pick per rail section, '' = no narrowing
 let D=null, raw='', sel='', selIdx=0;

@@ -129,7 +129,7 @@ async function loadAll(){
   refreshWaiting().catch(()=>{});
 }
 
-const kindCN = {worktree:'workspace', commit:'commit', range:'range', pr:'PR', patch:'patch'};
+const kindCN = {worktree:'working tree', commit:'commit', range:'range', pr:'PR', patch:'patch'};
 function renderHeader(){
   const {session:s, diff, notes} = S.data;
   const adds = diff.files.reduce((a,f)=>a+f.add,0), dels = diff.files.reduce((a,f)=>a+f.del,0), hunks = diff.files.reduce((a,f)=>a+f.hunks.length,0);
