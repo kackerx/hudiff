@@ -60,7 +60,7 @@ After it edits, `hudiff session refresh` re-anchors your comments to the new dif
 
 ```bash
 brew install kackerx/tap/hudiff        # macOS / Linux, built from source
-npm install -g hudiff                  # prebuilt binary for darwin/linux × x64/arm64
+npm install -g @kackerx/hudiff         # prebuilt binary for darwin/linux × x64/arm64
 go install github.com/kackerx/hudiff@latest
 ```
 

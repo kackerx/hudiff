@@ -1,5 +1,5 @@
 {
-  "name": "hudiff",
+  "name": "@kackerx/hudiff",
   "version": "0.0.0",
   "description": "Diffs for humans: an agent explains a diff, you comment on it line by line in the browser",
   "license": "MIT",
