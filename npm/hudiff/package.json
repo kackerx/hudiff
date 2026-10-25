@@ -1,0 +1,11 @@
+{
+  "name": "hudiff",
+  "version": "0.0.0",
+  "description": "Diffs for humans: an agent explains a diff, you comment on it line by line in the browser",
+  "license": "MIT",
+  "repository": "github:kackerx/hudiff",
+  "homepage": "https://github.com/kackerx/hudiff",
+  "bin": { "hudiff": "bin/hudiff.js" },
+  "files": ["bin", "LICENSE"],
+  "engines": { "node": ">=18" }
+}

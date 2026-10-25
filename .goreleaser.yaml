@@ -1,0 +1,32 @@
+# A v* tag builds the four static binaries, the archives, checksums.txt and the
+# changelog of the GitHub Release (.github/workflows/release.yml).
+version: 2
+project_name: hudiff
+
+builds:
+  - id: hudiff
+    main: .
+    binary: hudiff
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version=v{{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "hudiff_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^spec:", "^specs:", "^Merge "]
+
+release:
+  draft: false

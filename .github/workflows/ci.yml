@@ -1,0 +1,32 @@
+# vet, unit tests and formatting. The parity gate (specs/parity.sh) needs a
+# headless Chrome and is run locally before a release.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call: # release.yml runs the same checks before it builds
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      - name: gofmt and go mod tidy leave nothing to change
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+      - name: the web assets and the skill are embedded, so a plain build is the whole app
+        run: CGO_ENABLED=0 go build -o /tmp/hudiff . && /tmp/hudiff version
