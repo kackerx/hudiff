@@ -59,17 +59,18 @@ After it edits, `hudiff session refresh` re-anchors your comments to the new dif
 ## Install
 
 ```bash
-git clone https://github.com/kackerx/hudiff ~/proj/hudiff
-cd ~/proj/hudiff
-go install -trimpath -ldflags "-s -w" .   # lands in $GOBIN, or $GOPATH/bin
+brew install kackerx/tap/hudiff        # macOS / Linux, built from source
+npm install -g hudiff                  # prebuilt binary for darwin/linux × x64/arm64
+go install github.com/kackerx/hudiff@latest
 ```
 
-Go 1.27+. The binary carries JetBrains Mono ([OFL-1.1](web/vendor/JetBrainsMono-OFL.txt))
-for the prose and code text; CJK falls back to the system font, because a CJK face
-is 19MB a weight. `-trimpath -ldflags "-s -w"` is what keeps the binary at ~28MB with no
-build paths baked in; plain `go install .` works too and costs ~9MB more.
-`go install github.com/kackerx/hudiff@latest` and prebuilt binaries are coming
-once the repo is public. d2 is compiled in — nothing to install for diagrams.
+Or take a static binary from [Releases](https://github.com/kackerx/hudiff/releases):
+`hudiff_<version>_<os>_<arch>.tar.gz` for darwin/linux × amd64/arm64, with `checksums.txt`.
+
+Building from source needs Go 1.27+. The web page, the agent skill and d2 are all
+compiled in, so the binary is the whole app. It carries JetBrains Mono
+([OFL-1.1](web/vendor/JetBrainsMono-OFL.txt)) for the prose and code text; CJK falls
+back to the system font, because a CJK face is 19MB a weight.
 
 ## Quickstart
 
