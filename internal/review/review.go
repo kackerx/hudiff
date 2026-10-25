@@ -28,6 +28,23 @@ var prioLabel = map[string]string{"high": "High", "medium": "Medium", "low": "Lo
 
 var order = []string{"high", "medium", "low"}
 
+// Decisions are the report-level verdict: can this be merged.
+var Decisions = map[string]string{
+	"merge": "Ready to merge", "fix-then-merge": "Merge after the fixes", "do-not-merge": "Do not merge",
+}
+
+func validateVerdict(rv Report) []string {
+	raw, ok := rv["verdict"]
+	if !ok || raw == nil {
+		return nil
+	}
+	v, _ := raw.(map[string]any)
+	if v == nil || Decisions[str(v, "decision")] == "" || strings.TrimSpace(str(v, "reason")) == "" {
+		return []string{`verdict must be {"decision": "merge" | "fix-then-merge" | "do-not-merge", "reason": "…"}`}
+	}
+	return nil
+}
+
 func Load(dir string) Report {
 	b, err := os.ReadFile(filepath.Join(dir, "review.json"))
 	if err != nil {
@@ -92,6 +109,7 @@ func Validate(rv Report, d diff.Diff) []string {
 			return []string{"review.items must be an array"}
 		}
 	}
+	problems = append(problems, validateVerdict(rv)...)
 	seen := map[string]bool{}
 	for i, it := range items(rv) {
 		problems = append(problems, validateItem(it, i, byPath, seen)...)

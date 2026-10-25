@@ -32,6 +32,8 @@ Commands:
   review reopen      Reopen an item.
   review note        Append a re-review note to an item.
   review md          Export the report as markdown.
+  export html        The session page as one self-contained HTML file:
+                     read-only, no daemon, no network.
   comments           List comments.
   wait               Block until the user hits Send, then print the new
                      comments.

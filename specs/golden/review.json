@@ -101,5 +101,9 @@
   "tests added"
  ],
  "summary": "second pass",
- "updated": "<TS>"
+ "updated": "<TS>",
+ "verdict": {
+  "decision": "fix-then-merge",
+  "reason": "r1 still open"
+ }
 }

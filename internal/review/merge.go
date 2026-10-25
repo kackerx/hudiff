@@ -95,6 +95,9 @@ func Merge(old, new Report, replace bool) Report {
 	if s, _ := new["strengths"].([]any); len(s) > 0 {
 		old["strengths"] = s
 	}
+	if v, ok := new["verdict"]; ok && v != nil {
+		old["verdict"] = v
+	}
 	old["rounds"] = append(round(old), roundRow(rnd, new, added, updated))
 	old["_merge"] = map[string]any{"round": rnd, "added": added, "updated": updated,
 		"noted": noted, "kept": len(kept) - added}
@@ -221,7 +224,11 @@ func Count(rv Report) Counts {
 
 // Markdown exports the report in the template the user asked for.
 func Markdown(rv Report) string {
-	out := []string{"## Overall\n", strings.TrimSpace(str(rv, "summary")) + "\n", "## Strengths\n"}
+	out := []string{}
+	if v, _ := rv["verdict"].(map[string]any); v != nil {
+		out = append(out, "## Verdict\n", fmt.Sprintf("**%s**: %s\n", Decisions[str(v, "decision")], strings.TrimSpace(str(v, "reason"))))
+	}
+	out = append(out, "## Overall\n", strings.TrimSpace(str(rv, "summary"))+"\n", "## Strengths\n")
 	strengths, _ := rv["strengths"].([]any)
 	if len(strengths) == 0 {
 		out = append(out, "- (none)")

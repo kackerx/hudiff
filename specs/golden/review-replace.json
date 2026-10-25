@@ -56,5 +56,9 @@
   "clear naming"
  ],
  "summary": "first pass",
- "updated": "<TS>"
+ "updated": "<TS>",
+ "verdict": {
+  "decision": "do-not-merge",
+  "reason": "the magic number ships otherwise"
+ }
 }

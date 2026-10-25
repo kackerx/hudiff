@@ -175,6 +175,13 @@ match it**, and use `null` for hunks it says not to bother with.
    30 minutes: stop, tell the user "say the word when you want me to look at the
    comments", do not loop. You can do other work while it waits.
 
+**Headless (CI, no browser, nobody to wait for)**: create the session with
+`--no-open --json`, write the notes, and if the request is "can this be merged",
+also write a review report (Flow C schema, with `verdict`). Then skip step 5 and
+export: `hudiff -s <id> export html -o page.html` writes one self-contained,
+read-only file (no daemon, no network; `--font` embeds the mono font, ~400KB
+more). Finish with `hudiff daemon stop`.
+
 ## Flow B: handle the comments
 
 Once comments arrive (`wait` returns, or the user says "check the comments" and
@@ -242,6 +249,7 @@ explaining agent (or the user) ticks it off with a resolution.
    ```json
    {
      "summary": "overall verdict, 2–4 sentences of markdown",
+     "verdict": {"decision": "fix-then-merge", "reason": "one line: why, naming the items that block"},
      "strengths": ["one line each, something concretely good"],
      "items": [
        {"priority": "high", "title": "the problem in one line", "file": "a/b.go", "line": 42,
@@ -255,8 +263,10 @@ explaining agent (or the user) ticks it off with a resolution.
    An item with only `id` + `note` is a **re-review note**: it is appended under
    the item with that id from the previous round and is not a new finding. You can
    also add one later: `hudiff -s <id> review note r1 "…" --verdict ok`.
-   `priority`: `high` = must be fixed before shipping (a real bug, a clear
-   violation); `medium` = should be fixed but not blocking; `low` = style and
+   `verdict.decision` is `merge`, `fix-then-merge` or `do-not-merge`; it shows as
+   a banner atop the page and the report (optional; the latest round's wins).
+   `priority`: `high` (or P0) = must be fixed before shipping (a real bug, a clear
+   violation); `medium` (P1) = should be fixed but not blocking; `low` (P2) = style and
    readability. An overall problem with no location can omit `file`.
 3. Every item must be **independently actionable**: a location, the offending
    code, a fix. "Consider refactoring" is not an item. Strengths should name the

@@ -39,6 +39,9 @@ function iconFor(path){
 const icHTML = (path) => { const [ch,color]=iconFor(path); return `<span class="ic nf" style="color:${color}">${ch}</span>`; };
 const gsHTML = (st) => `<span class="gs nf ${st}" title="${GS[st]?.[1]||st}">${GS[st]?.[0]||st}</span>`;
 const BASE = location.pathname.replace(/\/+$/,'');   // /s/<id>
+// `hudiff export html` bakes the page: data and SVGs inline, nothing writes, nothing polls.
+const STATIC = window.HUDIFF_STATIC;
+if(STATIC) document.body.classList.add('static');
 const $ = (sel, el=document) => el.querySelector(sel);
 const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toast = m => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),2000); };
@@ -55,6 +58,7 @@ function applyTheme(t){
 try{ S.theme = localStorage.getItem('hudiff.theme') || 'auto'; }catch(e){}
 S.tab = LS.get('tab', 'notes');
 S.mid = LS.get('mid', 'code'); { const v=new URLSearchParams(location.search).get('view'); if(v==='code'||v==='diagrams'||v==='review') S.mid=v; } { const t=new URLSearchParams(location.search).get('tab'); if(t==='notes'||t==='comments') S.tab=t; }   // ?tab=comments preselects
+if(STATIC) S.tab='notes';
 S.sumOpen = LS.get('sum.'+location.pathname.split('/')[2], false);
 
 // ── Side panes: drag to resize, fold, remembered in localStorage ──
@@ -115,6 +119,7 @@ function inline(s){
 const tagClass = t => 'tag t'+((Array.from(String(t)).reduce((a,c)=>a+c.codePointAt(0),0))%5);
 
 async function api(method, path, body){
+  if(STATIC){ if(method!=='GET') throw new Error('read-only'); return path==='/api/session' ? STATIC.session : path==='/api/state' ? STATIC.session.state : {agents:[], waiting:0, bound:null}; }
   const r = await fetch(BASE+path, {method, headers:{'Content-Type':'application/json'}, body: body!==undefined?JSON.stringify(body):undefined});
   if(!r.ok){ toast('error: '+(await r.text())); throw new Error(path); }
   return r.json();
@@ -129,6 +134,7 @@ async function loadAll(){
   refreshWaiting().catch(()=>{});
 }
 
+const verdictHTML = rv => { const v=rv&&rv.verdict; if(!v||!v.decision) return ''; const L={'merge':'Ready to merge','fix-then-merge':'Merge after the fixes','do-not-merge':'Do not merge'}; return `<div class="verdict ${esc(v.decision)}"><b>${L[v.decision]||esc(v.decision)}</b><span>${inline(v.reason||'')}</span></div>`; };
 const kindCN = {worktree:'working tree', commit:'commit', range:'range', pr:'PR', files:'files', patch:'patch'};
 function renderHeader(){
   const {session:s, diff, notes} = S.data;
@@ -159,6 +165,7 @@ function renderHeader(){
       </div>
     </div>
     <div class="meta">${parts.join('')}</div>
+    ${verdictHTML(S.data.review)}
     ${s.brief&&(s.brief.prompt||s.brief.presets?.length)?`<div class="brief"><span class="k">Review request</span><span class="v">${esc([s.brief.prompt, ...(s.brief.presets||[]).map(p=>p.text)].filter(Boolean).join('\n'))}</span></div>`:''}
     <div class="summary ${notes.summary?(S.sumOpen?'':'collapsed'):'empty'}" id="summary">${notes.summary?`<div class="md">${md(notes.summary)}</div><span class="tog">${S.sumOpen?'collapse ▴':'expand ▾'}</span>`:'the agent has not written the overview yet; this page refreshes on its own…'}</div>
     ${m.body?`<details class="body"><summary>raw ${s.kind==='pr'?'PR description':'commit message'}</summary><pre>${esc(m.body)}</pre></details>`:''}`;
@@ -320,6 +327,7 @@ function formEl(initial, onSave, onCancel){
   return d;
 }
 function openForm(anchor, afterTr){
+  if(STATIC) return;
   const key=JSON.stringify(anchor); if(S.openForms.has(key)) return;
   const f = S.data.diff.files[anchor.fi];
   const tr=document.createElement('tr'); tr.className='crow form'; tr.dataset.key=key;
@@ -440,7 +448,7 @@ function focusCard(fi,hi){
 const isDark = () => S.theme==='dark' || (S.theme==='auto' && matchMedia('(prefers-color-scheme: dark)').matches);
 // The browser is told to keep these forever, so the stamp has to carry the
 // build too: upgrading hudiff changes how a diagram renders.
-const dgSrc = (dg, board) => `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board===undefined?'':'&board='+board}&v=${S.build||'0'}-${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
+const dgSrc = (dg, board) => STATIC ? 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(STATIC.svg[dg.boards&&dg.boards.length>1 ? dg.id+'/'+(board||0) : dg.id]||'') : `${BASE}/api/diagram?i=${encodeURIComponent(dg.id)}&theme=${isDark()?'dark':'light'}${board===undefined?'':'&board='+board}&v=${S.build||'0'}-${S.state?.notes_v||0}-${S.state?.diff_v||0}`;
 const hunkLabel = ref => { const m=/^(.+)#(\d+)$/.exec(ref); return m ? m[1].split('/').pop()+'#'+m[2] : ref; };
 function dgForHunk(path, hi){ return (S.data.diagrams||[]).filter(d=>(d.hunks||[]).includes(`${path}#${hi}`)); }
 
@@ -463,7 +471,7 @@ function renderReview(){
   if(!rv){ renderReviewRequest($('#review'), true); return; }
   const c=rvCounts(); const items=rv.items||[];
   const rounds=rv.rounds||[];
-  let html=`<div class="rv-head"><h2>Review report</h2><span class="chip">${esc(rv.author||'reviewer')}</span>${rounds.length>1?`<span class="chip">${rounds.length} rounds</span>`:''}<span class="hint">${esc((rv.updated||'').slice(0,16).replace('T',' '))} · ${c.open} open · ${c.done} handled · ${c.wontfix} wontfix</span><button class="sm" id="rv-again">↻ Review again</button></div><div id="rv-req" style="display:none"></div>`;
+  let html=`<div class="rv-head"><h2>Review report</h2><span class="chip">${esc(rv.author||'reviewer')}</span>${rounds.length>1?`<span class="chip">${rounds.length} rounds</span>`:''}<span class="hint">${esc((rv.updated||'').slice(0,16).replace('T',' '))} · ${c.open} open · ${c.done} handled · ${c.wontfix} wontfix</span><button class="sm" id="rv-again">↻ Review again</button></div><div id="rv-req" style="display:none"></div>`+verdictHTML(rv);
   if(rounds.length>1){ html+=`<div class="rv-sum" id="rv-sum"><div class="body">${rounds.map(r=>`<div class="rnd"><span class="chip">round ${r.round}</span> <span class="hint">${esc(r.author||'')} ${esc(String(r.at||'').slice(5,16).replace('T',' '))} · added ${r.added||0} items</span><div>${md(r.summary||'')}</div></div>`).join('')}</div></div>`; }
   else if(rv.summary) html+=`<div class="rv-sum" id="rv-sum"><div class="body">${md(rv.summary)}</div></div>`;
   if((rv.strengths||[]).length) html+=`<h3 style="font-size:12px;color:var(--fg2);margin:0 0 4px">Strengths</h3><ul class="rv-good">${rv.strengths.map(x=>`<li>${inline(x)}</li>`).join('')}</ul>`;
@@ -497,7 +505,7 @@ function renderReview(){
   const io=new IntersectionObserver(es=>{ es.forEach(en=>{ if(en.isIntersecting){ document.querySelectorAll('.rvo').forEach(o=>o.classList.toggle('active', o.dataset.id===en.target.dataset.id)); } }); }, {root:$('#review'), rootMargin:'-10% 0px -70% 0px', threshold:0});
   document.querySelectorAll('.rvi').forEach(f=>io.observe(f));
 }
-async function refreshReview(){ const d=await api('GET','/api/session'); S.data.review=d.review; S.state=d.state; renderMidbar(); renderReview(); markReviewLines(); if(S.mid==='review') renderNotes(); }
+async function refreshReview(){ const d=await api('GET','/api/session'); S.data.review=d.review; S.state=d.state; renderHeader(); renderMidbar(); renderReview(); markReviewLines(); if(S.mid==='review') renderNotes(); }
 // Request review: hudiff cannot reach another agent any more (tmux is gone), so
 // it hands over the command and fires config.hooks.on_review_request.
 async function renderReviewRequest(box, empty){
@@ -793,6 +801,7 @@ function highlightLines(fi, hi, spec, on){
 // serves the table at /api/config; single keys are ignored while typing.
 let KEYS = {};
 async function loadKeymap(){
+  if(STATIC){ KEYS=STATIC.keymap||{}; return; }
   try{ const c=await (await fetch('/api/config')).json(); KEYS=c.keymap||{}; S.build=c.build||''; }catch(e){ KEYS={}; }
 }
 const ACTIONS = {
@@ -850,7 +859,7 @@ document.addEventListener('keydown', e => {
 
 // Poll: the agent wrote notes, or comments changed elsewhere → refresh just that part
 setInterval(async () => {
-  if(document.hidden) return;
+  if(document.hidden || STATIC) return;
   try{
     const r = await fetch(BASE+'/api/state'); if(!r.ok) throw 0; const st = await r.json();
     if($('#offline').style.display!=='none'){ $('#offline').style.display='none'; toast('reconnected'); await loadAll(); return; }

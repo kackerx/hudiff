@@ -373,3 +373,18 @@ header .summary b,.rv-sum b,.rvi .body b,.rv-good b,.card .body b,.thread .b b{c
 header .summary code,.rv-sum code,.rvi .body code,.rv-good code,.card .body code,.thread .b code{
   font-family:"JetBrains Mono",var(--mono);font-size:.94em;background:transparent;padding:0;
   border-radius:0;color:var(--accent)}
+
+/* ── report-level verdict: in the header and atop the Review tab ── */
+.verdict{display:flex;gap:10px;align-items:baseline;margin:8px 0;padding:8px 12px;border-radius:8px;border:1px solid;font-size:13px;line-height:1.5}
+.verdict b{white-space:nowrap}
+.verdict.merge{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.verdict.fix-then-merge{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.verdict.do-not-merge{background:var(--del-bg);color:var(--del-fg);border-color:var(--del-fg)}
+.verdict span{color:var(--fg)}
+
+/* ── exported page (`hudiff export html`): read-only, so nothing that writes ── */
+body.static #archive,body.static .sendgrp,body.static .toolbar .cnt,body.static .toolbar label:has(#showres),
+body.static a.hint[href="/"],body.static .tabs [data-tab=comments],body.static .gen,
+body.static .card .acts,body.static .rvi .acts,body.static #rv-again,body.static .cform,body.static .midbar .hint{display:none!important}
+body.static .brand,body.static .rvi .cb{pointer-events:none}
+body.static td.gut{cursor:default} body.static tr.line:hover td.gut::after{display:none}

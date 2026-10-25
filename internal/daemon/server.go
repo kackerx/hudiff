@@ -272,10 +272,14 @@ type sessionPayload struct {
 }
 
 func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir string) {
+	sendJSON(w, 200, payloadOf(dir))
+}
+
+func payloadOf(dir string) sessionPayload {
 	raw := func(name, def string) json.RawMessage {
 		return session.ReadRaw(filepath.Join(dir, name), def)
 	}
-	sendJSON(w, 200, sessionPayload{
+	return sessionPayload{
 		Session:  raw("session.json", "{}"),
 		Diff:     raw("diff.json", `{"files": []}`),
 		Notes:    raw("notes.json", "{}"),
@@ -284,7 +288,7 @@ func (s *server) apiSession(w http.ResponseWriter, r *http.Request, sid, dir str
 		Diagrams: diagram.List(dir, diff.Load(dir), diagram.DefaultConfig()),
 		D2:       true, // d2 is compiled in now; the page keeps the flag
 		Review:   raw("review.json", "null"),
-	})
+	}
 }
 
 func (s *server) apiState(w http.ResponseWriter, r *http.Request, sid, dir string) {

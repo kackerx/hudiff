@@ -63,6 +63,12 @@
 </code>
 </span>
 </div>
+<div class="verdict do-not-merge">
+<b>
+</b>
+<span>
+</span>
+</div>
 <div class="summary collapsed" id="summary">
 <div class="md">
 <p>
@@ -1002,6 +1008,12 @@
 </div>
 <div id="rv-req">
 </div>
+<div class="verdict do-not-merge">
+<b>
+</b>
+<span>
+</span>
+</div>
 <div class="rv-sum" id="rv-sum">
 <div class="body">
 <p>
@@ -1161,7 +1173,7 @@
 <span class="chip">
 </span>
 </div>
-<div class="rvo high open active" data-id="r1">
+<div class="rvo high open" data-id="r1">
 <span class="t">
 </span>
 <span class="l">

@@ -355,6 +355,17 @@ if [ "$PAGE" = 1 ]; then
     else
         bad "no agent picker in the page  ($WORK/page.code.html)"
     fi
+    # `export html` is the same page with nothing to talk to: opened from a file
+    # it renders the same skeleton, writes nothing and loads nothing.
+    hud "$STATE" -s "$SID" export html -o "$WORK/export.html" 2>/dev/null || true
+    dump "file://$WORK/export.html?view=review" "$WORK/export.dom.html"
+    gold page-export structure "$WORK/export.dom.html"
+    if grep -q '<body class="static">' "$WORK/export.dom.html" && grep -q 'class="verdict do-not-merge"' "$WORK/export.dom.html" &&
+       ! grep -Eq '<(link|script)[^>]* (src|href)="/' "$WORK/export.html"; then
+        ok "export html is self-contained and read-only, verdict on top"
+    else
+        bad "export html  ($WORK/export.html)"
+    fi
     if grep -q 'class="lr' "$WORK/index.html"; then
         ok "home page lists sessions"
     else

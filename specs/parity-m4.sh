@@ -12,6 +12,7 @@ print(next(l for l in h["lines"] if l["t"] == "+")["n"])' "$SESS")
 
 cat >"$WORK/r1.json" <<JSON
 {"summary":"first pass","strengths":["clear naming"],
+ "verdict":{"decision":"do-not-merge","reason":"the magic number ships otherwise"},
  "items":[{"id":"r1","priority":"high","title":"magic number","file":"a.go","line":$line,"body":"why 11","suggestion":"name it"},
           {"id":"r2","priority":"medium","title":"no test","file":"a.go","body":"add one"},
           {"id":"r3","priority":"low","title":"comment wording","file":"a.go","line":$line,"body":"nit"}]}
@@ -20,6 +21,7 @@ JSON
 # same place with the same title, and r2 gets a re-review note.
 cat >"$WORK/r2.json" <<JSON
 {"summary":"second pass","strengths":["clear naming","tests added"],
+ "verdict":{"decision":"fix-then-merge","reason":"r1 still open"},
  "items":[{"id":"r1","priority":"high","title":"magic number","file":"a.go","line":$line,"body":"still magic","suggestion":"name it properly"},
           {"id":"r9","priority":"low","title":"comment wording","file":"a.go","line":$line,"body":"same spot, renumbered"},
           {"id":"r2","note":"checked, the test landed","verdict":"ok"},

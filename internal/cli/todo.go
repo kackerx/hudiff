@@ -57,6 +57,15 @@ type DiagramCmd struct {
 	Out   string `short:"o" help:"Write the SVG here instead of stdout." placeholder:"<svg>"`
 }
 
+type ExportCmd struct {
+	HTML ExportHTMLCmd `cmd:"" name:"html" help:"The session page as one self-contained HTML file: read-only, no daemon, no network."`
+}
+
+type ExportHTMLCmd struct {
+	Out  string `short:"o" help:"Write here instead of stdout." placeholder:"<file>"`
+	Font bool   `help:"Embed the JetBrains Mono font (about 400KB); otherwise the system monospace is used."`
+}
+
 type ReviewCmd struct {
 	Show    ReviewShowCmd     `cmd:"" default:"1" help:"Show the report."`
 	Set     ReviewSetCmd      `cmd:"" help:"Write a report; merges into the existing one by default."`

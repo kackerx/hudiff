@@ -43,6 +43,7 @@ type CLI struct {
 	Notes    NotesCmd    `cmd:"" help:"Write the agent's per-hunk explanation."`
 	Diagram  DiagramCmd  `cmd:"" help:"List, dump or render diagrams."`
 	Review   ReviewCmd   `cmd:"" help:"Cross-review report."`
+	Export   ExportCmd   `cmd:"" help:"Export a session."`
 	Comments CommentsCmd `cmd:"" help:"List comments."`
 	Wait     WaitCmd     `cmd:"" help:"Block until the user hits Send, then print the new comments."`
 	Reply    ReplyCmd    `cmd:"" help:"Reply to a comment."`

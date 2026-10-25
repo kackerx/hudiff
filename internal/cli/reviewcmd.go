@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/kackerx/hudiff/internal/daemon"
 	"github.com/kackerx/hudiff/internal/review"
 	"github.com/kackerx/hudiff/internal/session"
 )
@@ -32,7 +33,11 @@ func (c *ReviewShowCmd) Run(g *Globals) error {
 
 func printReview(rv review.Report, onlyOpen bool) {
 	cnt := review.Count(rv)
-	fmt.Printf("# review by %v  updated %v\n%v\n\n", rv["author"], rv["updated"], rv["summary"])
+	fmt.Printf("# review by %v  updated %v\n", rv["author"], rv["updated"])
+	if v, _ := rv["verdict"].(map[string]any); v != nil {
+		fmt.Printf("verdict: %v — %v\n", v["decision"], v["reason"])
+	}
+	fmt.Printf("%v\n\n", rv["summary"])
 	if s, _ := rv["strengths"].([]any); len(s) > 0 {
 		fmt.Println("strengths:")
 		for _, x := range s {
@@ -156,5 +161,29 @@ func (c *ReviewMarkdownCmd) Run(g *Globals) error {
 		return usage("no review report yet")
 	}
 	fmt.Println(review.Markdown(rv))
+	return nil
+}
+
+func (c *ExportHTMLCmd) Run(g *Globals) error {
+	_, dir, err := session.Current(g.Session)
+	if err != nil {
+		return usage("%v", err)
+	}
+	b, err := daemon.ExportHTML(dir, c.Font)
+	if err != nil {
+		return envErr("%v", err)
+	}
+	if c.Out == "" {
+		_, err = os.Stdout.Write(b)
+	} else {
+		err = os.WriteFile(c.Out, b, 0o644)
+	}
+	if err != nil {
+		return envErr("%v", err)
+	}
+	fmt.Fprintf(os.Stderr, "exported %d bytes\n", len(b))
+	if len(b) > 1<<20 {
+		fmt.Fprintln(os.Stderr, "hudiff: over 1MB; gist's web view truncates there (the raw URL does not)")
+	}
 	return nil
 }
