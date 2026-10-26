@@ -78,7 +78,7 @@ match it**, and use `null` for hunks it says not to bother with.
    ```json
    {
      "title": "one line, page header, keep it short",
-     "summary": "2–5 sentences of markdown: why this changed, which parts moved, what to watch",
+     "summary": "1–3 sentences of markdown: what changed and why",
      "diagrams": [
        {"id": "flow", "title": "diagram title", "kind": "d2",
         "caption": "one or two lines: which question this answers",
@@ -108,11 +108,12 @@ match it**, and use `null` for hunks it says not to bother with.
      is intent, trade-offs and the links to elsewhere. "Adds a ContextWindow
      field" is noise; "context_window and --context-window now share one parser so
      the K/M suffix is not implemented twice" is the point.
-   - Each card should answer four things, skip what does not apply but not all of
-     them: **why** (evidence from recent history, the brief, the commit message) →
+   - A card draws on four things, and only where it has something non-obvious to
+     say: **why** (evidence from recent history, the brief, the commit message) →
      **the point** (what behaviour changed inside its function) → **blast radius**
      (the callers `context` found: who is affected, did they move too) → **risk and
      verification** (edges, concurrency, error paths; is it tested).
+     Not four headings to fill in.
    - Write the cross-file links: if A adds a function B calls, name it in both
      cards (``` `bufferline.lua#3` uses `bound_paths()` from here ```) so the user
      can follow it.
@@ -127,6 +128,7 @@ match it**, and use `null` for hunks it says not to bother with.
      worth confirming the caller guarantees non-nil". The user wants a reviewer's
      eye, not a press release.
    - Keep identifiers and terms verbatim, in backticks.
+   - **Write for a human skimming the page** — see *Keep it short* below.
 4b. **Diagrams** (`diagrams`, optional but worth it): a wall of text explains less
    than one picture. The middle pane has a Diagrams tab and the right pane turns
    into a thumbnail list. The **change map** (file → changed symbols → callers) is
@@ -248,12 +250,12 @@ explaining agent (or the user) ticks it off with a resolution.
 
    ```json
    {
-     "summary": "overall verdict, 2–4 sentences of markdown",
-     "verdict": {"decision": "fix-then-merge", "reason": "one line: why, naming the items that block"},
-     "strengths": ["one line each, something concretely good"],
+     "summary": "1–2 sentences: the overall judgement, not a list of the items",
+     "verdict": {"decision": "fix-then-merge", "reason": "one short line naming the blocking items: r1, r2"},
+     "strengths": ["one short line each, at most 3, something concretely good"],
      "items": [
        {"priority": "high", "title": "the problem in one line", "file": "a/b.go", "line": 42,
-        "body": "why it is a problem and what it affects",
+        "body": "1–2 sentences: what breaks and when",
         "suggestion": "the concrete fix:\n```diff\n-old\n+new\n```"},
        {"id": "r1", "note": "re-review: workflows.go:146 now reads as history, consistent with the text above", "verdict": "ok"},
        {"id": "r3", "note": "the refusal says 'deliberate', but settings.json switched back to opus only last commit — worth confirming", "verdict": "disagree"}
@@ -280,6 +282,29 @@ user says "work through the review"): `hudiff review show --open`, fix the code,
 where you disagree — **leave genuine disagreements to the user, do not force a
 done**. Run `session refresh` on a working-tree session afterwards. When it is
 all handled, `hudiff review md` exports markdown to paste into the PR.
+
+## Keep it short
+
+The reader skims the page next to the code; every extra sentence costs them.
+Notes, review and verdict all land on one page, so the budgets below are for
+the whole page, not each part.
+
+- **Say each thing once.** The notes explain, the review judges. When there is
+  also a review report (cross-review, or headless with a verdict), a risk that
+  is a review item stays out of the cards and the summary — at most a pointer
+  ("see review r1"). The verdict reason names item ids; the review summary does
+  not re-list the items; strengths do not repeat what a card already said.
+- **Budgets.** Summary 1–3 sentences. A card: one lead sentence plus at most
+  3–4 bullets, each one line — a card longer than its hunk has failed. Review
+  item: a title that states the claim, a body of 1–2 sentences, a suggestion
+  that is a minimal diff or one line.
+- **Lead with the point**, then the evidence. Cut hedges, background the reader
+  can see in the diff, and asides ("the comment says X, but…" → just say what
+  is true).
+- **Layout over prose**: short bullets, `L42` line refs, identifiers in
+  backticks; no bold headings like **Why** / **Risks** inside a card, no nested
+  bullets, no paragraph over 3 lines.
+- Match the user's language; keep code terms verbatim.
 
 ## What "Send to agent" does
 
