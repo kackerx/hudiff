@@ -304,6 +304,15 @@ the whole page, not each part.
 - **Layout over prose**: short bullets, `L42` line refs, identifiers in
   backticks; no bold headings like **Why** / **Risks** inside a card, no nested
   bullets, no paragraph over 3 lines.
+- **Plain sentences** (the useful 80% of ASD-STE100, taken loosely — a
+  direction, not a word count):
+  - One fact per sentence: about 20 English words or 40 Chinese characters.
+  - A concrete subject that acts: "`match` reads the PR's `head.ref`", not
+    "PR info is read".
+  - One name per thing across the whole page: do not alternate run / job /
+    workflow for the same object.
+  - Condition first: "if the commenter has no write access, the comment is
+    ignored".
 - Match the user's language; keep code terms verbatim.
 
 ## What "Send to agent" does
